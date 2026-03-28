@@ -1,19 +1,27 @@
 /**
  * Anthropic Claude API Client
- * Configured with API key from environment variables
+ * Configured with OAuth token from environment variables
  *
- * Note: Full API implementation will be done in Step 5 (Build core API endpoints)
+ * Uses Claude Agent SDK which supports both OAuth tokens (for Claude Pro/Max subscriptions)
+ * and API keys (for pay-per-use access)
  */
 
-import Anthropic from '@anthropic-ai/sdk';
-
-// Initialize only if API key is provided (optional for development)
-export const anthropic = process.env.ANTHROPIC_API_KEY
-  ? new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    })
-  : null;
-
 // Default model configuration
-export const DEFAULT_MODEL = 'claude-sonnet-4-5-20250929';
+export const DEFAULT_MODEL = 'claude-sonnet-4-5';
 export const DEFAULT_MAX_TOKENS = 4096;
+
+/**
+ * Check if authentication credentials are configured
+ */
+export function hasAuthCredentials(): boolean {
+  return !!(process.env.CLAUDE_CODE_OAUTH_TOKEN || process.env.ANTHROPIC_API_KEY);
+}
+
+/**
+ * Get the authentication type being used
+ */
+export function getAuthType(): 'oauth' | 'apikey' | 'none' {
+  if (process.env.CLAUDE_CODE_OAUTH_TOKEN) return 'oauth';
+  if (process.env.ANTHROPIC_API_KEY) return 'apikey';
+  return 'none';
+}

@@ -6,7 +6,7 @@ Multiple independent projects coexist here, each in its own subdirectory.
 ## Directory Structure
 
 ```
-agent-outputs/
+ai-sandbox/
 ├── CLAUDE.md              # This file — workspace-wide instructions (do not modify)
 ├── .env                   # Worker env (synced from .env.worker; do not modify)
 ├── .env.app               # App credentials (Tier 3, APP_ prefix stripped; read-only)
@@ -51,6 +51,8 @@ The following application credentials are available in `.env.app` at the workspa
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_PASSWORD`
+- `SUPABASE_POOLER_REGION`
 
 These have been stripped of the `APP_` prefix. Inject them into your project in whatever format it needs:
 - **Node.js/Python**: Copy to project `.env` or use dotenv

@@ -2,8 +2,10 @@
 /**
  * extract-captions.mjs -- Parse Playwright spec file, output JSON manifest
  *
- * Extracts caption text from showCaption()/caption()/hideCaption() calls
- * and estimates video timestamps using a line-by-line sequential heuristic.
+ * Two modes:
+ *   1. Heuristic (default): Parse spec file, estimate timestamps from code
+ *   2. From-log (recommended): Parse __CAPTION_TS__ markers from Playwright
+ *      test output for exact timestamps. Use with startTimestampRecording().
  *
  * Zero npm dependencies -- uses Node.js builtins only.
  *
@@ -12,6 +14,8 @@
  *
  * Options:
  *   --output, -o <path>      Output JSON manifest path (default: captions.json in cwd)
+ *   --from-log <path>        Parse real timestamps from Playwright test output log
+ *                             (produced when spec calls startTimestampRecording())
  *   --show-fn <name>         Custom showCaption function name (default: showCaption)
  *   --caption-fn <name>      Custom caption function name (default: caption)
  *   --hide-fn <name>         Custom hideCaption function name (default: hideCaption)
@@ -34,6 +38,7 @@ if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
 
 Options:
   --output, -o <path>      Output JSON manifest path (default: captions.json)
+  --from-log <path>        Parse real timestamps from Playwright test output
   --show-fn <name>         Custom showCaption function name (default: showCaption)
   --caption-fn <name>      Custom caption function name (default: caption)
   --hide-fn <name>         Custom hideCaption function name (default: hideCaption)
@@ -49,14 +54,106 @@ function getArg(flag, defaultVal) {
 
 const specFile = args.find((a) => !a.startsWith('-'));
 const outputPath = getArg('--output', getArg('-o', 'captions.json'));
+const fromLog = getArg('--from-log', null);
 const showFn = getArg('--show-fn', 'showCaption');
 const captionFn = getArg('--caption-fn', 'caption');
 const hideFn = getArg('--hide-fn', 'hideCaption');
 const dryRun = args.includes('--dry-run');
 
-if (!specFile || !fs.existsSync(specFile)) {
-  console.error(`Error: Spec file not found: ${specFile}`);
-  process.exit(1);
+// ---------------------------------------------------------------------------
+// From-log mode: parse real timestamps from Playwright test output
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse __CAPTION_TS__ markers from a Playwright test output log.
+ *
+ * Expected marker formats (emitted by caption-overlay.ts):
+ *   __CAPTION_TS__:init:<offsetSec>
+ *   __CAPTION_TS__:show:<sec>:<json-text>
+ *   __CAPTION_TS__:caption:<sec>:<durationMs>:<json-text>
+ *
+ * Returns a caption manifest array with exact timestamps.
+ */
+function parseTimestampLog(logContent) {
+  const lines = logContent.split('\n');
+  const captions = [];
+  let captionId = 1;
+  let hasInit = false;
+
+  for (const line of lines) {
+    if (!line.includes('__CAPTION_TS__')) continue;
+
+    // Extract the marker portion (may be prefixed by Playwright output formatting)
+    const markerIdx = line.indexOf('__CAPTION_TS__');
+    const marker = line.substring(markerIdx);
+
+    // Init marker
+    const initMatch = marker.match(/^__CAPTION_TS__:init:(.+)$/);
+    if (initMatch) {
+      hasInit = true;
+      continue;
+    }
+
+    // showCaption marker: __CAPTION_TS__:show:<sec>:<json-text>
+    const showMatch = marker.match(/^__CAPTION_TS__:show:(\d+\.?\d*):(.+)$/);
+    if (showMatch) {
+      const startSec = parseFloat(showMatch[1]);
+      let text;
+      try {
+        text = JSON.parse(showMatch[2]);
+      } catch {
+        text = showMatch[2];
+      }
+      captions.push({
+        id: captionId++,
+        text,
+        startSec: Math.round(startSec * 10) / 10,
+        type: 'showCaption',
+      });
+      continue;
+    }
+
+    // caption marker: __CAPTION_TS__:caption:<sec>:<durationMs>:<json-text>
+    const captionMatch = marker.match(/^__CAPTION_TS__:caption:(\d+\.?\d*):(\d+):(.+)$/);
+    if (captionMatch) {
+      const startSec = parseFloat(captionMatch[1]);
+      const durationMs = parseInt(captionMatch[2], 10);
+      let text;
+      try {
+        text = JSON.parse(captionMatch[3]);
+      } catch {
+        text = captionMatch[3];
+      }
+      captions.push({
+        id: captionId++,
+        text,
+        startSec: Math.round(startSec * 10) / 10,
+        type: 'caption',
+        durationMs,
+      });
+      continue;
+    }
+  }
+
+  if (!hasInit) {
+    console.warn('WARNING: No __CAPTION_TS__:init marker found in log.');
+    console.warn('  Did the spec call startTimestampRecording()?');
+    console.warn('  Timestamps may not be aligned to video start.');
+  }
+
+  return captions;
+}
+
+// ---------------------------------------------------------------------------
+// Validate spec file (only needed for heuristic mode)
+// ---------------------------------------------------------------------------
+
+if (!fromLog) {
+  if (!specFile || !fs.existsSync(specFile)) {
+    console.error(`Error: Spec file not found: ${specFile}`);
+    console.error('  Use --from-log <file> to extract from a recording log instead.');
+    process.exit(1);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -145,7 +242,7 @@ function findFunctionBounds(source, fnName) {
 }
 
 // ---------------------------------------------------------------------------
-// Main extraction algorithm
+// Main extraction algorithm (heuristic mode)
 // ---------------------------------------------------------------------------
 
 function extractCaptions(source) {
@@ -390,26 +487,69 @@ function normalizeMultiline(source) {
 // ---------------------------------------------------------------------------
 
 function main() {
-  const rawSource = fs.readFileSync(specFile, 'utf-8');
-  const source = normalizeMultiline(rawSource);
+  let captions;
 
-  console.log(`Extracting captions from: ${path.resolve(specFile)}`);
-  console.log(`  Show function:    ${showFn}`);
-  console.log(`  Caption function: ${captionFn}`);
-  console.log(`  Hide function:    ${hideFn}`);
-  console.log();
+  if (fromLog) {
+    // --from-log mode: parse real timestamps from Playwright test output
+    if (!fs.existsSync(fromLog)) {
+      console.error(`Error: Log file not found: ${fromLog}`);
+      process.exit(1);
+    }
 
-  const captions = extractCaptions(source);
+    const logContent = fs.readFileSync(fromLog, 'utf-8');
+    console.log(`Extracting captions from recording log: ${path.resolve(fromLog)}`);
+    console.log('  Mode: real timestamps (from startTimestampRecording)\n');
+
+    captions = parseTimestampLog(logContent);
+
+    if (captions.length === 0) {
+      console.warn('WARNING: No __CAPTION_TS__ markers found in the log file.');
+      console.warn('  Ensure the spec calls startTimestampRecording() and uses');
+      console.warn('  the updated caption-overlay.ts template.');
+
+      if (specFile && fs.existsSync(specFile)) {
+        console.warn(`\n  Falling back to heuristic extraction from: ${specFile}`);
+        const rawSource = fs.readFileSync(specFile, 'utf-8');
+        const source = normalizeMultiline(rawSource);
+        captions = extractCaptions(source);
+      } else {
+        process.exit(1);
+      }
+    }
+  } else {
+    // Heuristic mode: parse spec file and estimate timestamps
+    if (!specFile || !fs.existsSync(specFile)) {
+      console.error(`Error: Spec file not found: ${specFile}`);
+      console.error('  Use --from-log <file> to extract from a recording log instead.');
+      process.exit(1);
+    }
+
+    const rawSource = fs.readFileSync(specFile, 'utf-8');
+    const source = normalizeMultiline(rawSource);
+
+    console.log(`Extracting captions from: ${path.resolve(specFile)}`);
+    console.log(`  Mode: heuristic timestamp estimation`);
+    console.log(`  Show function:    ${showFn}`);
+    console.log(`  Caption function: ${captionFn}`);
+    console.log(`  Hide function:    ${hideFn}`);
+    console.log('  NOTE: For exact timestamps, use startTimestampRecording() in your spec');
+    console.log('        and pass --from-log <recording.log> to this script.\n');
+
+    captions = extractCaptions(source);
+  }
 
   if (captions.length === 0) {
-    console.warn('WARNING: No captions found in the spec file.');
-    console.warn(`  Looked for: ${showFn}(page, '...') and ${captionFn}(page, '...', ms)`);
-    console.warn('  Try --show-fn / --caption-fn if your spec uses different function names.');
+    console.warn('WARNING: No captions found.');
+    if (!fromLog) {
+      console.warn(`  Looked for: ${showFn}(page, '...') and ${captionFn}(page, '...', ms)`);
+      console.warn('  Try --show-fn / --caption-fn if your spec uses different function names.');
+    }
     process.exit(0);
   }
 
   // Print summary
-  console.log(`Found ${captions.length} captions:\n`);
+  const modeLabel = fromLog ? 'real' : 'estimated';
+  console.log(`Found ${captions.length} captions (${modeLabel} timestamps):\n`);
   for (const cap of captions) {
     const dur = cap.durationMs ? ` (${cap.durationMs}ms hold)` : '';
     console.log(`  #${String(cap.id).padStart(2, ' ')} [${cap.startSec.toFixed(1)}s] ${cap.type}: "${cap.text.slice(0, 60)}${cap.text.length > 60 ? '...' : ''}"${dur}`);
@@ -417,7 +557,7 @@ function main() {
 
   const lastCap = captions[captions.length - 1];
   const estEnd = lastCap.startSec + (lastCap.durationMs ? lastCap.durationMs / 1000 : 3);
-  console.log(`\nEstimated video duration: ~${estEnd.toFixed(0)}s`);
+  console.log(`\n${fromLog ? 'Actual' : 'Estimated'} video duration: ~${estEnd.toFixed(0)}s`);
 
   // Write manifest
   const manifest = JSON.stringify(captions, null, 2);
@@ -431,7 +571,9 @@ function main() {
     }
     fs.writeFileSync(outputPath, manifest);
     console.log(`\nManifest written to: ${path.resolve(outputPath)}`);
-    console.log('Edit this file to adjust timestamps before running generate-voice.mjs');
+    if (!fromLog) {
+      console.log('Edit this file to adjust timestamps before running generate-voice.mjs');
+    }
   }
 }
 

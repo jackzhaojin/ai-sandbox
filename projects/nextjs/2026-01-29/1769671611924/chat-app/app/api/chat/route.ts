@@ -1,13 +1,13 @@
 /**
  * Chat API Route
- * Handles streaming chat with Claude AI
+ * Handles streaming chat with Claude AI using Claude Agent SDK
+ * Supports OAuth token (Claude Pro/Max) and API key authentication
  */
 
 import { NextRequest } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db/prisma';
-import { streamText } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
+import { query, type SDKMessage, type SDKResultMessage } from '@anthropic-ai/claude-agent-sdk';
 import { chatRequestSchema } from '@/lib/validations';
 import {
   handleApiError,
@@ -15,6 +15,7 @@ import {
   notFoundResponse,
   apiKeyMissingResponse,
 } from '@/lib/errors';
+import { DEFAULT_MODEL } from '@/lib/anthropic/client';
 
 /**
  * POST /api/chat
@@ -28,8 +29,8 @@ export async function POST(req: NextRequest) {
       return unauthorizedResponse();
     }
 
-    // Validate ANTHROPIC_API_KEY is configured
-    if (!process.env.ANTHROPIC_API_KEY) {
+    // Validate authentication credentials are configured (OAuth or API key)
+    if (!process.env.CLAUDE_CODE_OAUTH_TOKEN && !process.env.ANTHROPIC_API_KEY) {
       return apiKeyMissingResponse();
     }
 
@@ -92,55 +93,82 @@ export async function POST(req: NextRequest) {
     });
 
     // Build conversation history for Claude
-    const messages = [
-      ...conversation.messages.map((msg) => ({
-        role: msg.role === 'user' ? 'user' as const : 'assistant' as const,
-        content: msg.content,
-      })),
-      {
-        role: 'user' as const,
-        content: message,
-      },
-    ];
+    const conversationHistory = conversation.messages.map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    }));
 
-    // Store userId for use in onFinish callback
+    // Build the full prompt with conversation history
+    let fullPrompt = message;
+    if (conversationHistory.length > 0) {
+      const historyText = conversationHistory
+        .map((msg) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+        .join('\n\n');
+      fullPrompt = `${historyText}\n\nUser: ${message}`;
+    }
+
+    // Store userId and conversationId for use in async completion handler
     const userId = session.user.id;
     const conversationIdForCallback = conversation.id;
 
-    // Call Claude API with streaming using AI SDK 6.0
-    const result = streamText({
-      model: anthropic('claude-3-5-sonnet-20241022'),
-      messages,
-      maxOutputTokens: 4096,
-      async onFinish({ text }) {
-        // Save assistant response to database
-        try {
-          await prisma.message.create({
-            data: {
-              conversationId: conversationIdForCallback,
-              content: text,
-              role: 'assistant',
-              metadata: JSON.stringify({
-                model: 'claude-3-5-sonnet-20241022',
-                userId: userId,
-              }),
-            },
-          });
+    // Query Claude using Agent SDK (supports both OAuth and API key)
+    let fullResponse = '';
+    try {
+      const agentStream = query({
+        prompt: fullPrompt,
+        options: {
+          model: DEFAULT_MODEL,
+          maxTurns: 1,
+        },
+      });
 
-          // Update conversation timestamp
-          await prisma.conversation.update({
-            where: { id: conversationIdForCallback },
-            data: { updatedAt: new Date() },
-          });
-        } catch (error) {
-          console.error('Error saving assistant message:', error);
+      // Process the streaming response
+      for await (const msg of agentStream) {
+        const sdkMessage = msg as SDKMessage;
+
+        // Handle result message
+        if (sdkMessage.type === 'result') {
+          const resultMsg = sdkMessage as SDKResultMessage;
+          if (resultMsg.subtype === 'success' && resultMsg.result) {
+            fullResponse = resultMsg.result;
+          } else {
+            // Handle error results
+            fullResponse = `Error: ${resultMsg.subtype}`;
+          }
         }
-      },
-    });
+      }
+    } catch (error) {
+      console.error('Agent SDK error:', error);
+      fullResponse = `Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    }
 
-    // Return streaming response with conversation ID in headers
-    return result.toTextStreamResponse({
+    // Save assistant response to database
+    try {
+      await prisma.message.create({
+        data: {
+          conversationId: conversationIdForCallback,
+          content: fullResponse,
+          role: 'assistant',
+          metadata: JSON.stringify({
+            model: DEFAULT_MODEL,
+            userId: userId,
+          }),
+        },
+      });
+
+      // Update conversation timestamp
+      await prisma.conversation.update({
+        where: { id: conversationIdForCallback },
+        data: { updatedAt: new Date() },
+      });
+    } catch (error) {
+      console.error('Error saving assistant message:', error);
+    }
+
+    // Return the response as plain text
+    return new Response(fullResponse, {
       headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
         'X-Conversation-Id': conversation.id,
         'X-Message-Id': userMessage.id,
       },

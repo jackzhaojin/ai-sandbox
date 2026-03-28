@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.29",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.86",
     "@anthropic-ai/sdk": "^0.71.2",
     "@prisma/adapter-better-sqlite3": "^7.3.0",
     "@prisma/client": "^7.3.0",

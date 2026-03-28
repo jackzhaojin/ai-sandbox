@@ -1,0 +1,90 @@
+[
+  {
+    "id": 1,
+    "text": "Welcome to Claude Chat, a conversational AI application.",
+    "startSec": 1.5,
+    "type": "caption",
+    "line": 34,
+    "durationMs": 4800
+  },
+  {
+    "id": 2,
+    "text": "Built with Next.js and powered by Claude AI using OAuth authentication.",
+    "startSec": 11.7,
+    "type": "caption",
+    "line": 37,
+    "durationMs": 5600
+  },
+  {
+    "id": 3,
+    "text": "First, let\\'s create a new account to access the chat.",
+    "startSec": 24,
+    "type": "caption",
+    "line": 50,
+    "durationMs": 4000
+  },
+  {
+    "id": 4,
+    "text": "Entering user details and creating an account.",
+    "startSec": 32.6,
+    "type": "caption",
+    "line": 65,
+    "durationMs": 3600
+  },
+  {
+    "id": 5,
+    "text": "Registration successful. Now logging in.",
+    "startSec": 42.4,
+    "type": "caption",
+    "line": 77,
+    "durationMs": 3200
+  },
+  {
+    "id": 6,
+    "text": "Here is the chat interface with conversation history on the left.",
+    "startSec": 51.9,
+    "type": "caption",
+    "line": 96,
+    "durationMs": 4800
+  },
+  {
+    "id": 7,
+    "text": "Let\\'s send a message to Claude and see the AI response.",
+    "startSec": 62.1,
+    "type": "caption",
+    "line": 104,
+    "durationMs": 4000
+  },
+  {
+    "id": 8,
+    "text": "Message sent. The app is now streaming Claude\\'s response using OAuth authentication.",
+    "startSec": 70.7,
+    "type": "caption",
+    "line": 110,
+    "durationMs": 6400
+  },
+  {
+    "id": 9,
+    "text": "Success! Claude responded with a creative haiku, proving our OAuth integration works perfectly.",
+    "startSec": 84.1,
+    "type": "caption",
+    "line": 119,
+    "durationMs": 6400
+  },
+  {
+    "id": 10,
+    "text": "The app uses Claude Agent SDK with OAuth tokens, supporting both Pro and Max subscriptions.",
+    "startSec": 97.5,
+    "type": "caption",
+    "line": 125,
+    "durationMs": 7200
+  },
+  {
+    "id": 11,
+    "text": "All messages are persisted in a SQLite database, and conversations can be managed from the sidebar.",
+    "startSec": 112.5,
+    "type": "caption",
+    "line": 128,
+    "durationMs": 7200
+  }
+]

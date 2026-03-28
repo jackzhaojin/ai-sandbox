@@ -155,8 +155,9 @@ test('demo scene 1 - landing page @demo', async ({ page }) => {
 
 ### Demo Script Writing Rules
 
-1. **Never assume data exists.** Always assert before narrating.
-2. **Never use `.catch(() => {})`.** If an interaction fails, the demo should fail.
+1. **Always call `startTimestampRecording()` as the first line of the test.** This is the single most important step for reliable video-audio sync. Without it, the pipeline uses heuristic timestamp estimation that drifts on demos >60s.
+2. **Never assume data exists.** Always assert before narrating.
+3. **Never use `.catch(() => {})`.** If an interaction fails, the demo should fail.
 3. **Match narration to visuals exactly.** If the page shows 3 recipes, say "3 recipes" not "our collection of recipes."
 4. **Test each scene in isolation first.** Don't chain 10 scenes together and hope they all work.
 5. **Use specific, observable descriptions.** Instead of "powerful search capabilities," say "searching for pasta dishes" while the search box shows "pasta" and results are filtered.
@@ -350,18 +351,42 @@ User has a Playwright spec with `showCaption()`/`caption()` calls.
 **Steps:**
 
 1. Copy templates into the target project:
-   - `templates/caption-overlay.ts` -- caption CSS + functions
+   - `templates/caption-overlay.ts` -- caption CSS + functions + timestamp recording
    - `templates/demo-helpers.ts` -- pause/scroll/viewport/dragAndDrop helpers
    - `templates/playwright.video.config.ts` -- video recording config
-2. Record the video: `npx playwright test --config=playwright.video.config.ts --grep @demo`
-3. Run the pipeline:
+2. **IMPORTANT:** Ensure the spec calls `startTimestampRecording()` as the first line of the test:
+   ```typescript
+   import { startTimestampRecording, showCaption, caption, hideCaption } from './caption-overlay';
+
+   test('My Demo @demo', async ({ page }) => {
+     startTimestampRecording();  // <-- REQUIRED for exact timestamps
+     await page.goto('/');
+     // ... rest of demo
+   });
+   ```
+3. **Recommended (one command):** Let the pipeline record + process:
    ```bash
+   node scripts/run-pipeline.mjs \
+     --record \
+     --spec path/to/demo.spec.ts \
+     --music path/to/background.mp3 \
+     --output-dir ./demo-output \
+     --project-dir /path/to/web-project
+   ```
+   This runs Playwright, captures timestamp markers from stdout, auto-finds the video, and produces the final MP4 with exact audio-video sync.
+
+4. **Alternative (separate steps):** Record manually, then run pipeline:
+   ```bash
+   # Record and capture output
+   npx playwright test --config=playwright.video.config.ts --grep @demo 2>&1 | tee demo-output/recording.log
+   # Run pipeline with captured log
    node scripts/run-pipeline.mjs \
      --spec path/to/demo.spec.ts \
      --video path/to/recording.webm \
      --music path/to/background.mp3 \
      --output-dir ./demo-output
    ```
+   If `recording.log` exists in the output dir, extract-captions will auto-detect `__CAPTION_TS__` markers.
 
 ### Mode 2: Auto-Discover (Generate Spec from Project)
 
@@ -425,8 +450,10 @@ Project source code
   |  auto-discover       Scan framework, routes, features, test IDs
   v                      Generate Playwright spec with captions
 Playwright spec (*.spec.ts)
-  |  extract-captions    Parse showCaption()/caption() -> JSON manifest
-  v                      Estimate timestamps from waitForTimeout chains
+  |  record (optional)   Run Playwright test, capture __CAPTION_TS__ markers
+  v                      from startTimestampRecording() -> recording.log
+  |  extract-captions    Parse markers for exact timestamps (preferred)
+  v                      OR estimate from code heuristic (fallback)
   |  generate-voice      Per-caption ElevenLabs API -> caption_NN.mp3 (cached)
   v
   |  merge-video         Video + audio -> freeze-frame merge -> MP4
@@ -435,6 +462,15 @@ Playwright spec (*.spec.ts)
   v
 Final demo.mp4
 ```
+
+### Timestamp Modes
+
+| Mode | Accuracy | How It Works |
+|------|----------|--------------|
+| **Real timestamps** (recommended) | Exact | Spec calls `startTimestampRecording()`. Caption functions emit `__CAPTION_TS__` markers to stdout during recording. Pipeline parses these for precise video-aligned timestamps. |
+| **Heuristic estimation** (fallback) | +/-1-8s on long demos | `extract-captions.mjs` parses the spec code and estimates timing from `page.goto()`, `waitForTimeout()`, etc. Non-deterministic operations (`waitForLoadState`, network calls) cause cumulative drift. |
+
+**Always prefer real timestamps.** The heuristic mode exists as a fallback for specs that don't use `startTimestampRecording()`, but it will drift on demos longer than ~60s with many navigation/network operations.
 
 ## Pipeline Scripts
 
@@ -470,33 +506,45 @@ Options:
 
 ### scripts/extract-captions.mjs
 
-Parse spec file, output JSON manifest with captions and estimated timestamps.
+Parse spec file or recording log, output JSON manifest with captions and timestamps.
 
 ```bash
+# Recommended: use real timestamps from recording log
+node scripts/extract-captions.mjs <spec-file> --from-log recording.log [options]
+
+# Fallback: heuristic estimation from spec code
 node scripts/extract-captions.mjs <spec-file> [options]
 
 Options:
   --output, -o <path>      Output JSON manifest path (default: captions.json)
+  --from-log <path>        Parse real timestamps from Playwright test output
   --show-fn <name>         Custom showCaption function name
   --caption-fn <name>      Custom caption function name
   --hide-fn <name>         Custom hideCaption function name
   --dry-run                Print manifest to stdout
 ```
 
-**Supported caption patterns:**
-```typescript
-showCaption(page, 'Caption text here');        // persists until hide
-caption(page, 'Caption text here', 3000);      // show, hold ms, hide
-hideCaption(page);                              // fade out
+**Two modes:**
+
+| Mode | Flag | Accuracy | When to use |
+|------|------|----------|-------------|
+| From-log | `--from-log <file>` | Exact | Spec uses `startTimestampRecording()`. Pipeline captures test output. |
+| Heuristic | (default) | +/-1-8s | Legacy specs without `startTimestampRecording()`. Drift worsens with demo length. |
+
+**From-log mode** parses `__CAPTION_TS__` markers emitted by `caption-overlay.ts`:
+```
+__CAPTION_TS__:init:1.0
+__CAPTION_TS__:show:17.32:"Authentication is handled by Keycloak"
+__CAPTION_TS__:caption:8.15:6000:"Built with Next.js and Spring Boot"
 ```
 
-**Timestamp estimation:** Line-by-line sequential heuristic tracking all timing functions. Accuracy: +/-1 second. See [references/RESEARCH.md](references/RESEARCH.md) for algorithm details.
+**Heuristic mode** uses line-by-line sequential timing estimation. See [references/RESEARCH.md](references/RESEARCH.md) for algorithm details. Known limitation: operations like `page.goto()`, `waitForLoadState()`, network calls, and `expect()` assertions have variable real-world duration that causes cumulative drift.
 
 **Output format:**
 ```json
 [
-  { "id": 1, "text": "Welcome to the dashboard.", "startSec": 1.4, "type": "caption", "line": 107 },
-  { "id": 2, "text": "Interactive stat cards.", "startSec": 5.5, "type": "showCaption", "line": 110 }
+  { "id": 1, "text": "Welcome to the dashboard.", "startSec": 1.4, "type": "caption", "durationMs": 5000 },
+  { "id": 2, "text": "Interactive stat cards.", "startSec": 5.5, "type": "showCaption" }
 ]
 ```
 
@@ -565,14 +613,22 @@ Music source: [Pixabay Music](https://pixabay.com/music/) (CC0, no attribution r
 
 ### scripts/run-pipeline.mjs
 
-Orchestrator that chains all steps with pre-flight checks.
+Orchestrator that chains all steps with pre-flight checks. Supports `--record` mode for single-command workflow.
 
 ```bash
+# Recommended: record + process in one command
+node scripts/run-pipeline.mjs --record --spec <spec.ts> [options]
+
+# Alternative: provide pre-recorded video
 node scripts/run-pipeline.mjs --spec <spec.ts> --video <video.webm> [options]
 
 Options:
   --spec, -s <path>        Playwright spec with caption calls
   --video, -v <path>       Recorded video file
+  --record                 Run Playwright test, capture output for timestamps
+  --playwright-config <p>  Playwright config (default: playwright.video.config.ts)
+  --grep <pattern>         Playwright grep pattern (default: @demo)
+  --project-dir <path>     Project dir for Playwright (default: cwd)
   --music <path>           Background music (optional)
   --output-dir, -d <dir>   Working directory (default: ./demo-output)
   --output, -o <path>      Final output path
@@ -582,7 +638,14 @@ Options:
   (+ all options from individual scripts)
 ```
 
-Pre-flight checks: ffmpeg, ffprobe, Node.js version, ElevenLabs API key.
+**`--record` mode:**
+1. Runs `npx playwright test --config=<config> --grep <pattern>` in the project dir
+2. Captures stdout to `<output-dir>/recording.log`
+3. Auto-finds the video file in `test-results/` (most recent .webm)
+4. Detects `__CAPTION_TS__` markers in the log for exact timestamps
+5. Falls back to heuristic extraction if no markers found
+
+Pre-flight checks: ffmpeg, ffprobe, Node.js version, ElevenLabs API key, Playwright (if `--record`).
 
 ## Templates
 
@@ -590,7 +653,7 @@ Copy these into your target project.
 
 ### templates/caption-overlay.ts
 
-Caption CSS + `showCaption`/`hideCaption`/`caption` functions. The pipeline's extract-captions.mjs parses these function calls, so the naming convention matters.
+Caption CSS + `showCaption`/`hideCaption`/`caption` functions + `startTimestampRecording()`. When `startTimestampRecording()` is called at the start of a test, each caption function emits `__CAPTION_TS__` markers to stdout that the pipeline parses for exact video-audio sync. The pipeline's extract-captions.mjs parses these function calls, so the naming convention matters.
 
 ### templates/demo-helpers.ts
 
@@ -602,11 +665,13 @@ Playwright config optimized for video recording: headless mode, 1280x800 viewpor
 
 ## Caption Extraction Details
 
-### Method: Regex (Not AST)
+### Method: Real Timestamps (Primary) or Regex Heuristic (Fallback)
 
-Regex for text extraction, line-by-line heuristic for timestamps. Validated against 21-caption reference spec with 100% accuracy.
+**Primary method:** `startTimestampRecording()` causes each caption function to emit `__CAPTION_TS__` markers to stdout with `Date.now()`-based timestamps relative to video start. The pipeline parses these for exact alignment. Zero drift regardless of demo length.
 
-**Why regex:** Caption texts are always string literals. Timestamp estimation is inherently approximate (+/-1s). The freeze-frame merge compensates for drift. Zero dependencies.
+**Fallback method:** Regex text extraction + line-by-line heuristic for timestamps. Works without `startTimestampRecording()` but drifts on long demos.
+
+**Why regex (for fallback):** Caption texts are always string literals. The freeze-frame merge compensates for moderate drift. Zero dependencies.
 
 **When to upgrade to AST:** If specs use variables for captions (e.g., `const msg = 'Hello'; showCaption(page, msg)`), add `@babel/parser`.
 
@@ -660,7 +725,8 @@ Regex for text extraction, line-by-line heuristic for timestamps. Validated agai
 ## Success Criteria
 
 - Caption extraction matches all showCaption/caption calls in the spec
-- Timestamp estimates within +/-1 second of actual video timing
+- With `startTimestampRecording()`: timestamps are exact (within ~1s absolute, 0 relative drift)
+- Without: heuristic timestamps within +/-1s for short demos, may drift on long demos
 - JSON manifest produced and editable
 - Auto-discover identifies major features from project structure
 - Pipeline produces working MP4 with synchronized voice and captions
@@ -669,8 +735,9 @@ Regex for text extraction, line-by-line heuristic for timestamps. Validated agai
 ## On Failure
 
 1. **Regex misses captions**: Check function names; try `--show-fn`, `--caption-fn` overrides
-2. **Timestamps far off**: Review helper timing constants; edit JSON manifest before TTS
-3. **Auto-discover empty**: Check data-testid attributes; fall back to guided mode
-4. **ffmpeg errors**: Run `ffmpeg -version`; check input file formats; try `--dry-run`
-5. **ElevenLabs errors**: Check API key and credits; use `--dry-run` to verify manifest first
-6. **Audio overlaps**: Increase `--min-gap`; reduce caption density in spec
+2. **Timestamps far off (heuristic mode)**: Add `startTimestampRecording()` to spec and use `--record` mode. This eliminates drift entirely.
+3. **No __CAPTION_TS__ markers in log**: Ensure spec imports and calls `startTimestampRecording()` from the updated `caption-overlay.ts` template. The pipeline falls back to heuristic if markers are missing.
+4. **Auto-discover empty**: Check data-testid attributes; fall back to guided mode
+5. **ffmpeg errors**: Run `ffmpeg -version`; check input file formats; try `--dry-run`
+6. **ElevenLabs errors**: Check API key and credits; use `--dry-run` to verify manifest first
+7. **Audio overlaps**: Increase `--min-gap`; reduce caption density in spec
