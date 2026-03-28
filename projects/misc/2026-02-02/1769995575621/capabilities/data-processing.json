@@ -1,0 +1,73 @@
+{
+  "name": "data-processing",
+  "description": "Ability to process, transform, and analyze data structures",
+  "version": "1.0.0",
+  "difficulty_levels": ["basic", "intermediate", "advanced"],
+  "test_categories": [
+    {
+      "name": "filtering",
+      "description": "Filtering arrays based on conditions"
+    },
+    {
+      "name": "aggregation",
+      "description": "Computing sums, averages, and other aggregates"
+    },
+    {
+      "name": "transformation",
+      "description": "Mapping and transforming data structures"
+    },
+    {
+      "name": "sorting",
+      "description": "Ordering data by various criteria"
+    }
+  ],
+  "success_criteria": {
+    "basic": 0.9,
+    "intermediate": 0.7,
+    "advanced": 0.5
+  },
+  "test_templates": [
+    {
+      "difficulty": "basic",
+      "category": "filtering",
+      "input": [1, 2, 3, 4, 5, 6],
+      "expected": [2, 4, 6],
+      "operation": "filter_even"
+    },
+    {
+      "difficulty": "basic",
+      "category": "aggregation",
+      "input": [1, 2, 3, 4, 5],
+      "expected": 15,
+      "operation": "sum"
+    },
+    {
+      "difficulty": "intermediate",
+      "category": "transformation",
+      "input": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}],
+      "expected": ["Alice", "Bob"],
+      "operation": "extract_names"
+    },
+    {
+      "difficulty": "intermediate",
+      "category": "sorting",
+      "input": [3, 1, 4, 1, 5, 9, 2, 6],
+      "expected": [1, 1, 2, 3, 4, 5, 6, 9],
+      "operation": "sort_ascending"
+    },
+    {
+      "difficulty": "advanced",
+      "category": "aggregation",
+      "input": [{"category": "A", "value": 10}, {"category": "B", "value": 20}, {"category": "A", "value": 15}],
+      "expected": {"A": 25, "B": 20},
+      "operation": "group_sum_by_category"
+    },
+    {
+      "difficulty": "advanced",
+      "category": "transformation",
+      "input": [1, [2, 3], [4, [5, 6]]],
+      "expected": [1, 2, 3, 4, 5, 6],
+      "operation": "flatten_deep"
+    }
+  ]
+}

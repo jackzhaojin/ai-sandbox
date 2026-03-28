@@ -1,0 +1,109 @@
+# Universal .gitignore - Covers all common technologies
+# Used as default for misc category and fallback for all projects
+
+# ============================================
+# Dependencies
+# ============================================
+node_modules/
+vendor/
+bower_components/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+.Python
+
+# ============================================
+# Build Outputs
+# ============================================
+build/
+dist/
+out/
+*.egg-info/
+*.egg
+.eggs/
+
+# ============================================
+# Python
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+
+# ============================================
+# Environment & Secrets
+# ============================================
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+*.pem
+*.key
+
+# ============================================
+# Logs
+# ============================================
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================
+# IDE & Editors
+# ============================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-workspace
+*.sublime-project
+
+# ============================================
+# OS Files
+# ============================================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ============================================
+# Testing & Coverage
+# ============================================
+coverage/
+.nyc_output/
+*.lcov
+
+# ============================================
+# Next.js / React
+# ============================================
+.next/
+.nuxt/
+.cache/
+
+# ============================================
+# Jupyter
+# ============================================
+.ipynb_checkpoints/
+
+# ============================================
+# Temporary & Misc
+# ============================================
+*.tmp
+*.temp
+*.bak
+*.pid

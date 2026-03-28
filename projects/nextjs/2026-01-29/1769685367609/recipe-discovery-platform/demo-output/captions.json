@@ -1,0 +1,130 @@
+[
+  {
+    "id": 1,
+    "text": "Welcome to Recipe Discovery Platform - your culinary companion.",
+    "startSec": 2.9,
+    "type": "caption",
+    "line": 101,
+    "durationMs": 3500
+  },
+  {
+    "id": 2,
+    "text": "Let's sign in to explore recipes.",
+    "startSec": 7,
+    "type": "caption",
+    "line": 107,
+    "durationMs": 2500
+  },
+  {
+    "id": 3,
+    "text": "Secure authentication powered by Auth.js v5.",
+    "startSec": 11.4,
+    "type": "showCaption",
+    "line": 116
+  },
+  {
+    "id": 4,
+    "text": "Your personalized recipe dashboard.",
+    "startSec": 16.1,
+    "type": "caption",
+    "line": 130,
+    "durationMs": 3000
+  },
+  {
+    "id": 5,
+    "text": "Browse curated recipes and discover new favorites.",
+    "startSec": 21.5,
+    "type": "showCaption",
+    "line": 136
+  },
+  {
+    "id": 6,
+    "text": "Let's explore all available recipes.",
+    "startSec": 24.5,
+    "type": "showCaption",
+    "line": 145
+  },
+  {
+    "id": 7,
+    "text": "Powerful search and filtering for thousands of recipes.",
+    "startSec": 29.1,
+    "type": "caption",
+    "line": 155,
+    "durationMs": 3500
+  },
+  {
+    "id": 8,
+    "text": "Search by name, cuisine, or ingredients.",
+    "startSec": 35,
+    "type": "showCaption",
+    "line": 161
+  },
+  {
+    "id": 9,
+    "text": "Real-time results as you type.",
+    "startSec": 38.3,
+    "type": "caption",
+    "line": 170,
+    "durationMs": 2500
+  },
+  {
+    "id": 10,
+    "text": "Let's view a recipe in detail.",
+    "startSec": 42.4,
+    "type": "showCaption",
+    "line": 176
+  },
+  {
+    "id": 11,
+    "text": "Detailed recipes with ingredients, instructions, and more.",
+    "startSec": 46.5,
+    "type": "caption",
+    "line": 187,
+    "durationMs": 3500
+  },
+  {
+    "id": 12,
+    "text": "Step-by-step cooking instructions.",
+    "startSec": 54,
+    "type": "showCaption",
+    "line": 194
+  },
+  {
+    "id": 13,
+    "text": "Save your favorite recipes for later.",
+    "startSec": 56.7,
+    "type": "showCaption",
+    "line": 202
+  },
+  {
+    "id": 14,
+    "text": "All your saved recipes in one place.",
+    "startSec": 61.8,
+    "type": "caption",
+    "line": 212,
+    "durationMs": 3000
+  },
+  {
+    "id": 15,
+    "text": "Manage your profile and preferences.",
+    "startSec": 67.2,
+    "type": "showCaption",
+    "line": 218
+  },
+  {
+    "id": 16,
+    "text": "Customize your recipe discovery experience.",
+    "startSec": 72.3,
+    "type": "caption",
+    "line": 228,
+    "durationMs": 3000
+  },
+  {
+    "id": 17,
+    "text": "Recipe Discovery Platform - discover, save, and share amazing recipes!",
+    "startSec": 77.7,
+    "type": "caption",
+    "line": 234,
+    "durationMs": 4000
+  }
+]

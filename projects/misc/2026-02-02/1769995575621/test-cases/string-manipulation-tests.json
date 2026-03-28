@@ -1,0 +1,87 @@
+{
+  "capability": "string-manipulation",
+  "generatedAt": "2026-02-02T01:32:13.271Z",
+  "totalTests": 6,
+  "testCases": [
+    {
+      "id": "string-manipulation-1",
+      "capabilityName": "string-manipulation",
+      "difficulty": "basic",
+      "category": "case_conversion",
+      "operation": "uppercase",
+      "input": "hello world",
+      "expected": "HELLO WORLD",
+      "params": {},
+      "status": "pending",
+      "timestamp": "2026-02-02T01:32:13.271Z"
+    },
+    {
+      "id": "string-manipulation-2",
+      "capabilityName": "string-manipulation",
+      "difficulty": "basic",
+      "category": "case_conversion",
+      "operation": "lowercase",
+      "input": "HELLO WORLD",
+      "expected": "hello world",
+      "params": {},
+      "status": "pending",
+      "timestamp": "2026-02-02T01:32:13.271Z"
+    },
+    {
+      "id": "string-manipulation-3",
+      "capabilityName": "string-manipulation",
+      "difficulty": "intermediate",
+      "category": "substring_extraction",
+      "operation": "extract_word",
+      "input": "The quick brown fox",
+      "expected": "quick",
+      "params": {
+        "index": 1
+      },
+      "status": "pending",
+      "timestamp": "2026-02-02T01:32:13.271Z"
+    },
+    {
+      "id": "string-manipulation-4",
+      "capabilityName": "string-manipulation",
+      "difficulty": "intermediate",
+      "category": "pattern_matching",
+      "operation": "extract_numbers",
+      "input": "I have 3 apples and 5 oranges",
+      "expected": [
+        "3",
+        "5"
+      ],
+      "params": {},
+      "status": "pending",
+      "timestamp": "2026-02-02T01:32:13.271Z"
+    },
+    {
+      "id": "string-manipulation-5",
+      "capabilityName": "string-manipulation",
+      "difficulty": "advanced",
+      "category": "formatting",
+      "operation": "pad_left",
+      "input": "42",
+      "expected": "00042",
+      "params": {
+        "width": 5,
+        "char": "0"
+      },
+      "status": "pending",
+      "timestamp": "2026-02-02T01:32:13.271Z"
+    },
+    {
+      "id": "string-manipulation-6",
+      "capabilityName": "string-manipulation",
+      "difficulty": "advanced",
+      "category": "pattern_matching",
+      "operation": "validate_email",
+      "input": "hello@example.com",
+      "expected": true,
+      "params": {},
+      "status": "pending",
+      "timestamp": "2026-02-02T01:32:13.271Z"
+    }
+  ]
+}

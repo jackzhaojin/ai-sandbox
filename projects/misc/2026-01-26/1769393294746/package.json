@@ -1,0 +1,21 @@
+{
+  "name": "notion-integration-poc",
+  "version": "1.0.0",
+  "description": "Proof of concept for Notion API integration using official SDK and MCP",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "start:mcp": "node notion-mcp-poc.js",
+    "test": "node index.js",
+    "test:mcp": "node notion-mcp-poc.js"
+  },
+  "keywords": ["notion", "api", "integration", "poc", "mcp", "claude-agent-sdk"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.19",
+    "@notionhq/client": "^5.8.0",
+    "dotenv": "^17.2.3"
+  }
+}

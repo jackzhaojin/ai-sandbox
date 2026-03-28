@@ -1,0 +1,33 @@
+# Environment files (contain credentials - copied by worker-spawner)
+.env
+.env.app
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.next/
+out/
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Test artifacts
+test-results/
+playwright-report/
+
+# Demo video outputs (large binaries)
+*.webm
+*.mp4

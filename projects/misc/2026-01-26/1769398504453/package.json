@@ -1,0 +1,32 @@
+{
+  "name": "agent-capabilities-poc",
+  "version": "1.0.0",
+  "description": "Proof-of-concept for new autonomous agent capabilities: state persistence and multi-agent coordination",
+  "main": "index.js",
+  "scripts": {
+    "demo:state": "node example-state.js",
+    "demo:coordinator": "node example-coordinator.js",
+    "demo:integrated": "node example-integrated.js",
+    "demo:all": "npm run demo:state && npm run demo:coordinator && npm run demo:integrated",
+    "clean": "rm -rf .agent-state .coordinator-state .integrated-state"
+  },
+  "keywords": [
+    "agent",
+    "ai",
+    "claude",
+    "autonomous",
+    "coordination",
+    "state-management",
+    "multi-agent",
+    "orchestration"
+  ],
+  "author": "Agent POC",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/agent-capabilities-poc"
+  }
+}

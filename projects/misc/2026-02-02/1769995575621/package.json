@@ -1,0 +1,19 @@
+{
+  "name": "calibration-framework",
+  "version": "1.0.0",
+  "description": "Self-calibration framework for capability assessment",
+  "main": "calibrate.js",
+  "type": "module",
+  "scripts": {
+    "calibrate": "node calibrate.js",
+    "test": "node calibrate.js --all"
+  },
+  "keywords": [
+    "calibration",
+    "testing",
+    "assessment",
+    "capability"
+  ],
+  "author": "",
+  "license": "MIT"
+}

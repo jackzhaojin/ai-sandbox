@@ -1,0 +1,162 @@
+{
+  "capability": "data-processing",
+  "generatedAt": "2026-02-02T01:32:13.270Z",
+  "totalTests": 6,
+  "testCases": [
+    {
+      "id": "data-processing-1",
+      "capabilityName": "data-processing",
+      "difficulty": "basic",
+      "category": "filtering",
+      "operation": "filter_even",
+      "input": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "expected": [
+        2,
+        4,
+        6
+      ],
+      "params": {},
+      "status": "pending",
+      "timestamp": "2026-02-02T01:32:13.269Z"
+    },
+    {
+      "id": "data-processing-2",
+      "capabilityName": "data-processing",
+      "difficulty": "basic",
+      "category": "aggregation",
+      "operation": "sum",
+      "input": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "expected": 15,
+      "params": {},
+      "status": "pending",
+      "timestamp": "2026-02-02T01:32:13.270Z"
+    },
+    {
+      "id": "data-processing-3",
+      "capabilityName": "data-processing",
+      "difficulty": "intermediate",
+      "category": "transformation",
+      "operation": "extract_names",
+      "input": [
+        {
+          "name": "Alice",
+          "age": 30
+        },
+        {
+          "name": "Bob",
+          "age": 25
+        }
+      ],
+      "expected": [
+        "Alice",
+        "Bob"
+      ],
+      "params": {},
+      "status": "pending",
+      "timestamp": "2026-02-02T01:32:13.270Z"
+    },
+    {
+      "id": "data-processing-4",
+      "capabilityName": "data-processing",
+      "difficulty": "intermediate",
+      "category": "sorting",
+      "operation": "sort_ascending",
+      "input": [
+        3,
+        1,
+        4,
+        1,
+        5,
+        9,
+        2,
+        6
+      ],
+      "expected": [
+        1,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        9
+      ],
+      "params": {},
+      "status": "pending",
+      "timestamp": "2026-02-02T01:32:13.270Z"
+    },
+    {
+      "id": "data-processing-5",
+      "capabilityName": "data-processing",
+      "difficulty": "advanced",
+      "category": "aggregation",
+      "operation": "group_sum_by_category",
+      "input": [
+        {
+          "category": "A",
+          "value": 10
+        },
+        {
+          "category": "B",
+          "value": 20
+        },
+        {
+          "category": "A",
+          "value": 15
+        }
+      ],
+      "expected": {
+        "A": 25,
+        "B": 20
+      },
+      "params": {},
+      "status": "pending",
+      "timestamp": "2026-02-02T01:32:13.270Z"
+    },
+    {
+      "id": "data-processing-6",
+      "capabilityName": "data-processing",
+      "difficulty": "advanced",
+      "category": "transformation",
+      "operation": "flatten_deep",
+      "input": [
+        1,
+        [
+          2,
+          3
+        ],
+        [
+          4,
+          [
+            5,
+            6
+          ]
+        ]
+      ],
+      "expected": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "params": {},
+      "status": "pending",
+      "timestamp": "2026-02-02T01:32:13.270Z"
+    }
+  ]
+}

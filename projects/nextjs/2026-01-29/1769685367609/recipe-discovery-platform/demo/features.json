@@ -1,0 +1,54 @@
+{
+  "projectName": "Recipe Discovery Platform",
+  "projectDir": "/Users/jackjin/dev/agent-outputs/projects/nextjs/2026-01-29/1769685367609/recipe-discovery-platform",
+  "framework": {
+    "name": "nextjs",
+    "label": "Next.js"
+  },
+  "buildTool": "next",
+  "chartLib": null,
+  "styling": [
+    "Tailwind CSS"
+  ],
+  "routes": [
+    {
+      "path": "/(auth)/login",
+      "source": "nextjs-app-dir"
+    },
+    {
+      "path": "/(auth)/register",
+      "source": "nextjs-app-dir"
+    },
+    {
+      "path": "/(main)",
+      "source": "nextjs-app-dir"
+    },
+    {
+      "path": "/(main)/favorites",
+      "source": "nextjs-app-dir"
+    },
+    {
+      "path": "/(main)/profile",
+      "source": "nextjs-app-dir"
+    },
+    {
+      "path": "/(main)/recipes",
+      "source": "nextjs-app-dir"
+    },
+    {
+      "path": "/(main)/recipes/[id]",
+      "source": "nextjs-app-dir"
+    },
+    {
+      "path": "/(main)/recipes/new",
+      "source": "nextjs-app-dir"
+    },
+    {
+      "path": "/(main)/search",
+      "source": "nextjs-app-dir"
+    }
+  ],
+  "features": [],
+  "totalEstimatedTimeSec": 0,
+  "generatedAt": "2026-02-03T03:28:01.677Z"
+}

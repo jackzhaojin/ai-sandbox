@@ -1,0 +1,676 @@
+---
+name: playwright-demo-video
+description: |
+  Generate polished demo videos from Playwright specs with AI voiceover, captions, and music.
+  Use when: creating demo videos for web projects, extracting captions from Playwright specs,
+  generating TTS voiceover with ElevenLabs, merging video with freeze-frame timing, adding
+  background music, auto-discovering project features to generate demo specs.
+  Trigger: "demo video", "playwright demo", "generate demo", "caption extraction",
+  "voiceover pipeline", "freeze frame merge", "auto-discover demo".
+---
+
+# Playwright Demo Video Skill
+
+Generate end-to-end demo videos (MP4) from Playwright specs with on-screen captions, AI voiceover (ElevenLabs), freeze-frame timing, and background music.
+
+## Data-First Approach (MANDATORY)
+
+**You cannot narrate what doesn't exist.** Before writing any demo script or narration, you MUST verify that the application has real data to show. A demo that says "here are our recipes" while the screen shows "No items found" is a failed demo.
+
+### Stage 0: Data Setup & Discovery
+
+This stage runs BEFORE any recording or script writing. Its purpose is to ensure the app has content worth demoing and to understand what Playwright can actually interact with.
+
+#### Step 1: Verify or Create Data
+
+Before touching Playwright, ensure the database has seed data:
+
+```typescript
+// data-check.ts -- run this BEFORE writing any demo spec
+import { test, expect } from '@playwright/test';
+
+test('verify app has demo-worthy data', async ({ page }) => {
+  // Start by checking the main content pages
+  await page.goto('http://localhost:3000');
+  await page.waitForLoadState('networkidle');
+
+  // Take inventory of what's actually on the page
+  const screenshot = await page.screenshot({ path: 'data-check-home.png' });
+
+  // Check for empty states -- these mean we need to seed data
+  const emptyIndicators = [
+    'No recipes found',
+    'No items',
+    'No results',
+    'Nothing here yet',
+    'Get started by',
+    'Create your first',
+  ];
+  const bodyText = await page.locator('body').innerText();
+  for (const indicator of emptyIndicators) {
+    if (bodyText.includes(indicator)) {
+      console.log(`WARNING: Found empty state indicator: "${indicator}"`);
+      console.log('You MUST seed data before recording. Run the seed script.');
+    }
+  }
+
+  // Count visible content items (cards, list items, articles)
+  const contentSelectors = [
+    'article', '.card', '[data-testid*="card"]',
+    '[data-testid*="item"]', '[data-testid*="recipe"]',
+    '.recipe-card', '.product-card', '.list-item'
+  ];
+  for (const selector of contentSelectors) {
+    const count = await page.locator(selector).count();
+    if (count > 0) {
+      console.log(`Found ${count} elements matching "${selector}"`);
+    }
+  }
+});
+```
+
+**If the app shows empty states:**
+1. Find and run the seed script (`npm run seed`, `npx prisma db seed`, `npx tsx lib/db/seed.ts`, etc.)
+2. If no seed script exists, create minimal seed data via the app's API or direct DB inserts
+3. Re-run the data check to confirm content now appears
+4. **Do NOT proceed to script writing until content is verified**
+
+#### Step 2: Explore What Playwright Can See
+
+Before writing a full demo script, run an **exploration spec** that visits every route and catalogs what's actually rendered:
+
+```typescript
+// explore-routes.spec.ts -- discovery, not recording
+import { test, expect } from '@playwright/test';
+
+test('explore all routes', async ({ page }) => {
+  const routes = ['/', '/recipes', '/search', '/login', '/register', '/favorites', '/profile'];
+  const routeReport: Record<string, { status: string; elements: string[]; screenshot: string }> = {};
+
+  for (const route of routes) {
+    await page.goto(`http://localhost:3000${route}`);
+    await page.waitForLoadState('networkidle');
+
+    // Check for errors
+    const hasError = await page.locator('body').innerText()
+      .then(text => text.includes('Runtime Error') || text.includes('Application error'));
+
+    // Catalog interactive elements
+    const buttons = await page.locator('button').allInnerTexts();
+    const links = await page.locator('a').allInnerTexts();
+    const forms = await page.locator('form').count();
+    const images = await page.locator('img').count();
+    const cards = await page.locator('article, .card, [class*="card"]').count();
+
+    const screenshotPath = `explore-${route.replace(/\//g, '_') || 'home'}.png`;
+    await page.screenshot({ path: screenshotPath });
+
+    routeReport[route] = {
+      status: hasError ? 'ERROR' : 'OK',
+      elements: [
+        `${buttons.length} buttons: [${buttons.slice(0, 5).join(', ')}]`,
+        `${links.length} links`,
+        `${forms} forms`,
+        `${images} images`,
+        `${cards} cards/articles`,
+      ],
+      screenshot: screenshotPath,
+    };
+    console.log(`${route}: ${hasError ? 'ERROR' : 'OK'} | ${cards} cards, ${images} images, ${buttons.length} buttons`);
+  }
+
+  // Print summary
+  console.log('\n=== ROUTE EXPLORATION SUMMARY ===');
+  console.log(JSON.stringify(routeReport, null, 2));
+});
+```
+
+**Use the exploration output to write the demo script.** Only narrate features that the exploration confirmed exist. If a route shows 0 cards, don't write narration about "browsing our collection."
+
+#### Step 3: Build the Demo Script Incrementally
+
+**Do NOT write the entire demo spec at once.** Build it scene by scene, testing each one:
+
+1. **Scene 1 only:** Write the first scene (e.g., landing page), record it, verify the screenshot shows real content
+2. **Scene 1+2:** Add the second scene, record again, verify both scenes
+3. **Continue until complete:** Each addition is verified before moving on
+
+```typescript
+// Build incrementally -- start with just scene 1
+test('demo scene 1 - landing page @demo', async ({ page }) => {
+  await page.goto('http://localhost:3000');
+  await page.waitForLoadState('networkidle');
+
+  // ASSERT content is visible BEFORE writing any caption about it
+  const heroSection = page.locator('h1, [data-testid="hero"]').first();
+  await expect(heroSection).toBeVisible({ timeout: 10000 });
+
+  // Only NOW describe what's actually on screen
+  caption(page, 'Welcome to Recipe Discovery', 3000);
+  // ...
+});
+```
+
+**Rule: Assert, then narrate.** Every caption must be preceded by an assertion that the content it describes is actually visible. The narration is a description of what IS on screen, not what SHOULD be on screen.
+
+### Demo Script Writing Rules
+
+1. **Never assume data exists.** Always assert before narrating.
+2. **Never use `.catch(() => {})`.** If an interaction fails, the demo should fail.
+3. **Match narration to visuals exactly.** If the page shows 3 recipes, say "3 recipes" not "our collection of recipes."
+4. **Test each scene in isolation first.** Don't chain 10 scenes together and hope they all work.
+5. **Use specific, observable descriptions.** Instead of "powerful search capabilities," say "searching for pasta dishes" while the search box shows "pasta" and results are filtered.
+6. **Size caption hold times to text length.** The voiceover takes longer than you think. Use this formula for `caption()` hold times:
+   ```
+   holdMs = max(textLength * 80, 3000)
+   ```
+   Example: "Welcome to Recipe Discovery, a platform for finding and sharing recipes" (72 chars) → `caption(page, text, 5760)` not `caption(page, text, 3000)`. Short captions (< 40 chars) can use 3000ms. Longer narration needs proportionally more time.
+7. **Add a closing pause.** The last scene must include `await page.waitForTimeout(5000)` AFTER the final caption to ensure the voiceover finishes before the Playwright recording ends. The merge script adds a tail freeze for safety, but the spec should still provide enough buffer.
+
+## Visual Verification (MANDATORY)
+
+Demo videos are worthless if the screen shows errors while the narration describes features. Every demo recording MUST pass visual verification at three stages: before, during, and after recording. Skipping these checks is not acceptable -- a demo of an error page is worse than no demo at all.
+
+### Stage 1: Pre-Recording Health Check
+
+Before any recording starts, verify the application is actually working:
+
+1. **Start the dev server and confirm it responds:**
+   ```bash
+   # Start the server (background or via Playwright's webServer config)
+   # Then verify it returns 200, not an error page
+   curl -s -o /dev/null -w "%{http_code}" http://localhost:3000
+   # Must return 200. If 500 or connection refused, fix the app first.
+   ```
+
+2. **Navigate to every route the demo will visit and take a screenshot:**
+   ```typescript
+   // Pre-flight route check -- run BEFORE the demo spec
+   const routesToDemo = ['/', '/recipes', '/recipes/1', '/dashboard'];
+   for (const route of routesToDemo) {
+     await page.goto(`http://localhost:3000${route}`);
+     await page.waitForLoadState('networkidle');
+     // Screenshot for manual inspection if needed
+     await page.screenshot({ path: `preflight-${route.replace(/\//g, '_')}.png` });
+   }
+   ```
+
+3. **Verify no error states on any route:**
+   ```typescript
+   // After each navigation in the pre-flight check:
+   await expect(page.locator('body')).not.toContainText('Runtime Error');
+   await expect(page.locator('body')).not.toContainText('Unhandled Runtime Error');
+   await expect(page.locator('body')).not.toContainText('Application error');
+   await expect(page.locator('body')).not.toContainText('Internal Server Error');
+   await expect(page.locator('body')).not.toContainText('Module not found');
+   // Check for Next.js error overlay specifically
+   const errorOverlay = page.locator('nextjs-portal');
+   await expect(errorOverlay).toHaveCount(0);
+   ```
+
+4. **If any route shows errors, FIX THE APP FIRST.** Do not proceed to recording. Common fixes:
+   - Run database migrations / seed data
+   - Install missing dependencies
+   - Set required environment variables
+   - Fix Next.js config (image domains, etc.)
+
+### Stage 2: During-Recording Assertions
+
+The generated demo spec MUST include inline assertions. These are not optional.
+
+**After every `page.goto()` or navigation action, add:**
+```typescript
+// MANDATORY after every navigation
+await expect(page.locator('body')).not.toContainText('Runtime Error');
+await expect(page.locator('body')).not.toContainText('Unhandled Runtime Error');
+await expect(page.locator('body')).not.toContainText('Application error');
+```
+
+**Before narrating about visible content, assert it exists:**
+```typescript
+// BAD: narrate about recipes without checking they are visible
+caption(page, 'Here are the recipes in our collection', 3000);
+
+// GOOD: verify content is on screen BEFORE narrating about it
+await expect(
+  page.locator('[data-testid="recipe-card"], article, .recipe-card, .card').first()
+).toBeVisible({ timeout: 10000 });
+caption(page, 'Here are the recipes in our collection', 3000);
+```
+
+**NEVER use `.catch(() => {})` on demo-critical interactions:**
+```typescript
+// BAD: silently swallowing click failures means the demo records garbage
+await page.click('[data-testid="add-recipe"]').catch(() => {});
+
+// GOOD: if the click fails, the demo fails -- which is correct behavior
+await page.click('[data-testid="add-recipe"]');
+```
+
+If an interaction is truly optional (e.g., dismissing a cookie banner that may or may not appear), use an explicit conditional instead:
+```typescript
+// Acceptable for genuinely optional elements
+const cookieBanner = page.locator('[data-testid="cookie-dismiss"]');
+if (await cookieBanner.isVisible({ timeout: 2000 }).catch(() => false)) {
+  await cookieBanner.click();
+}
+```
+
+### Stage 3: Post-Recording Validation
+
+After recording completes, verify the output video is not blank or corrupted:
+
+1. **Extract sample frames at 25%, 50%, 75% of the video duration:**
+   ```bash
+   # Get video duration
+   DURATION=$(ffprobe -v error -show_entries format=duration \
+     -of default=noprint_wrappers=1:nokey=1 demo-final.mp4)
+
+   # Extract frames at 25%, 50%, 75%
+   for pct in 25 50 75; do
+     TIMESTAMP=$(echo "$DURATION * $pct / 100" | bc -l)
+     ffmpeg -ss "$TIMESTAMP" -i demo-final.mp4 -frames:v 1 \
+       "validation-frame-${pct}.png" -y
+   done
+   ```
+
+2. **Verify frames are not blank (all white or all black):**
+   ```bash
+   # Check pixel variance -- blank frames have near-zero standard deviation
+   for frame in validation-frame-*.png; do
+     STDDEV=$(ffprobe -v error -select_streams v:0 \
+       -show_entries frame_tags=lavfi.signalstats.YAVG \
+       -f lavfi -i "movie=${frame},signalstats" \
+       -of default=noprint_wrappers=1:nokey=1 2>/dev/null || echo "0")
+     echo "$frame: stddev=$STDDEV"
+     # If stddev < 5, the frame is likely blank
+   done
+   ```
+
+3. **Verify video bitrate is reasonable (blank videos have extremely low bitrate):**
+   ```bash
+   BITRATE=$(ffprobe -v error -show_entries format=bit_rate \
+     -of default=noprint_wrappers=1:nokey=1 demo-final.mp4)
+   # Bitrate should be > 50000 (50 kb/s). Blank/error videos typically < 10000.
+   echo "Video bitrate: $BITRATE bps"
+   ```
+
+4. **If any validation fails, do not deliver the video.** Report the failure with screenshots of the extracted frames so the issue is visible.
+
+### Auto-Discover Mode: Additional Requirements
+
+When generating specs via `auto-discover.mjs`, the generated spec MUST include:
+
+- **Navigation assertions** after every `page.goto()` call (the three error text checks above)
+- **Content visibility waits** before each caption that references on-screen content: `await page.waitForSelector('<selector>', { timeout: 10000 })` for key content elements
+- **No try/catch suppression** around demo-critical interactions (clicks, form fills, navigation). If an interaction that the narration describes fails, the spec must fail loudly so the developer knows the demo is broken.
+- **A pre-flight test block** at the start of the spec that visits all routes and asserts no errors before the recording begins
+
+## Common Failure Modes
+
+Known issues that cause demos to record error pages or blank screens:
+
+| Failure Mode | Symptom in Video | Root Cause | Fix |
+|-------------|-----------------|------------|-----|
+| Database not running | White screen or "connection refused" error overlay | PostgreSQL/MySQL/SQLite not started or not migrated | Start DB service, run `npx prisma migrate dev` or equivalent seed script |
+| Unconfigured image domains | "Unhandled Runtime Error" overlay mentioning `next/image` | `next.config.js` missing remote image hostnames in `images.remotePatterns` | Add the domain to `next.config.js` `images.remotePatterns` or `images.domains` |
+| Auth required but no test user | Stuck on login page for entire video, narration describes dashboard | App requires authentication but no test user was seeded | Seed a test user, or configure the demo to log in first |
+| Missing environment variables | Server crashes on startup, blank page in browser | `.env` or `.env.local` missing required values (`DATABASE_URL`, API keys, etc.) | Copy `.env.example` to `.env.local`, fill in required values |
+| Port already in use | Dev server fails to start, Playwright times out | Another process occupying port 3000/5173 | Kill the existing process or configure a different port |
+| Missing dependencies | Module not found errors in browser | `npm install` not run after cloning or after changing branches | Run `npm install` in the project directory |
+| Stale build cache | Hydration errors or old UI rendering | `.next/` or `dist/` cache from a different branch or config | Delete `.next/` (or `dist/`) and restart the dev server |
+| No data seeded | App loads but shows "No items found" or empty lists for the entire demo | Database is running but has no seed data | Run the seed script (`npx prisma db seed`, `npm run seed`, etc.) |
+| Voiceover cut off | Narration abruptly stops mid-sentence near the end of the video | Playwright recording ends before voiceover finishes; `caption()` hold times too short for text length | Use `holdMs = max(textLength * 80, 3000)` for caption timing; add 5s `waitForTimeout` after the final caption; the merge script's tail-freeze handles edge cases automatically |
+
+When any of these are detected during the pre-recording health check (Stage 1), fix the underlying issue before proceeding. Do not attempt to record a demo of a broken application.
+
+## When to Use
+
+- User says "create a demo video", "generate a demo", "playwright demo"
+- User wants to convert a Playwright spec into a narrated video
+- User wants to add voiceover to an existing video recording
+- User wants to auto-discover project features and generate a demo spec
+- User wants to extract captions from a Playwright test file
+
+## Prerequisites
+
+| Tool | Purpose | Install |
+|------|---------|---------|
+| ffmpeg + ffprobe | Video/audio processing | `brew install ffmpeg` |
+| Node.js 18+ | Pipeline scripts (native fetch) | Required for Playwright |
+| Playwright | Video recording | In target project |
+| ElevenLabs API key | TTS voice generation | `ELEVENLABS_API_KEY` in `.env` |
+
+## Two Modes
+
+### Mode 1: Guided (User Provides Spec)
+
+User has a Playwright spec with `showCaption()`/`caption()` calls.
+
+**Steps:**
+
+1. Copy templates into the target project:
+   - `templates/caption-overlay.ts` -- caption CSS + functions
+   - `templates/demo-helpers.ts` -- pause/scroll/viewport/dragAndDrop helpers
+   - `templates/playwright.video.config.ts` -- video recording config
+2. Record the video: `npx playwright test --config=playwright.video.config.ts --grep @demo`
+3. Run the pipeline:
+   ```bash
+   node scripts/run-pipeline.mjs \
+     --spec path/to/demo.spec.ts \
+     --video path/to/recording.webm \
+     --music path/to/background.mp3 \
+     --output-dir ./demo-output
+   ```
+
+### Mode 2: Auto-Discover (Generate Spec from Project)
+
+Scan a project's source code and generate a demo spec automatically.
+See [references/auto-discover.md](references/auto-discover.md) for detailed patterns.
+
+**Steps:**
+
+1. Run auto-discover to generate spec and feature inventory:
+   ```bash
+   node scripts/auto-discover.mjs <project-dir> [options]
+
+   Options:
+     --output, -o <path>      Output spec file (default: <project>/demo/auto-demo.spec.ts)
+     --inventory <path>       Output feature inventory JSON
+     --focus <feature>        Guided mode: focus on specific feature (kanban, charts, etc.)
+     --project-name <name>    Override project name
+     --dry-run                Print without writing files
+     --inventory-only         Only output feature inventory
+   ```
+2. Review the generated spec -- adjust captions and timing as needed
+3. Copy templates into the target project (helpers.ts, caption-overlay.ts, playwright.video.config.ts)
+4. Record the video: `npx playwright test --config=playwright.video.config.ts --grep @auto-demo`
+5. Run the pipeline on generated spec + recorded video
+
+**What auto-discover detects:**
+
+| Feature | Detection Method | Demo Section |
+|---------|-----------------|--------------|
+| Framework | package.json dependencies | Tech stack label |
+| Routes | React Router `<Route>`, Next.js pages/app, nav configs | Page navigation |
+| Stat cards | `testId` prop, `data-testid="stat-*"` | Hover interaction |
+| Charts | Recharts/Chart.js/D3 imports + chart test IDs | Scroll + tooltip hover |
+| Data tables | `data-testid="*-table"`, sort indicators | Sort column headers |
+| Kanban board | `kanban-*` test IDs, draggable attributes | Drag-and-drop cards |
+| Dark mode | `theme-toggle` test ID, appearance settings | Toggle + navigate |
+| Forms | `*-form`, `*-input`, `invite-*` test IDs | Show section |
+| Responsive | Tailwind CSS detected | Mobile/tablet/desktop |
+| Settings | Profile, notification, accent color test IDs | Navigate + interact |
+
+**Guided mode:** Pass `--focus <feature>` to generate a spec focused on a single feature. The focus string matches against feature category, label, and description. If no match is found, falls back to full discovery with a warning.
+
+```bash
+# Full demo (all features)
+node scripts/auto-discover.mjs ./my-project
+
+# Focused on kanban drag-and-drop
+node scripts/auto-discover.mjs ./my-project --focus kanban
+
+# Focused on dark mode
+node scripts/auto-discover.mjs ./my-project --focus "dark mode"
+
+# Focused on data visualization
+node scripts/auto-discover.mjs ./my-project --focus charts
+```
+
+## Pipeline Architecture
+
+```
+Project source code
+  |  auto-discover       Scan framework, routes, features, test IDs
+  v                      Generate Playwright spec with captions
+Playwright spec (*.spec.ts)
+  |  extract-captions    Parse showCaption()/caption() -> JSON manifest
+  v                      Estimate timestamps from waitForTimeout chains
+  |  generate-voice      Per-caption ElevenLabs API -> caption_NN.mp3 (cached)
+  v
+  |  merge-video         Video + audio -> freeze-frame merge -> MP4
+  v                      Zero audio overlaps guaranteed
+  |  add-music           Voiced MP4 + music -> final MP4 (15% volume, looped)
+  v
+Final demo.mp4
+```
+
+## Pipeline Scripts
+
+All scripts live in `scripts/` and use Node.js builtins only (zero npm dependencies).
+
+### scripts/auto-discover.mjs
+
+Scan a project to detect features and generate a Playwright demo spec.
+
+```bash
+node scripts/auto-discover.mjs <project-dir> [options]
+
+Options:
+  --output, -o <path>      Output spec file (default: <project>/demo/auto-demo.spec.ts)
+  --inventory <path>       Feature inventory JSON output
+  --focus <feature>        Guided mode: focus on specific feature
+  --project-name <name>    Override project name
+  --base-url <url>         Dev server URL (default: http://localhost:5173)
+  --dry-run                Print without writing files
+  --inventory-only         Only output feature inventory
+  --helpers-dir <path>     Directory containing helpers.ts
+```
+
+**Discovery pipeline:**
+1. Read `package.json` to detect framework (React, Next.js, Vue, Angular, Svelte) and build tool
+2. Scan for `<Route>` definitions, navItems configs, and file-based routes
+3. Grep `data-testid` attributes and `testId` props across all components
+4. Detect dynamic test ID patterns (template literals like `` data-testid={`nav-${var}`} ``)
+5. Categorize features by demo impact: charts > tables > kanban > dark mode > forms > navigation > responsive > settings
+6. Generate a Playwright spec with caption calls compatible with the extract-captions pipeline
+
+**Output:** Feature inventory JSON + Playwright spec file ready for recording.
+
+### scripts/extract-captions.mjs
+
+Parse spec file, output JSON manifest with captions and estimated timestamps.
+
+```bash
+node scripts/extract-captions.mjs <spec-file> [options]
+
+Options:
+  --output, -o <path>      Output JSON manifest path (default: captions.json)
+  --show-fn <name>         Custom showCaption function name
+  --caption-fn <name>      Custom caption function name
+  --hide-fn <name>         Custom hideCaption function name
+  --dry-run                Print manifest to stdout
+```
+
+**Supported caption patterns:**
+```typescript
+showCaption(page, 'Caption text here');        // persists until hide
+caption(page, 'Caption text here', 3000);      // show, hold ms, hide
+hideCaption(page);                              // fade out
+```
+
+**Timestamp estimation:** Line-by-line sequential heuristic tracking all timing functions. Accuracy: +/-1 second. See [references/RESEARCH.md](references/RESEARCH.md) for algorithm details.
+
+**Output format:**
+```json
+[
+  { "id": 1, "text": "Welcome to the dashboard.", "startSec": 1.4, "type": "caption", "line": 107 },
+  { "id": 2, "text": "Interactive stat cards.", "startSec": 5.5, "type": "showCaption", "line": 110 }
+]
+```
+
+The manifest is user-editable before TTS generation -- the safety valve for timestamp corrections.
+
+### scripts/generate-voice.mjs
+
+Per-caption ElevenLabs TTS with caching and voice continuity.
+
+```bash
+node scripts/generate-voice.mjs <manifest.json> [options]
+
+Options:
+  --output-dir, -d <dir>   Audio output directory (default: ./audio)
+  --voice-id <id>          ElevenLabs voice ID (default: Matilda)
+  --model <id>             ElevenLabs model (default: eleven_turbo_v2_5)
+  --api-key <key>          API key (overrides ELEVENLABS_API_KEY env)
+  --dry-run                Print plan without API calls
+  --force                  Regenerate all, ignore cache
+```
+
+Features:
+- **Caching:** Skips generation if `caption_NN.mp3` exists and non-empty
+- **Voice continuity:** Sends `previous_text`/`next_text` with every API call
+- **Retry:** 3 attempts with exponential backoff (1s, 2s, 4s)
+- **Cost estimate:** Prints total character count and credit estimate before starting
+
+### scripts/merge-video.mjs
+
+Freeze-frame merge algorithm (generalized from merge-highlights-v2.mjs).
+
+```bash
+node scripts/merge-video.mjs --video <video> --manifest <manifest.json> --audio-dir <dir> [options]
+
+Options:
+  --output, -o <path>      Output video path (default: demo-with-voice.mp4)
+  --audio-shift <sec>      Voice before visual caption (default: -0.5)
+  --min-gap <sec>          Min silence between clips (default: 0.3)
+  --crf <n>                Video quality (default: 20)
+  --dry-run                Print ffmpeg command only
+```
+
+**Golden Rules:**
+1. Audio clips NEVER overlap
+2. Audio starts 500ms before visual caption (`AUDIO_SHIFT = -0.5`)
+3. Minimum 300ms silence gap between clips (`MIN_GAP = 0.3`)
+4. Freeze frames via ffmpeg `trim` + `tpad=stop_mode=clone` + `concat`
+
+### scripts/add-music.mjs
+
+Background music overlay.
+
+```bash
+node scripts/add-music.mjs --video <voiced.mp4> --music <music.mp3> [options]
+
+Options:
+  --output, -o <path>      Output path (default: demo-final.mp4)
+  --volume <0-1>           Music volume (default: 0.15 = 15%)
+  --fade-out <sec>         Fade music before end (default: 3s)
+  --no-loop                Do not loop music
+  --dry-run                Print command only
+```
+
+Music at 15% volume, looped if shorter than video, `-c:v copy` for fast processing.
+Music source: [Pixabay Music](https://pixabay.com/music/) (CC0, no attribution required).
+
+### scripts/run-pipeline.mjs
+
+Orchestrator that chains all steps with pre-flight checks.
+
+```bash
+node scripts/run-pipeline.mjs --spec <spec.ts> --video <video.webm> [options]
+
+Options:
+  --spec, -s <path>        Playwright spec with caption calls
+  --video, -v <path>       Recorded video file
+  --music <path>           Background music (optional)
+  --output-dir, -d <dir>   Working directory (default: ./demo-output)
+  --output, -o <path>      Final output path
+  --skip-voice             Use existing audio files
+  --skip-music             Skip music overlay
+  --dry-run                Print plan without executing
+  (+ all options from individual scripts)
+```
+
+Pre-flight checks: ffmpeg, ffprobe, Node.js version, ElevenLabs API key.
+
+## Templates
+
+Copy these into your target project.
+
+### templates/caption-overlay.ts
+
+Caption CSS + `showCaption`/`hideCaption`/`caption` functions. The pipeline's extract-captions.mjs parses these function calls, so the naming convention matters.
+
+### templates/demo-helpers.ts
+
+Demo pacing utilities: `pause`, `scenicPause`, `quickPause`, `smoothScroll`, `setViewport`, `naturalType`, `dragAndDrop`. Each has documented internal timing that extract-captions.mjs uses for timestamp estimation.
+
+### templates/playwright.video.config.ts
+
+Playwright config optimized for video recording: headless mode, 1280x800 viewport, generous timeouts, sequential execution, auto-start dev server.
+
+## Caption Extraction Details
+
+### Method: Regex (Not AST)
+
+Regex for text extraction, line-by-line heuristic for timestamps. Validated against 21-caption reference spec with 100% accuracy.
+
+**Why regex:** Caption texts are always string literals. Timestamp estimation is inherently approximate (+/-1s). The freeze-frame merge compensates for drift. Zero dependencies.
+
+**When to upgrade to AST:** If specs use variables for captions (e.g., `const msg = 'Hello'; showCaption(page, msg)`), add `@babel/parser`.
+
+### Timestamp Estimation Constants
+
+| Function | Duration |
+|----------|----------|
+| `waitForTimeout(N)` | N/1000 s |
+| `pause(page, N)` | N/1000 s |
+| `scenicPause(page, N)` | N/1000 s (default 1800ms) |
+| `quickPause(page, N)` | N/1000 s (default 600ms) |
+| `smoothScroll(...)` | 0.8 s |
+| `setViewport(...)` | 0.4 s |
+| `dragAndDrop(..., {holdMs})` | holdMs*2 + 300 ms |
+| `page.goto(...)` | 1.0 s (estimated) |
+| `page.waitForLoadState(...)` | 0.5 s (estimated) |
+| `page.click(...)` | 0.1 s |
+| `page.hover(...)` | 0.1 s |
+| `showCaption(...)` | +0.3 s (fade-in) |
+| `hideCaption(...)` | +0.3 s (fade-out) |
+| `caption(page, text, ms)` | 0.3 + ms/1000 + 0.3 s |
+
+## Error Handling
+
+### Pre-Flight (Fail Fast)
+
+1. Verify ffmpeg/ffprobe installed
+2. Verify ElevenLabs API key set (if voice requested)
+3. Verify spec file and video file exist
+4. Verify Node.js 18+ (native fetch required)
+
+### Extraction (Degrade Gracefully)
+
+1. Zero captions: warn, suggest `--show-fn`/`--caption-fn` overrides
+2. Negative timestamps: clamp to 0
+3. Non-monotonic: warn, offer linear interpolation
+4. Multiline caption(): handled automatically by whitespace normalization
+
+### Pipeline (Retry or Report)
+
+1. ElevenLabs failure: retry 3x with exponential backoff (1s, 2s, 4s)
+2. ffmpeg failure: capture stderr, suggest fixes
+3. ffprobe failure: estimate duration from text length
+
+## Reference Files
+
+- **Full research findings**: [references/RESEARCH.md](references/RESEARCH.md) -- AST vs regex analysis, prototype results, algorithm pseudocode
+- **Auto-discover patterns**: [references/auto-discover.md](references/auto-discover.md) -- framework detection, feature scanning, spec generation
+- **Pipeline patterns**: [references/pipeline-patterns.md](references/pipeline-patterns.md) -- ffmpeg commands, ElevenLabs API, freeze-frame algorithm
+
+## Success Criteria
+
+- Caption extraction matches all showCaption/caption calls in the spec
+- Timestamp estimates within +/-1 second of actual video timing
+- JSON manifest produced and editable
+- Auto-discover identifies major features from project structure
+- Pipeline produces working MP4 with synchronized voice and captions
+- Audio clips never overlap in the final video
+
+## On Failure
+
+1. **Regex misses captions**: Check function names; try `--show-fn`, `--caption-fn` overrides
+2. **Timestamps far off**: Review helper timing constants; edit JSON manifest before TTS
+3. **Auto-discover empty**: Check data-testid attributes; fall back to guided mode
+4. **ffmpeg errors**: Run `ffmpeg -version`; check input file formats; try `--dry-run`
+5. **ElevenLabs errors**: Check API key and credits; use `--dry-run` to verify manifest first
+6. **Audio overlaps**: Increase `--min-gap`; reduce caption density in spec

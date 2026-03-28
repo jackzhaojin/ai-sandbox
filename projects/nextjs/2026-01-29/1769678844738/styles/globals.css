@@ -1,0 +1,156 @@
+@import "tailwindcss";
+
+:root {
+  /* Retro Green Phosphor Theme */
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --text-primary: #00ff00;
+  --text-secondary: #00cc00;
+  --text-dim: #008800;
+  --accent: #00ff88;
+  --glow: rgba(0, 255, 0, 0.5);
+  --glow-strong: rgba(0, 255, 0, 0.8);
+
+  /* Spacing and sizing */
+  --border-radius: 2px;
+  --spacing-unit: 8px;
+}
+
+@theme inline {
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+  --color-accent: var(--accent);
+}
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Courier New', Courier, monospace;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Selection styles */
+::selection {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+}
+
+::-moz-selection {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-secondary);
+  border: 2px solid var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-primary);
+}
+
+/* CRT Monitor Effects */
+@keyframes flicker {
+  0% { opacity: 0.97; }
+  50% { opacity: 1; }
+  100% { opacity: 0.97; }
+}
+
+@keyframes textShadow {
+  0% {
+    text-shadow: 0 0 5px var(--glow), 0 0 10px var(--glow);
+  }
+  50% {
+    text-shadow: 0 0 7px var(--glow), 0 0 15px var(--glow), 0 0 20px var(--glow);
+  }
+  100% {
+    text-shadow: 0 0 5px var(--glow), 0 0 10px var(--glow);
+  }
+}
+
+/* CRT Screen Effect */
+.crt-screen {
+  position: relative;
+  animation: flicker 0.15s infinite;
+}
+
+.crt-screen::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0) 50%,
+    rgba(0, 0, 0, 0.15) 50%
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Retro Glow Text */
+.retro-glow {
+  text-shadow: 0 0 5px var(--glow), 0 0 10px var(--glow);
+  animation: textShadow 2s ease-in-out infinite;
+}
+
+/* Retro Border Glow */
+.retro-border {
+  border: 2px solid var(--text-primary);
+  box-shadow:
+    0 0 10px var(--glow),
+    inset 0 0 10px rgba(0, 255, 0, 0.1);
+}
+
+/* Loading Animation */
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.blink {
+  animation: blink 1s step-start infinite;
+}
+
+/* Pulse Animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
+}
+
+.pulse {
+  animation: pulse 2s ease-in-out infinite;
+}

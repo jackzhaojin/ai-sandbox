@@ -1,0 +1,75 @@
+{
+  "name": "string-manipulation",
+  "description": "Ability to transform and manipulate text strings",
+  "version": "1.0.0",
+  "difficulty_levels": ["basic", "intermediate", "advanced"],
+  "test_categories": [
+    {
+      "name": "case_conversion",
+      "description": "Converting between uppercase, lowercase, title case"
+    },
+    {
+      "name": "substring_extraction",
+      "description": "Extracting portions of strings based on patterns"
+    },
+    {
+      "name": "pattern_matching",
+      "description": "Finding and replacing patterns in text"
+    },
+    {
+      "name": "formatting",
+      "description": "Formatting strings with padding, alignment, etc."
+    }
+  ],
+  "success_criteria": {
+    "basic": 0.9,
+    "intermediate": 0.7,
+    "advanced": 0.5
+  },
+  "test_templates": [
+    {
+      "difficulty": "basic",
+      "category": "case_conversion",
+      "input": "hello world",
+      "expected": "HELLO WORLD",
+      "operation": "uppercase"
+    },
+    {
+      "difficulty": "basic",
+      "category": "case_conversion",
+      "input": "HELLO WORLD",
+      "expected": "hello world",
+      "operation": "lowercase"
+    },
+    {
+      "difficulty": "intermediate",
+      "category": "substring_extraction",
+      "input": "The quick brown fox",
+      "expected": "quick",
+      "operation": "extract_word",
+      "params": { "index": 1 }
+    },
+    {
+      "difficulty": "intermediate",
+      "category": "pattern_matching",
+      "input": "I have 3 apples and 5 oranges",
+      "expected": ["3", "5"],
+      "operation": "extract_numbers"
+    },
+    {
+      "difficulty": "advanced",
+      "category": "formatting",
+      "input": "42",
+      "expected": "00042",
+      "operation": "pad_left",
+      "params": { "width": 5, "char": "0" }
+    },
+    {
+      "difficulty": "advanced",
+      "category": "pattern_matching",
+      "input": "hello@example.com",
+      "expected": true,
+      "operation": "validate_email"
+    }
+  ]
+}

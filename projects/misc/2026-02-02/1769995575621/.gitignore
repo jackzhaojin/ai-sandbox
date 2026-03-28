@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Optional: Uncomment if you don't want to track generated outputs
+# test-cases/
+# evidence/
+# reports/
