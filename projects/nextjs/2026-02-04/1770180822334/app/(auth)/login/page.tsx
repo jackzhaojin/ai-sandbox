@@ -41,7 +41,7 @@ export default function LoginPage() {
       if (data.user) {
         // Update last login time in profile
         // This will be handled by the session helper
-        router.push('/dashboard')
+        router.push('/sites')
         router.refresh()
       }
     } catch (err: any) {

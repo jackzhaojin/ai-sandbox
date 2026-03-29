@@ -124,7 +124,7 @@ export function UserDropdown({ name, email, avatarUrl, role }: UserDropdownProps
           <div className="py-1">
             <button
               onClick={() => {
-                router.push('/dashboard/profile')
+                router.push('/profile')
                 setIsOpen(false)
               }}
               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
@@ -137,7 +137,7 @@ export function UserDropdown({ name, email, avatarUrl, role }: UserDropdownProps
 
             <button
               onClick={() => {
-                router.push('/dashboard/settings')
+                router.push('/settings')
                 setIsOpen(false)
               }}
               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"

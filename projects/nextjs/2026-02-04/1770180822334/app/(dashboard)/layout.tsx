@@ -23,32 +23,32 @@ export default async function DashboardLayout({
         <nav className="flex-1">
           <ul className="space-y-2">
             <li>
-              <a href="/dashboard/sites" className="block px-4 py-2 rounded hover:bg-gray-800">
+              <a href="/sites" className="block px-4 py-2 rounded hover:bg-gray-800">
                 Sites
               </a>
             </li>
             <li>
-              <a href="/dashboard/pages" className="block px-4 py-2 rounded hover:bg-gray-800">
+              <a href="/pages" className="block px-4 py-2 rounded hover:bg-gray-800">
                 Pages
               </a>
             </li>
             <li>
-              <a href="/dashboard/templates" className="block px-4 py-2 rounded hover:bg-gray-800">
+              <a href="/templates" className="block px-4 py-2 rounded hover:bg-gray-800">
                 Templates
               </a>
             </li>
             <li>
-              <a href="/dashboard/fragments" className="block px-4 py-2 rounded hover:bg-gray-800">
+              <a href="/fragments" className="block px-4 py-2 rounded hover:bg-gray-800">
                 Fragments
               </a>
             </li>
             <li>
-              <a href="/dashboard/media" className="block px-4 py-2 rounded hover:bg-gray-800">
+              <a href="/media" className="block px-4 py-2 rounded hover:bg-gray-800">
                 Media
               </a>
             </li>
             <li>
-              <a href="/dashboard/settings" className="block px-4 py-2 rounded hover:bg-gray-800">
+              <a href="/settings" className="block px-4 py-2 rounded hover:bg-gray-800">
                 Settings
               </a>
             </li>

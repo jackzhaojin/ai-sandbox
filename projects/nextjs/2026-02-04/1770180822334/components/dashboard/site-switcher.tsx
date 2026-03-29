@@ -27,7 +27,7 @@ export function SiteSwitcher({ sites, currentSiteId }: SiteSwitcherProps) {
   }
 
   const handleCreateSite = () => {
-    router.push('/dashboard/sites/new')
+    router.push('/sites/new')
   }
 
   return (
