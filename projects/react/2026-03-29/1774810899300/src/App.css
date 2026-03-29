@@ -4,3 +4,133 @@
   padding: 2rem;
   text-align: center;
 }
+
+h1 {
+  color: #333;
+  margin-bottom: 2rem;
+}
+
+/* Todo form styling */
+.todo-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.todo-input {
+  flex: 1;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.todo-input:focus {
+  border-color: #4CAF50;
+}
+
+.add-button {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background-color: #4CAF50;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.add-button:hover {
+  background-color: #45a049;
+}
+
+.add-button:active {
+  transform: scale(0.98);
+}
+
+/* Todo list styling */
+.todo-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+  background-color: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.todo-item:hover {
+  background-color: #f0f0f0;
+}
+
+.todo-text {
+  flex: 1;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  font-size: 1rem;
+  transition: color 0.2s;
+}
+
+/* Strike-through for completed items */
+.todo-text.completed {
+  text-decoration: line-through;
+  color: #888;
+}
+
+/* Todo action buttons */
+.todo-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.complete-button,
+.delete-button {
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.complete-button {
+  background-color: #2196F3;
+  color: white;
+}
+
+.complete-button:hover {
+  background-color: #1976D2;
+}
+
+.delete-button {
+  background-color: #f44336;
+  color: white;
+}
+
+.delete-button:hover {
+  background-color: #d32f2f;
+}
+
+.complete-button:active,
+.delete-button:active {
+  transform: scale(0.95);
+}
+
+/* Empty state message */
+.empty-message {
+  color: #999;
+  font-style: italic;
+  margin-top: 2rem;
+}
