@@ -3,6 +3,7 @@ import type { Note } from './types'
 import { loadNotes, saveNotes } from './utils/storage'
 import NoteForm from './components/NoteForm'
 import NoteList from './components/NoteList'
+import './App.css'
 
 function App() {
   const [notes, setNotes] = useState<Note[]>([])
