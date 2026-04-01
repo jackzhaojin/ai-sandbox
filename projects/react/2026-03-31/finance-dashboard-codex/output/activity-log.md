@@ -1,0 +1,11 @@
+# Activity Log
+- 2026-03-31: Created project directory and initialized local git repository.
+- 2026-03-31: Retried Vite scaffold with --force because output logging files made the directory non-empty.
+- 2026-03-31: Switched to internal temporary scaffold directory because create-vite would not initialize in a non-empty project root.
+- 2026-03-31: Installed dashboard dependencies: recharts, lucide-react, font packages, tailwindcss, and @tailwindcss/vite.
+- 2026-03-31: Implemented the dashboard shell, charts, transactions table, budgets, theme persistence, and finance mock data modules.
+- 2026-03-31: Fixed strict Recharts tooltip formatter typings after the first build surfaced TypeScript mismatches.
+- 2026-03-31: Reduced font payload by switching to latin-only fontsource imports before final verification.
+- 2026-03-31: Started the Vite dev server on 127.0.0.1:5173 for final smoke verification.
+- 2026-03-31: Recorded build, lint, and dev server verification results in output/verification.md.
+- 2026-03-31: Committed the finished dashboard implementation to local git.

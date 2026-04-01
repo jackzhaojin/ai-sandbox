@@ -1,0 +1,118 @@
+@import '@fontsource/manrope/latin-400.css';
+@import '@fontsource/manrope/latin-500.css';
+@import '@fontsource/manrope/latin-600.css';
+@import '@fontsource/manrope/latin-700.css';
+@import '@fontsource/space-grotesk/latin-700.css';
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+@theme inline {
+  --font-sans: 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk', 'Avenir Next Condensed', sans-serif;
+}
+
+:root {
+  --bg: #f4efe6;
+  --bg-elevated: rgba(255, 252, 248, 0.82);
+  --bg-strong: rgba(255, 255, 255, 0.94);
+  --surface-soft: rgba(255, 255, 255, 0.64);
+  --surface-muted: rgba(115, 129, 148, 0.12);
+  --surface-accent: rgba(15, 23, 42, 0.92);
+  --border: rgba(33, 41, 53, 0.1);
+  --border-strong: rgba(33, 41, 53, 0.18);
+  --text-primary: #16202e;
+  --text-secondary: #536071;
+  --text-muted: #6f7c8d;
+  --shadow-card: 0 24px 60px -28px rgba(26, 34, 44, 0.34);
+  --shadow-soft: 0 18px 40px -32px rgba(26, 34, 44, 0.28);
+  --line-income: #0f766e;
+  --line-expenses: #dc2626;
+  --income: #15803d;
+  --expenses: #dc2626;
+  --savings: #2563eb;
+  --net-worth: #7c3aed;
+  --chart-grid: rgba(83, 96, 113, 0.1);
+  --chart-axis: #738194;
+}
+
+[data-theme='dark'] {
+  --bg: #08111d;
+  --bg-elevated: rgba(8, 17, 29, 0.78);
+  --bg-strong: rgba(13, 24, 37, 0.92);
+  --surface-soft: rgba(255, 255, 255, 0.04);
+  --surface-muted: rgba(148, 163, 184, 0.1);
+  --surface-accent: rgba(240, 249, 255, 0.92);
+  --border: rgba(148, 163, 184, 0.14);
+  --border-strong: rgba(148, 163, 184, 0.22);
+  --text-primary: #e2edf7;
+  --text-secondary: #9eafc3;
+  --text-muted: #7f90a5;
+  --shadow-card: 0 30px 80px -36px rgba(0, 0, 0, 0.72);
+  --shadow-soft: 0 20px 50px -30px rgba(0, 0, 0, 0.55);
+  --line-income: #2dd4bf;
+  --line-expenses: #fb7185;
+  --income: #4ade80;
+  --expenses: #fb7185;
+  --savings: #60a5fa;
+  --net-worth: #c084fc;
+  --chart-grid: rgba(148, 163, 184, 0.12);
+  --chart-axis: #94a3b8;
+}
+
+html {
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 28%),
+    var(--bg);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: rgba(37, 99, 235, 0.18);
+}
+
+.surface-card {
+  background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.22),
+      rgba(255, 255, 255, 0)
+    ),
+    var(--bg-elevated);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(20px);
+}
+
+.surface-subtle {
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
+}
+
+.grid-line {
+  stroke: var(--chart-grid);
+}
+
+.axis-line {
+  stroke: var(--chart-grid);
+}
