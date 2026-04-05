@@ -1,0 +1,249 @@
+/**
+ * B2B Postal Checkout Flow - API Validation Schemas
+ * Zod schemas for API request validation
+ */
+
+import { z } from 'zod';
+import type { PackageType, HandlingType, ShipmentStatus } from '@/types/database';
+
+// ============================================
+// COMMON VALIDATORS
+// ============================================
+
+const uuidSchema = z.string().uuid('Invalid UUID format');
+
+const phoneSchema = z.string()
+  .min(10, 'Phone number must be at least 10 digits')
+  .max(20, 'Phone number must not exceed 20 digits')
+  .regex(/^[\d\s\-\+\(\)\.]+$/, 'Invalid phone number format');
+
+const emailSchema = z.string()
+  .email('Invalid email address')
+  .max(255, 'Email must not exceed 255 characters');
+
+const postalCodeSchema = z.string()
+  .min(1, 'Postal code is required')
+  .max(20, 'Postal code must not exceed 20 characters');
+
+// ============================================
+// SHIPMENT CREATE/UPDATE SCHEMAS
+// ============================================
+
+export const createShipmentSchema = z.object({
+  // Step 1: Sender Information (optional on create, can be added later)
+  sender_address_id: uuidSchema.optional(),
+  sender_contact_name: z.string().min(1, 'Contact name is required').max(100).optional(),
+  sender_contact_phone: phoneSchema.optional(),
+  sender_contact_email: emailSchema.optional(),
+
+  // Step 2: Recipient Information
+  recipient_address_id: uuidSchema.optional(),
+  recipient_contact_name: z.string().min(1, 'Contact name is required').max(100).optional(),
+  recipient_contact_phone: phoneSchema.optional(),
+  recipient_contact_email: emailSchema.optional(),
+
+  // Step 3: Package Details
+  package_type: z.enum(['box', 'envelope', 'tube', 'pallet'] as const).optional(),
+  weight: z.number().positive('Weight must be greater than 0').max(1000).optional(),
+  length: z.number().positive('Length must be greater than 0').max(500).optional(),
+  width: z.number().positive('Width must be greater than 0').max(500).optional(),
+  height: z.number().positive('Height must be greater than 0').max(500).optional(),
+  declared_value: z.number().nonnegative('Declared value must be non-negative').max(100000).optional(),
+  contents_description: z.string().max(500).optional(),
+
+  // Step 4: Shipping Options
+  carrier_id: uuidSchema.optional(),
+  service_type_id: uuidSchema.optional(),
+
+  // Step 5: Special Handling
+  special_handling: z.array(z.object({
+    handling_type: z.enum([
+      'fragile',
+      'hazardous',
+      'temperature_controlled',
+      'signature_required',
+      'adult_signature',
+      'hold_for_pickup',
+      'appointment_delivery'
+    ] as const),
+    instructions: z.string().max(500).optional(),
+  })).optional(),
+
+  // Step 6: Delivery Preferences
+  delivery_preferences: z.object({
+    saturday_delivery: z.boolean().optional(),
+    sunday_delivery: z.boolean().optional(),
+    signature_required: z.boolean().optional(),
+    adult_signature_required: z.boolean().optional(),
+    leave_without_signature: z.boolean().optional(),
+    delivery_instructions: z.string().max(1000).optional(),
+  }).optional(),
+
+  // Step 7: Hazmat
+  hazmat: z.object({
+    is_hazmat: z.boolean(),
+    hazmat_class: z.string().optional(),
+    un_number: z.string().max(10).optional(),
+    proper_shipping_name: z.string().max(200).optional(),
+  }).optional(),
+
+  // Reference numbers
+  reference_number: z.string().max(50).optional(),
+  po_number: z.string().max(50).optional(),
+}).strict();
+
+export const updateShipmentSchema = z.object({
+  // Sender Information
+  sender_address_id: uuidSchema.optional(),
+  sender_contact_name: z.string().min(1).max(100).optional(),
+  sender_contact_phone: phoneSchema.optional().nullable(),
+  sender_contact_email: emailSchema.optional().nullable(),
+
+  // Recipient Information
+  recipient_address_id: uuidSchema.optional(),
+  recipient_contact_name: z.string().min(1).max(100).optional(),
+  recipient_contact_phone: phoneSchema.optional().nullable(),
+  recipient_contact_email: emailSchema.optional().nullable(),
+
+  // Package Details
+  package_type: z.enum(['box', 'envelope', 'tube', 'pallet'] as const).optional(),
+  weight: z.number().positive().max(1000).optional(),
+  length: z.number().positive().max(500).optional(),
+  width: z.number().positive().max(500).optional(),
+  height: z.number().positive().max(500).optional(),
+  declared_value: z.number().nonnegative().max(100000).optional().nullable(),
+  contents_description: z.string().max(500).optional().nullable(),
+
+  // Shipping Options
+  carrier_id: uuidSchema.optional().nullable(),
+  service_type_id: uuidSchema.optional().nullable(),
+  estimated_delivery: z.string().datetime().optional().nullable(),
+  base_rate: z.number().nonnegative().optional().nullable(),
+  fuel_surcharge: z.number().nonnegative().optional(),
+  insurance_cost: z.number().nonnegative().optional(),
+  handling_fees: z.number().nonnegative().optional(),
+  taxes: z.number().nonnegative().optional(),
+  total_cost: z.number().nonnegative().optional().nullable(),
+
+  // Status
+  status: z.enum([
+    'draft',
+    'pending_payment',
+    'paid',
+    'label_generated',
+    'picked_up',
+    'in_transit',
+    'delivered',
+    'cancelled'
+  ] as const).optional(),
+
+  // Reference numbers
+  reference_number: z.string().max(50).optional().nullable(),
+  po_number: z.string().max(50).optional().nullable(),
+  special_instructions: z.string().max(1000).optional().nullable(),
+  internal_notes: z.string().max(2000).optional().nullable(),
+}).strict();
+
+// ============================================
+// SHIPMENT ID PARAM SCHEMA
+// ============================================
+
+export const shipmentIdParamSchema = z.object({
+  id: uuidSchema,
+});
+
+// ============================================
+// QUERY PARAMETER SCHEMAS
+// ============================================
+
+export const paginationQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  sort: z.string().default('created_at'),
+  order: z.enum(['asc', 'desc'] as const).default('desc'),
+});
+
+export const shipmentListQuerySchema = paginationQuerySchema.extend({
+  status: z.enum([
+    'draft',
+    'pending_payment',
+    'paid',
+    'label_generated',
+    'picked_up',
+    'in_transit',
+    'delivered',
+    'cancelled'
+  ] as const).optional(),
+  carrier_id: uuidSchema.optional(),
+  date_from: z.string().datetime().optional(),
+  date_to: z.string().datetime().optional(),
+  search: z.string().max(100).optional(),
+});
+
+// ============================================
+// ADDRESS SCHEMAS
+// ============================================
+
+export const createAddressSchema = z.object({
+  label: z.string().min(1).max(50),
+  recipient_name: z.string().min(1).max(100),
+  recipient_phone: phoneSchema.optional(),
+  line1: z.string().min(1).max(100),
+  line2: z.string().max(100).optional(),
+  city: z.string().min(1).max(50),
+  state: z.string().min(1).max(50),
+  postal_code: postalCodeSchema,
+  country: z.string().length(2).toUpperCase().default('US'),
+  address_type: z.enum(['residential', 'commercial'] as const).default('commercial'),
+  is_default_shipping: z.boolean().default(false),
+  is_default_billing: z.boolean().default(false),
+}).strict();
+
+export const updateAddressSchema = createAddressSchema.partial();
+
+// ============================================
+// RATE CALCULATION SCHEMAS
+// ============================================
+
+export const calculateRatesSchema = z.object({
+  sender_address_id: uuidSchema,
+  recipient_address_id: uuidSchema,
+  package: z.object({
+    weight: z.number().positive(),
+    length: z.number().positive(),
+    width: z.number().positive(),
+    height: z.number().positive(),
+  }),
+  declared_value: z.number().nonnegative().optional(),
+  special_handling: z.array(z.enum([
+    'fragile',
+    'hazardous',
+    'temperature_controlled',
+    'signature_required',
+    'adult_signature',
+    'hold_for_pickup',
+    'appointment_delivery'
+  ] as const)).optional(),
+}).strict();
+
+// ============================================
+// PAYMENT SCHEMAS
+// ============================================
+
+export const processPaymentSchema = z.object({
+  shipment_id: uuidSchema,
+  payment_method_id: uuidSchema,
+}).strict();
+
+// ============================================
+// TYPE EXPORTS
+// ============================================
+
+export type CreateShipmentInput = z.infer<typeof createShipmentSchema>;
+export type UpdateShipmentInput = z.infer<typeof updateShipmentSchema>;
+export type CreateAddressInput = z.infer<typeof createAddressSchema>;
+export type UpdateAddressInput = z.infer<typeof updateAddressSchema>;
+export type CalculateRatesInput = z.infer<typeof calculateRatesSchema>;
+export type ProcessPaymentInput = z.infer<typeof processPaymentSchema>;
+export type ShipmentListQueryInput = z.infer<typeof shipmentListQuerySchema>;
+export type PaginationQueryInput = z.infer<typeof paginationQuerySchema>;

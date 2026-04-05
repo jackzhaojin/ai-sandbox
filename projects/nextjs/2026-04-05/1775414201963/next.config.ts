@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Disable static export - requires server components for auth
+  // Use standalone output for server components
   output: 'standalone',
   // Disable eslint during build
   eslint: {
@@ -19,6 +19,9 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  // Disable static page generation for error pages
+  // This forces Next.js to use the App Router for all pages
+  distDir: '.next',
 };
 
 export default nextConfig;
