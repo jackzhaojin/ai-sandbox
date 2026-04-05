@@ -24,7 +24,7 @@ ai-sandbox/
 3. **NEVER modify** this root CLAUDE.md, the root .env, the root .env.app, the root .claude/ directory, or other projects.
 4. **Do NOT create .claude/ inside project folders.** Skills and agents are shared at the root only.
 5. **Projects CAN have their own CLAUDE.md** — it inherits from root and adds project-specific context.
-6. **Initialize git** in your project directory and commit all work before finishing.
+6. **Do NOT run `git init`** — this is a monorepo. Commit your work to the monorepo's git from your project directory.
 7. If your project needs app-specific env vars, check `.env.app` at the root for available credentials, or create a separate `.env` inside the project directory.
 
 ## Available Cloud Services
