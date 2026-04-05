@@ -11,10 +11,14 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Disable static page generation timeout (we use dynamic rendering)
-  staticPageGenerationTimeout: 1000,
   // Ensure we use Node.js runtime
   serverExternalPackages: ['@supabase/ssr'],
+  // Disable powered by header
+  poweredByHeader: false,
+  // Configure images
+  images: {
+    unoptimized: true,
+  },
 };
 
 export default nextConfig;
