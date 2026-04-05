@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { Geist } from "next/font/google"
 import "./globals.css"
+import { Toaster } from "@/components/ui/sonner"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
   keywords: ["shipping", "B2B", "postal", "logistics", "checkout"],
   authors: [{ name: "B2B Shipping" }],
   creator: "B2B Shipping",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
+  metadataBase: new URL("http://localhost:3000"),
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -49,6 +50,7 @@ export default function RootLayout({
     <html lang="en" className={`${geistSans.variable} antialiased`}>
       <body className="min-h-screen bg-background font-sans text-foreground">
         {children}
+        <Toaster />
       </body>
     </html>
   )

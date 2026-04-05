@@ -1,6 +1,6 @@
-export const dynamic = 'force-dynamic'
-
 import { ShippingLayout } from "@/components/layout"
+
+export const dynamic = 'force-dynamic'
 import {
   Card,
   CardContent,

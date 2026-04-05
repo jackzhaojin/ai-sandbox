@@ -1,4 +1,5 @@
 // UI Components - shadcn/ui base components
+export { Badge, badgeVariants } from "./badge"
 export { Button, buttonVariants } from "./button"
 export { Calendar } from "./calendar"
 export { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./card"
@@ -10,6 +11,8 @@ export { RadioGroup, RadioGroupItem } from "./radio-group"
 export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select"
 export { Separator } from "./separator"
 export { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "./sheet"
+export { Toggle, toggleVariants } from "./toggle"
+export { ToggleGroup, ToggleGroupItem } from "./toggle-group"
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip"
 export {
   Form,
