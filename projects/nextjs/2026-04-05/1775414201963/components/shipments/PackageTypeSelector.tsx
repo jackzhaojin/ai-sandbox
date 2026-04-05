@@ -4,20 +4,20 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { packageTypeConfigs, type PackageTypeConfig } from "@/lib/data/shipment-presets";
-import { Package, Mail, Cylinder, Container, Check } from "lucide-react";
+import { Mail, Package, Container, Boxes, Check } from "lucide-react";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  Package,
   Mail,
-  Cylinder,
+  Package,
   Container,
+  Boxes,
 };
 
 export interface PackageTypeSelectorProps {
   /** Currently selected package type */
-  selectedType?: "box" | "envelope" | "tube" | "pallet";
+  selectedType?: PackageTypeConfig["value"];
   /** Callback when a type is selected */
-  onSelect: (type: "box" | "envelope" | "tube" | "pallet") => void;
+  onSelect: (type: PackageTypeConfig["value"]) => void;
   /** Additional CSS classes */
   className?: string;
   /** Disable all interactions */
@@ -27,8 +27,10 @@ export interface PackageTypeSelectorProps {
 /**
  * PackageTypeSelector - Visual card selector for package types
  *
- * Displays 4 package type cards with icons, descriptions, and
+ * Displays 7 package type cards with icons, descriptions, and
  * weight/dimension limits for easy selection.
+ * 
+ * Package types: Envelope, Small Box, Medium Box, Large Box, Pallet, Crate, Multiple Pieces
  */
 export function PackageTypeSelector({
   selectedType,
@@ -45,7 +47,7 @@ export function PackageTypeSelector({
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {packageTypeConfigs.map((config) => {
           const Icon = iconMap[config.icon] || Package;
           const isSelected = selectedType === config.value;
@@ -87,12 +89,12 @@ export function PackageTypeSelector({
 
                     <div className="space-y-1">
                       <div className="flex items-center justify-center gap-1.5">
-                        <span className="font-medium">{config.label}</span>
+                        <span className="font-medium text-sm">{config.label}</span>
                         {isSelected && (
                           <Check className="h-3.5 w-3.5 text-primary" />
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground line-clamp-2">
                         {config.description}
                       </p>
                     </div>
@@ -103,9 +105,9 @@ export function PackageTypeSelector({
                         <span className="font-medium">{config.maxWeight} lbs</span>
                       </div>
                       <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">Max Size:</span>
+                        <span className="text-muted-foreground">Dimensions:</span>
                         <span className="font-medium">
-                          {config.maxDimensions.length}"
+                          {config.maxDimensions.length}" × {config.maxDimensions.width}" × {config.maxDimensions.height}"
                         </span>
                       </div>
                     </div>

@@ -118,7 +118,7 @@ export const addressSchema = z.object({
 
 export const packagePieceSchema = z.object({
   id: z.string(),
-  packageType: z.enum(["box", "envelope", "tube", "pallet"]),
+  packageType: z.enum(["envelope", "small_box", "medium_box", "large_box", "pallet", "crate", "multiple_pieces"]),
   length: z
     .number({ message: "Length must be a number" })
     .positive("Length must be greater than 0")
@@ -316,10 +316,10 @@ export const defaultAddress: AddressFormData = {
 
 export const defaultPackagePiece = (id: string = "1"): PackagePieceFormData => ({
   id,
-  packageType: "box",
-  length: 12,
-  width: 9,
-  height: 6,
+  packageType: "medium_box",
+  length: 18,
+  width: 14,
+  height: 12,
   dimensionsUnit: "in",
   weight: 5,
   weightUnit: "lbs",

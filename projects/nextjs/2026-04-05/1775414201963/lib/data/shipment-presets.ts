@@ -68,7 +68,7 @@ export const shipmentPresets: ShipmentPreset[] = [
       packages: [
         {
           id: "1",
-          packageType: "box",
+          packageType: "large_box",
           length: 24,
           width: 18,
           height: 12,
@@ -105,7 +105,7 @@ export const shipmentPresets: ShipmentPreset[] = [
       packages: [
         {
           id: "1",
-          packageType: "box",
+          packageType: "medium_box",
           length: 18,
           width: 14,
           height: 10,
@@ -142,7 +142,7 @@ export const shipmentPresets: ShipmentPreset[] = [
       packages: [
         {
           id: "1",
-          packageType: "box",
+          packageType: "small_box",
           length: 16,
           width: 12,
           height: 8,
@@ -180,7 +180,7 @@ export const shipmentPresets: ShipmentPreset[] = [
       packages: [
         {
           id: "1",
-          packageType: "tube",
+          packageType: "crate",
           length: 48,
           width: 6,
           height: 6,
@@ -231,7 +231,7 @@ export function applyPreset(
 
 // Package type configurations
 export interface PackageTypeConfig {
-  value: "box" | "envelope" | "tube" | "pallet";
+  value: "envelope" | "small_box" | "medium_box" | "large_box" | "pallet" | "crate" | "multiple_pieces";
   label: string;
   description: string;
   icon: string;
@@ -246,40 +246,67 @@ export interface PackageTypeConfig {
 
 export const packageTypeConfigs: PackageTypeConfig[] = [
   {
-    value: "box",
-    label: "Box",
-    description: "Standard cardboard box",
-    icon: "Package",
-    maxWeight: 50,
-    maxDimensions: { length: 150, width: 100, height: 100 },
-    typicalUses: ["General merchandise", "Books", "Clothing", "Multiple items"],
-  },
-  {
     value: "envelope",
     label: "Envelope",
-    description: "Flat document mailer",
+    description: "Flat document mailer for letters and documents",
     icon: "Mail",
     maxWeight: 2,
-    maxDimensions: { length: 40, width: 30, height: 5 },
+    maxDimensions: { length: 15, width: 12, height: 0.75 },
     typicalUses: ["Documents", "Letters", "Photos", "Small flat items"],
   },
   {
-    value: "tube",
-    label: "Tube",
-    description: "Cylindrical container",
-    icon: "Cylinder",
+    value: "small_box",
+    label: "Small Box",
+    description: "Compact box for small items and samples",
+    icon: "Package",
     maxWeight: 10,
-    maxDimensions: { length: 100, width: 15, height: 15 },
-    typicalUses: ["Posters", "Blueprints", "Maps", "Rolled documents"],
+    maxDimensions: { length: 12, width: 10, height: 8 },
+    typicalUses: ["Small parts", "Samples", "Accessories", "Jewelry"],
+  },
+  {
+    value: "medium_box",
+    label: "Medium Box",
+    description: "Standard box for most shipping needs",
+    icon: "Package",
+    maxWeight: 30,
+    maxDimensions: { length: 18, width: 14, height: 12 },
+    typicalUses: ["Clothing", "Electronics", "Books", "Household items"],
+  },
+  {
+    value: "large_box",
+    label: "Large Box",
+    description: "Oversized box for bulky items",
+    icon: "Package",
+    maxWeight: 50,
+    maxDimensions: { length: 24, width: 18, height: 16 },
+    typicalUses: ["Large electronics", "Multiple items", "Bulk products", "Equipment"],
   },
   {
     value: "pallet",
     label: "Pallet",
-    description: "Freight shipment",
+    description: "Standard pallet for freight shipments",
     icon: "Container",
     maxWeight: 1000,
-    maxDimensions: { length: 200, width: 120, height: 200 },
-    typicalUses: ["Bulk items", "Heavy machinery", "Large equipment", "Freight"],
+    maxDimensions: { length: 48, width: 40, height: 60 },
+    typicalUses: ["Bulk freight", "Stacked boxes", "Heavy machinery", "LTL shipments"],
+  },
+  {
+    value: "crate",
+    label: "Crate",
+    description: "Wooden crate for fragile or high-value items",
+    icon: "Container",
+    maxWeight: 500,
+    maxDimensions: { length: 36, width: 24, height: 30 },
+    typicalUses: ["Fragile items", "Artwork", "High-value goods", "Industrial parts"],
+  },
+  {
+    value: "multiple_pieces",
+    label: "Multiple Pieces",
+    description: "Ship multiple packages together",
+    icon: "Boxes",
+    maxWeight: 200,
+    maxDimensions: { length: 24, width: 18, height: 16 },
+    typicalUses: ["Multi-piece orders", "Kit shipments", "Consolidated packages"],
   },
 ];
 
