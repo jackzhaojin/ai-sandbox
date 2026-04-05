@@ -1,107 +1,103 @@
-# Step 3: Supabase Schema and Seed Data - Summary
+# Step 3 Summary: Build DimensionsInput and WeightInput components
 
-**Status**: ✅ Complete  
-**Contract**: contract-1775418157805  
-**Date**: April 5, 2026
-
----
+**Task:** B2B Postal Checkout Flow  
+**Completed:** 2026-04-05  
+**Contract:** contract-1775424040587  
+**Output Path:** /Users/jackjin/dev/ai-sandbox/projects/nextjs/2026-04-05/1775414201963
 
 ## What Was Done
 
-This step involved setting up the complete Supabase database schema for the B2B Postal Checkout Flow application. The work was completed in a previous commit (3a36a0a) and build configuration was updated in this session.
+### DimensionsInput Component
+Built the package dimensions input component with the following features:
 
-### Files Created/Updated
+1. **Three Number Inputs** - Length, Width, Height inputs with decimal precision (0.1 step)
+2. **Unit Toggle** - Toggle between inches (in) and centimeters (cm) with automatic value conversion
+3. **Package Type Validation** - Accepts `packageType` prop to enforce max dimensions per package type:
+   - Envelope: 15" × 12" × 0.75"
+   - Small Box: 12" × 10" × 8"
+   - Medium Box: 18" × 14" × 12"
+   - Large Box: 24" × 18" × 16"
+   - Pallet: 48" × 40" × 60"
+   - Crate: 36" × 24" × 30"
+   - Multiple Pieces: 24" × 18" × 16"
+4. **Visual Warnings** - Amber border and warning icon when dimensions exceed package type limits
+5. **Dimensional Weight Display** - Real-time calculation using formula (L × W × H) / 139
+6. **React Hook Form Integration** - Compatible with `onChange` callback pattern
 
-#### SQL Migration
-- `supabase/migrations/000001_initial_schema.sql` (44KB)
-  - 12 ENUM types (user_role, carrier_code, service_category, etc.)
-  - 29 tables with proper constraints and foreign keys
-  - 35+ indexes for performance optimization
-  - RLS policies (permissive for v1)
-  - Functions and triggers for auto-updating timestamps, auto-numbering, credit management
+### WeightInput Component
+Built the package weight input component with the following features:
 
-#### Seed Data
-- `supabase/seed.sql` (21KB)
-  - 4 mock carriers: PEX, VC, EFL, FS with pricing multipliers and ratings
-  - 21 service types across ground/air/freight/international categories
-  - Sample organization (Acme Corporation)
-  - 3 addresses (Main Office, Warehouse, West Coast)
-  - 1 complete test shipment (SHP-2026-000001)
-  - Payment methods, pickup details, quotes, and activity log entries
+1. **Weight Number Input** - Decimal precision (0.1 step) with lbs/kg toggle
+2. **Unit Toggle** - Toggle between pounds (lbs) and kilograms (kg) with automatic value conversion
+3. **Weight Comparison Display** - Shows three values:
+   - Actual Weight (user input)
+   - Dimensional Weight (passed from parent or calculated)
+   - Billable Weight (max of actual and dimensional)
+4. **Warning Alert** - Amber warning box when dimensional weight exceeds actual weight
+5. **Max Weight Validation** - Optional `maxWeight` prop for validation warnings
+6. **React Hook Form Integration** - Compatible with `onChange` callback pattern
 
-#### TypeScript Types
-- `types/database.ts` (20KB)
-  - Complete Database interface matching schema
-  - All table row types, insert types, update types
-  - Enum type definitions
+### Build Environment Fixes
+Fixed build configuration issues:
+- Updated `.env.local` with correct `NEXT_PUBLIC_` prefixed Supabase environment variables
+- Added `app/shipments/layout.tsx` with `export const dynamic = "force-dynamic"` to prevent static generation issues
+- Build now passes with `NODE_ENV=production`
 
-#### Supabase Client
-- `lib/supabase/client.ts` - Browser client with TypeScript types
-- `lib/supabase/server.ts` - Server client with cookie handling
-- `lib/supabase/middleware.ts` - Session middleware
-- `lib/supabase/index.ts` - Unified exports
+## Files Modified/Created
 
-#### Build Configuration
-- `next.config.ts` - Updated for Next.js 15 + Supabase SSR compatibility
+| File | Changes |
+|------|---------|
+| `components/shipments/DimensionsInput.tsx` | Enhanced with package type validation, warnings, dimensional weight display |
+| `components/shipments/WeightInput.tsx` | Enhanced with weight comparison, billable weight display, DIM weight warning |
+| `.env.local` | Fixed Supabase environment variables with NEXT_PUBLIC_ prefix |
+| `app/shipments/layout.tsx` | Added dynamic export for proper SSR handling |
 
----
+## Component Interfaces
 
-## Schema Overview
-
-### Core Tables (29)
-
-| Category | Tables |
-|----------|--------|
-| **Organization** | organizations, users, addresses |
-| **Carriers** | carriers, service_types |
-| **Shipments** | shipments, shipment_packages, shipment_special_handling, shipment_delivery_preferences, hazmat_details |
-| **Quotes** | quotes |
-| **Payments** | payment_info, payment_purchase_orders, payment_bills_of_lading, payment_third_party, payment_net_terms, payment_net_terms_references, payment_corporate_accounts, payment_methods, payments |
-| **Pickup** | pickup_details, pickup_contacts, pickup_access_requirements, pickup_equipment_needs, pickup_authorized_personnel, pickup_notifications |
-| **Tracking** | shipment_events |
-| **Audit** | activity_log |
-
-### Mock Carriers
-
-| Code | Name | Rating | Multiplier |
-|------|------|--------|------------|
-| PEX | Parcel Express | 4.5/5 | 1.0000 |
-| VC | Velocity Courier | 4.8/5 | 1.1500 |
-| EFL | Eagle Freight Lines | 4.2/5 | 0.9000 |
-| FS | FastShip Global | 4.0/5 | 1.2000 |
-
----
-
-## Verification
-
-- ✅ All 29 tables created with proper constraints
-- ✅ 4 mock carriers with pricing multipliers and ratings
-- ✅ 21 service types across all categories
-- ✅ 1 complete sample shipment for testing
-- ✅ RLS policies applied (permissive for v1)
-- ✅ 35+ indexes created for performance
-- ✅ Functions and triggers defined
-- ✅ TypeScript types match schema
-- ✅ Build passes without errors
-- ✅ Changes committed to git
-
----
-
-## Next Steps
-
-1. Deploy schema to Supabase project using SQL Editor
-2. Run seed.sql to populate mock data
-3. Configure environment variables:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-
----
-
-## Git History
-
+### DimensionsInputProps
+```typescript
+interface DimensionsInputProps {
+  length?: number;
+  width?: number;
+  height?: number;
+  unit: DimensionsUnit;
+  packageType?: PackageTypeConfig["value"];
+  onChange: (dimensions: { length?: number; width?: number; height?: number; unit: DimensionsUnit }) => void;
+  className?: string;
+  disabled?: boolean;
+  showDimensionalWeight?: boolean;
+  dimensionalWeight?: number | null;
+  errors?: { length?: string; width?: string; height?: string };
+}
 ```
-93d1e58 fix(config): correct serverExternalPackages config key
-27d9d78 chore: update build config for Supabase schema integration
-3a36a0a feat(supabase): set up complete database schema and seed data
+
+### WeightInputProps
+```typescript
+interface WeightInputProps {
+  weight?: number;
+  unit: WeightUnit;
+  dimensionalWeight?: number | null;
+  onChange: (weight: { weight?: number; unit: WeightUnit }) => void;
+  className?: string;
+  disabled?: boolean;
+  showWeightComparison?: boolean;
+  error?: string;
+  maxWeight?: number;
+}
+```
+
+## Validation & Testing
+
+- Both components pass TypeScript type checking
+- Components are integrated with existing form infrastructure
+- Compatible with React Hook Form and Zod validation schema
+- Unit conversion utilities imported from `shipment-details-schema.ts`
+- Build passes successfully with `NODE_ENV=production npm run build`
+
+## Build Verification
+
+```bash
+NODE_ENV=production npm run build
+# Build completed successfully
+# All routes compiled without errors
 ```

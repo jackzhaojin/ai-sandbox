@@ -27,6 +27,22 @@ ai-sandbox/
 6. **Do NOT run `git init`** — this is a monorepo. Commit your work to the monorepo's git from your project directory.
 7. If your project needs app-specific env vars, check `.env.app` at the root for available credentials, or create a separate `.env` inside the project directory.
 
+## MANDATORY: Visual Testing for Web Projects
+
+If you are building a website or web UI, you MUST visually verify your work before marking a step complete. Use `playwright-cli` (already installed) to open a browser, take snapshots, and verify pages render correctly.
+
+```bash
+# Start dev server, open browser, verify
+npm run dev &
+sleep 3
+playwright-cli open http://localhost:3000
+playwright-cli snapshot
+playwright-cli screenshot
+playwright-cli close
+```
+
+**Untested UI that compiles but renders blank is a failure.** Always verify visually.
+
 ## Available Cloud Services
 
 **Use these services by default** unless the task explicitly requires something else.

@@ -10,7 +10,7 @@ import {
   convertWeight,
   type WeightUnit,
 } from "@/lib/validation/shipment-details-schema";
-import { Scale, Info } from "lucide-react";
+import { Scale, Info, AlertTriangle } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -31,17 +31,25 @@ export interface WeightInputProps {
   className?: string;
   /** Disable all inputs */
   disabled?: boolean;
-  /** Show billable weight calculation */
-  showBillableWeight?: boolean;
+  /** Show weight comparison section */
+  showWeightComparison?: boolean;
   /** Error message */
   error?: string;
+  /** Max weight allowed (in lbs) */
+  maxWeight?: number;
 }
 
 /**
- * WeightInput - Package weight input with unit toggle
+ * WeightInput - Package weight input with unit toggle and billable weight display
  *
  * Provides input for package weight with real-time unit
  * conversion between pounds and kilograms.
+ * 
+ * Features:
+ * - Displays Actual Weight, Dimensional Weight, and Billable Weight
+ * - Warning when dimensional weight exceeds actual weight
+ * - Unit toggle with automatic value conversion
+ * - Max weight validation
  */
 export function WeightInput({
   weight,
@@ -50,16 +58,31 @@ export function WeightInput({
   onChange,
   className,
   disabled = false,
-  showBillableWeight = true,
+  showWeightComparison = true,
   error,
+  maxWeight,
 }: WeightInputProps) {
-  // Calculate billable weight
+  // Calculate billable weight (max of actual or dimensional)
   const billableWeight = React.useMemo(() => {
     if (!weight) return null;
     return calculateBillableWeight(weight, dimensionalWeight || 0, unit);
   }, [weight, dimensionalWeight, unit]);
 
-  // Handle unit toggle
+  // Check if dimensional weight exceeds actual weight
+  const dimWeightExceedsActual = React.useMemo(() => {
+    if (!weight || !dimensionalWeight) return false;
+    const actualInLbs = unit === "kg" ? weight / 0.453592 : weight;
+    return dimensionalWeight > actualInLbs;
+  }, [weight, dimensionalWeight, unit]);
+
+  // Check if weight exceeds max
+  const weightExceedsMax = React.useMemo(() => {
+    if (!weight || !maxWeight) return false;
+    const weightInLbs = unit === "kg" ? weight / 0.453592 : weight;
+    return weightInLbs > maxWeight;
+  }, [weight, maxWeight, unit]);
+
+  // Handle unit toggle with automatic conversion
   const handleUnitChange = React.useCallback(
     (newUnit: WeightUnit) => {
       if (newUnit === unit) return;
@@ -86,6 +109,7 @@ export function WeightInput({
   );
 
   const unitLabel = unit === "lbs" ? "lbs" : "kg";
+  const maxWeightText = maxWeight ? `Max: ${maxWeight} lbs` : null;
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -93,26 +117,34 @@ export function WeightInput({
         <div className="flex items-center gap-2">
           <Scale className="h-4 w-4 text-muted-foreground" />
           <label className="text-sm font-medium">Weight</label>
+          {dimWeightExceedsActual && (
+            <AlertTriangle className="h-4 w-4 text-amber-500" aria-label="Dimensional weight exceeds actual weight" />
+          )}
         </div>
-        <ToggleGroup
-          type="single"
-          value={unit}
-          onValueChange={(value) => value && handleUnitChange(value as WeightUnit)}
-          disabled={disabled}
-          className="h-8"
-        >
-          <ToggleGroupItem value="lbs" aria-label="Pounds" className="text-xs px-3">
-            lbs
-          </ToggleGroupItem>
-          <ToggleGroupItem value="kg" aria-label="Kilograms" className="text-xs px-3">
-            kg
-          </ToggleGroupItem>
-        </ToggleGroup>
+        <div className="flex items-center gap-3">
+          {maxWeightText && (
+            <span className="text-xs text-muted-foreground">{maxWeightText}</span>
+          )}
+          <ToggleGroup
+            type="single"
+            value={unit}
+            onValueChange={(value) => value && handleUnitChange(value as WeightUnit)}
+            disabled={disabled}
+            className="h-8"
+          >
+            <ToggleGroupItem value="lbs" aria-label="Pounds" className="text-xs px-3">
+              lbs
+            </ToggleGroupItem>
+            <ToggleGroupItem value="kg" aria-label="Kilograms" className="text-xs px-3">
+              kg
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
       </div>
 
       <FormField
         label="Package Weight"
-        error={error}
+        error={error || (weightExceedsMax ? `Maximum weight is ${maxWeight} lbs` : undefined)}
         required
       >
         <div className="relative">
@@ -124,7 +156,10 @@ export function WeightInput({
             value={weight ?? ""}
             onChange={(e) => handleWeightChange(e.target.value)}
             disabled={disabled}
-            className="pr-12"
+            className={cn(
+              "pr-12",
+              weightExceedsMax && "border-amber-500 focus-visible:ring-amber-500/20"
+            )}
           />
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
             {unitLabel}
@@ -132,11 +167,15 @@ export function WeightInput({
         </div>
       </FormField>
 
-      {showBillableWeight && billableWeight !== null && (
-        <div className="rounded-lg bg-muted p-3">
+      {showWeightComparison && (weight !== undefined || dimensionalWeight !== null) && (
+        <div className={cn(
+          "rounded-lg p-3 space-y-2",
+          dimWeightExceedsActual ? "bg-amber-50 border border-amber-200" : "bg-muted"
+        )}>
+          {/* Weight comparison header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Billable Weight:</span>
+              <span className="text-sm font-medium">Weight Comparison</span>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -151,12 +190,50 @@ export function WeightInput({
                 </Tooltip>
               </TooltipProvider>
             </div>
-            <span className="text-sm font-semibold">{billableWeight.toFixed(1)} lbs</span>
           </div>
-          {dimensionalWeight && dimensionalWeight > (weight || 0) && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Based on dimensional weight ({dimensionalWeight.toFixed(1)} lbs)
-            </p>
+
+          {/* Actual Weight */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Actual Weight:</span>
+            <span className={cn(
+              "font-medium",
+              !weight && "text-muted-foreground italic"
+            )}>
+              {weight ? `${weight.toFixed(1)} ${unitLabel}` : "Not specified"}
+            </span>
+          </div>
+
+          {/* Dimensional Weight */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Dimensional Weight:</span>
+            <span className={cn(
+              "font-medium",
+              !dimensionalWeight && "text-muted-foreground italic"
+            )}>
+              {dimensionalWeight ? `${dimensionalWeight.toFixed(1)} lbs` : "Calculate from dimensions"}
+            </span>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-border/50" />
+
+          {/* Billable Weight */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold">Billable Weight:</span>
+            <span className="text-sm font-bold text-primary">
+              {billableWeight ? `${billableWeight.toFixed(1)} lbs` : "—"}
+            </span>
+          </div>
+
+          {/* Warning when DIM weight exceeds actual */}
+          {dimWeightExceedsActual && (
+            <div className="flex items-start gap-2 rounded-md bg-amber-100 p-2 text-amber-800">
+              <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+              <p className="text-xs">
+                <strong>Dimensional weight applies:</strong> Your package will be charged based on 
+                dimensional weight ({dimensionalWeight?.toFixed(1)} lbs) instead of actual weight.
+              </p>
+            </div>
           )}
         </div>
       )}

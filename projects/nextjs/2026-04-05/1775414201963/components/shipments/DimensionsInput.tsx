@@ -10,7 +10,8 @@ import {
   convertDimensions,
   type DimensionsUnit,
 } from "@/lib/validation/shipment-details-schema";
-import { Ruler, Info } from "lucide-react";
+import { packageTypeConfigs, type PackageTypeConfig } from "@/lib/data/shipment-presets";
+import { Ruler, Info, AlertTriangle } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -27,6 +28,8 @@ export interface DimensionsInputProps {
   height?: number;
   /** Current unit */
   unit: DimensionsUnit;
+  /** Currently selected package type (for max dimension validation) */
+  packageType?: PackageTypeConfig["value"];
   /** Callback when dimensions change */
   onChange: (dimensions: {
     length?: number;
@@ -40,7 +43,7 @@ export interface DimensionsInputProps {
   disabled?: boolean;
   /** Show dimensional weight calculation */
   showDimensionalWeight?: boolean;
-  /** Pre-calculated dimensional weight to display */
+  /** Pre-calculated dimensional weight (if passed from parent) */
   dimensionalWeight?: number | null;
   /** Error messages */
   errors?: {
@@ -51,29 +54,60 @@ export interface DimensionsInputProps {
 }
 
 /**
- * DimensionsInput - Package dimensions input with unit toggle
+ * DimensionsInput - Package dimensions input with unit toggle and validation
  *
  * Provides inputs for length, width, and height with real-time
  * unit conversion between inches and centimeters.
+ * 
+ * Features:
+ * - Max dimension validation per package type
+ * - Real-time dimensional weight calculation (L×W×H/166)
+ * - Unit toggle with automatic value conversion
+ * - Visual warnings for oversized dimensions
  */
 export function DimensionsInput({
   length,
   width,
   height,
   unit,
+  packageType,
   onChange,
   className,
   disabled = false,
   showDimensionalWeight = true,
+  dimensionalWeight: externalDimensionalWeight,
   errors,
 }: DimensionsInputProps) {
-  // Calculate dimensional weight
-  const dimensionalWeight = React.useMemo(() => {
+  // Get max dimensions for the selected package type
+  const maxDimensions = React.useMemo(() => {
+    if (!packageType) return null;
+    const config = packageTypeConfigs.find(c => c.value === packageType);
+    return config?.maxDimensions || null;
+  }, [packageType]);
+
+  // Calculate dimensional weight using the standard divisor (166 for international, 139 for domestic)
+  // Use external value if provided, otherwise calculate internally
+  const calculatedDimensionalWeight = React.useMemo(() => {
     if (!length || !width || !height) return null;
     return calculateDimensionalWeight(length, width, height, unit);
   }, [length, width, height, unit]);
 
-  // Handle unit toggle
+  const dimensionalWeight = externalDimensionalWeight ?? calculatedDimensionalWeight;
+
+  // Check if dimensions exceed max for package type
+  const dimensionWarnings = React.useMemo(() => {
+    if (!maxDimensions || unit !== "in") return { length: false, width: false, height: false };
+    
+    return {
+      length: length ? length > maxDimensions.length : false,
+      width: width ? width > maxDimensions.width : false,
+      height: height ? height > maxDimensions.height : false,
+    };
+  }, [length, width, height, maxDimensions, unit]);
+
+  const hasDimensionWarning = dimensionWarnings.length || dimensionWarnings.width || dimensionWarnings.height;
+
+  // Handle unit toggle with automatic conversion
   const handleUnitChange = React.useCallback(
     (newUnit: DimensionsUnit) => {
       if (newUnit === unit) return;
@@ -104,6 +138,11 @@ export function DimensionsInput({
   );
 
   const unitLabel = unit === "in" ? "in" : "cm";
+  const maxDimsText = maxDimensions && unit === "in" 
+    ? `Max: ${maxDimensions.length}" × ${maxDimensions.width}" × ${maxDimensions.height}"`
+    : maxDimensions && unit === "cm"
+    ? `Max: ${Math.round(maxDimensions.length * 2.54)} × ${Math.round(maxDimensions.width * 2.54)} × ${Math.round(maxDimensions.height * 2.54)} cm`
+    : null;
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -111,25 +150,36 @@ export function DimensionsInput({
         <div className="flex items-center gap-2">
           <Ruler className="h-4 w-4 text-muted-foreground" />
           <label className="text-sm font-medium">Dimensions</label>
+          {hasDimensionWarning && (
+            <AlertTriangle className="h-4 w-4 text-amber-500" aria-label="Dimension warning" />
+          )}
         </div>
-        <ToggleGroup
-          type="single"
-          value={unit}
-          onValueChange={(value) => value && handleUnitChange(value as DimensionsUnit)}
-          disabled={disabled}
-          className="h-8"
-        >
-          <ToggleGroupItem value="in" aria-label="Inches" className="text-xs px-3">
-            in
-          </ToggleGroupItem>
-          <ToggleGroupItem value="cm" aria-label="Centimeters" className="text-xs px-3">
-            cm
-          </ToggleGroupItem>
-        </ToggleGroup>
+        <div className="flex items-center gap-3">
+          {maxDimsText && (
+            <span className="text-xs text-muted-foreground">{maxDimsText}</span>
+          )}
+          <ToggleGroup
+            type="single"
+            value={unit}
+            onValueChange={(value) => value && handleUnitChange(value as DimensionsUnit)}
+            disabled={disabled}
+            className="h-8"
+          >
+            <ToggleGroupItem value="in" aria-label="Inches" className="text-xs px-3">
+              in
+            </ToggleGroupItem>
+            <ToggleGroupItem value="cm" aria-label="Centimeters" className="text-xs px-3">
+              cm
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <FormField label="Length" error={errors?.length}>
+        <FormField 
+          label="Length" 
+          error={errors?.length || (dimensionWarnings.length ? `Max ${maxDimensions?.length}${unitLabel}` : undefined)}
+        >
           <div className="relative">
             <Input
               type="number"
@@ -139,7 +189,10 @@ export function DimensionsInput({
               value={length ?? ""}
               onChange={(e) => handleDimensionChange("length", e.target.value)}
               disabled={disabled}
-              className="pr-10"
+              className={cn(
+                "pr-10",
+                dimensionWarnings.length && "border-amber-500 focus-visible:ring-amber-500/20"
+              )}
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
               {unitLabel}
@@ -147,7 +200,10 @@ export function DimensionsInput({
           </div>
         </FormField>
 
-        <FormField label="Width" error={errors?.width}>
+        <FormField 
+          label="Width" 
+          error={errors?.width || (dimensionWarnings.width ? `Max ${maxDimensions?.width}${unitLabel}` : undefined)}
+        >
           <div className="relative">
             <Input
               type="number"
@@ -157,7 +213,10 @@ export function DimensionsInput({
               value={width ?? ""}
               onChange={(e) => handleDimensionChange("width", e.target.value)}
               disabled={disabled}
-              className="pr-10"
+              className={cn(
+                "pr-10",
+                dimensionWarnings.width && "border-amber-500 focus-visible:ring-amber-500/20"
+              )}
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
               {unitLabel}
@@ -165,7 +224,10 @@ export function DimensionsInput({
           </div>
         </FormField>
 
-        <FormField label="Height" error={errors?.height}>
+        <FormField 
+          label="Height" 
+          error={errors?.height || (dimensionWarnings.height ? `Max ${maxDimensions?.height}${unitLabel}` : undefined)}
+        >
           <div className="relative">
             <Input
               type="number"
@@ -175,7 +237,10 @@ export function DimensionsInput({
               value={height ?? ""}
               onChange={(e) => handleDimensionChange("height", e.target.value)}
               disabled={disabled}
-              className="pr-10"
+              className={cn(
+                "pr-10",
+                dimensionWarnings.height && "border-amber-500 focus-visible:ring-amber-500/20"
+              )}
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
               {unitLabel}
@@ -203,8 +268,13 @@ export function DimensionsInput({
                 </Tooltip>
               </TooltipProvider>
             </div>
-            <span className="text-sm font-semibold">{dimensionalWeight} lbs</span>
+            <span className="text-sm font-semibold">{dimensionalWeight.toFixed(1)} lbs</span>
           </div>
+          {maxDimensions && unit === "in" && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Max allowed: {maxDimensions.length}" × {maxDimensions.width}" × {maxDimensions.height}"
+            </p>
+          )}
         </div>
       )}
     </div>
