@@ -29,6 +29,7 @@ site/
 test-results/
 playwright-report/
 .playwright-mcp/
+.playwright-cli/
 screenshots/
 snapshots/
 
