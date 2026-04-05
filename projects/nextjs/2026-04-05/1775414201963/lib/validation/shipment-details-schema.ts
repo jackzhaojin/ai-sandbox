@@ -208,6 +208,8 @@ export const hazmatClassSchema = z.enum([
   "class_9",
 ]);
 
+export const packingGroupSchema = z.enum(["I", "II", "III"]);
+
 export const hazmatSchema = z
   .object({
     isHazmat: z.boolean().default(false),
@@ -220,6 +222,17 @@ export const hazmatSchema = z
     properShippingName: z
       .string()
       .max(200, "Proper shipping name must not exceed 200 characters")
+      .optional()
+      .or(z.literal("")),
+    packingGroup: packingGroupSchema.optional(),
+    quantity: z
+      .number({ message: "Quantity must be a number" })
+      .positive("Quantity must be greater than 0")
+      .max(99999, "Quantity must not exceed 99,999")
+      .optional(),
+    quantityUnit: z
+      .string()
+      .max(20, "Quantity unit must not exceed 20 characters")
       .optional()
       .or(z.literal("")),
     emergencyContactName: z
@@ -241,6 +254,17 @@ export const hazmatSchema = z
     {
       message: "Hazmat class, UN number, and proper shipping name are required for hazardous materials",
       path: ["hazmatClass"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (!data.isHazmat || !data.unNumber) return true;
+      // UN Number format: UN#### or NA#### (4 digits required)
+      return /^UN\d{4}$|^NA\d{4}$/i.test(data.unNumber);
+    },
+    {
+      message: "UN number must be in format UN#### or NA#### (e.g., UN1203)",
+      path: ["unNumber"],
     }
   );
 
@@ -298,6 +322,7 @@ export type SpecialHandlingType = z.infer<typeof specialHandlingTypeSchema>;
 export type DeliveryPreferencesFormData = z.infer<typeof deliveryPreferencesSchema>;
 export type HazmatFormData = z.infer<typeof hazmatSchema>;
 export type HazmatClass = z.infer<typeof hazmatClassSchema>;
+export type PackingGroup = z.infer<typeof packingGroupSchema>;
 export type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
 
 // ============================================
@@ -354,6 +379,9 @@ export const defaultHazmat: HazmatFormData = {
   hazmatClass: undefined,
   unNumber: "",
   properShippingName: "",
+  packingGroup: undefined,
+  quantity: undefined,
+  quantityUnit: "",
   emergencyContactName: "",
   emergencyContactPhone: "",
 };

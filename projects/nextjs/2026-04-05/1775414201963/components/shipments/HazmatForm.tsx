@@ -12,9 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { hazmatClassDescriptions } from "@/lib/data/shipment-presets";
-import type { HazmatFormData, HazmatClass } from "@/lib/validation/shipment-details-schema";
-import { AlertTriangle, Flame, Phone, User } from "lucide-react";
+import { hazmatClassDescriptions, packingGroupDescriptions } from "@/lib/data/shipment-presets";
+import type { HazmatFormData, HazmatClass, PackingGroup } from "@/lib/validation/shipment-details-schema";
+import { AlertTriangle, Flame, Phone, User, Scale, Package } from "lucide-react";
 
 export interface HazmatFormProps {
   /** Current hazmat data */
@@ -30,6 +30,9 @@ export interface HazmatFormProps {
     hazmatClass?: string;
     unNumber?: string;
     properShippingName?: string;
+    packingGroup?: string;
+    quantity?: string;
+    quantityUnit?: string;
     emergencyContactName?: string;
     emergencyContactPhone?: string;
   };
@@ -39,7 +42,13 @@ export interface HazmatFormProps {
  * HazmatForm - Hazardous materials declaration form
  *
  * Conditional form that appears when hazardous materials handling
- * is selected. Collects required hazmat information.
+ * is selected. Collects required hazmat information including:
+ * - UN Number (with UN#### format validation)
+ * - Proper Shipping Name
+ * - Hazard Class dropdown
+ * - Packing Group
+ * - Quantity
+ * - Emergency Contact (name + phone)
  */
 export function HazmatForm({
   value,
@@ -61,13 +70,22 @@ export function HazmatForm({
 
   // Handle field changes
   const handleChange = React.useCallback(
-    (field: keyof HazmatFormData, fieldValue: string | boolean | undefined) => {
+    (field: keyof HazmatFormData, fieldValue: string | boolean | number | undefined) => {
       onChange({
         ...value,
         [field]: fieldValue,
       });
     },
     [value, onChange]
+  );
+
+  // Handle quantity number input
+  const handleQuantityChange = React.useCallback(
+    (inputValue: string) => {
+      const numValue = inputValue === "" ? undefined : parseFloat(inputValue);
+      handleChange("quantity", numValue);
+    },
+    [handleChange]
   );
 
   return (
@@ -150,13 +168,14 @@ export function HazmatForm({
               label="UN Number"
               error={errors?.unNumber}
               required
-              helpText="Format: UN#### or NA####"
+              helpText="Format: UN#### or NA#### (4 digits)"
             >
               <Input
                 placeholder="e.g., UN1203"
                 value={value.unNumber || ""}
-                onChange={(e) => handleChange("unNumber", e.target.value)}
+                onChange={(e) => handleChange("unNumber", e.target.value.toUpperCase())}
                 disabled={disabled}
+                className="uppercase"
               />
             </FormField>
           </div>
@@ -176,6 +195,77 @@ export function HazmatForm({
               disabled={disabled}
             />
           </FormField>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <FormField
+              label="Packing Group"
+              error={errors?.packingGroup}
+              helpText="Select packing group (I, II, or III)"
+            >
+              <Select
+                value={value.packingGroup || ""}
+                onValueChange={(val) =>
+                  handleChange("packingGroup", val as PackingGroup)
+                }
+                disabled={disabled}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select group" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(packingGroupDescriptions).map(
+                    ([key, { label, description }]) => (
+                      <SelectItem key={key} value={key}>
+                        <div className="flex flex-col">
+                          <span>{label}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {description}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    )
+                  )}
+                </SelectContent>
+              </Select>
+            </FormField>
+
+            <FormField
+              label="Quantity"
+              error={errors?.quantity}
+              helpText="Net quantity of hazardous material"
+            >
+              <div className="relative">
+                <Scale className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={value.quantity ?? ""}
+                  onChange={(e) => handleQuantityChange(e.target.value)}
+                  disabled={disabled}
+                  className="pl-10"
+                />
+              </div>
+            </FormField>
+
+            <FormField
+              label="Unit"
+              error={errors?.quantityUnit}
+              helpText="e.g., kg, L, lbs, gal"
+            >
+              <div className="relative">
+                <Package className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="kg, L, lbs..."
+                  value={value.quantityUnit || ""}
+                  onChange={(e) => handleChange("quantityUnit", e.target.value)}
+                  disabled={disabled}
+                  className="pl-10"
+                />
+              </div>
+            </FormField>
+          </div>
 
           <div className="border-t border-warning-200 pt-4">
             <h5 className="mb-3 flex items-center gap-2 text-sm font-medium">

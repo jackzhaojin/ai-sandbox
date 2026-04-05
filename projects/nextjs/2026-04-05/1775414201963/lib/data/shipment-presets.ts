@@ -493,3 +493,10 @@ export const hazmatClassDescriptions: Record<string, { label: string; descriptio
   class_8: { label: "Class 8 - Corrosives", description: "Substances that cause visible destruction" },
   class_9: { label: "Class 9 - Miscellaneous", description: "Other dangerous substances" },
 };
+
+// Packing group descriptions
+export const packingGroupDescriptions: Record<string, { label: string; description: string }> = {
+  I: { label: "Packing Group I", description: "High danger - Most stringent packaging requirements" },
+  II: { label: "Packing Group II", description: "Medium danger - Moderate packaging requirements" },
+  III: { label: "Packing Group III", description: "Low danger - Least stringent packaging requirements" },
+};

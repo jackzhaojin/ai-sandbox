@@ -512,6 +512,11 @@ export default function ShipmentDetailsPage() {
                         hazmatClass: form.formState.errors.hazmat?.hazmatClass?.message,
                         unNumber: form.formState.errors.hazmat?.unNumber?.message,
                         properShippingName: form.formState.errors.hazmat?.properShippingName?.message,
+                        packingGroup: form.formState.errors.hazmat?.packingGroup?.message,
+                        quantity: form.formState.errors.hazmat?.quantity?.message,
+                        quantityUnit: form.formState.errors.hazmat?.quantityUnit?.message,
+                        emergencyContactName: form.formState.errors.hazmat?.emergencyContactName?.message,
+                        emergencyContactPhone: form.formState.errors.hazmat?.emergencyContactPhone?.message,
                       }}
                     />
                   </CardContent>
