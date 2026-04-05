@@ -50,6 +50,7 @@ export const shipmentPresets: ShipmentPreset[] = [
         { type: "adult_signature", isSelected: false, instructions: "" },
         { type: "hold_for_pickup", isSelected: false, instructions: "" },
         { type: "appointment_delivery", isSelected: false, instructions: "" },
+        { type: "dry_ice", isSelected: false, instructions: "" },
       ],
       deliveryPreferences: {
         ...defaultDeliveryPreferences,
@@ -87,6 +88,7 @@ export const shipmentPresets: ShipmentPreset[] = [
         { type: "adult_signature", isSelected: false, instructions: "" },
         { type: "hold_for_pickup", isSelected: false, instructions: "" },
         { type: "appointment_delivery", isSelected: false, instructions: "" },
+        { type: "dry_ice", isSelected: false, instructions: "" },
       ],
       deliveryPreferences: {
         ...defaultDeliveryPreferences,
@@ -124,6 +126,7 @@ export const shipmentPresets: ShipmentPreset[] = [
         { type: "adult_signature", isSelected: false, instructions: "" },
         { type: "hold_for_pickup", isSelected: false, instructions: "" },
         { type: "appointment_delivery", isSelected: false, instructions: "" },
+        { type: "dry_ice", isSelected: false, instructions: "" },
       ],
       deliveryPreferences: {
         ...defaultDeliveryPreferences,
@@ -161,6 +164,7 @@ export const shipmentPresets: ShipmentPreset[] = [
         { type: "adult_signature", isSelected: true, instructions: "" },
         { type: "hold_for_pickup", isSelected: false, instructions: "" },
         { type: "appointment_delivery", isSelected: false, instructions: "" },
+        { type: "dry_ice", isSelected: false, instructions: "" },
       ],
       deliveryPreferences: {
         ...defaultDeliveryPreferences,
@@ -199,6 +203,7 @@ export const shipmentPresets: ShipmentPreset[] = [
         { type: "adult_signature", isSelected: false, instructions: "" },
         { type: "hold_for_pickup", isSelected: false, instructions: "" },
         { type: "appointment_delivery", isSelected: true, instructions: "Deliver during business hours for event setup" },
+        { type: "dry_ice", isSelected: false, instructions: "" },
       ],
       deliveryPreferences: {
         ...defaultDeliveryPreferences,
@@ -383,6 +388,15 @@ export const specialHandlingConfigs: SpecialHandlingConfig[] = [
     fee: 12.0,
     feeType: "flat",
     icon: "CalendarClock",
+    requiresInstructions: true,
+  },
+  {
+    value: "dry_ice",
+    label: "Dry Ice",
+    description: "Shipments containing dry ice (UN1845)",
+    fee: 8.5,
+    feeType: "flat",
+    icon: "Snowflake",
     requiresInstructions: true,
   },
 ];

@@ -161,6 +161,7 @@ export const specialHandlingTypeSchema = z.enum([
   "adult_signature",
   "hold_for_pickup",
   "appointment_delivery",
+  "dry_ice",
 ]);
 
 export const specialHandlingSchema = z.object({
@@ -335,6 +336,7 @@ export const defaultSpecialHandling: SpecialHandlingFormData[] = [
   { type: "adult_signature", isSelected: false, instructions: "" },
   { type: "hold_for_pickup", isSelected: false, instructions: "" },
   { type: "appointment_delivery", isSelected: false, instructions: "" },
+  { type: "dry_ice", isSelected: false, instructions: "" },
 ];
 
 export const defaultDeliveryPreferences: DeliveryPreferencesFormData = {
