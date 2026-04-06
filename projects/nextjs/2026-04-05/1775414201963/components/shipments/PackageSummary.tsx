@@ -88,11 +88,23 @@ export function PackageSummary({ data, className }: PackageSummaryProps) {
       });
     }
 
-    // Check for heavy packages
-    const heavyPackages = data.packages.filter((p) => (p.weight || 0) > 50);
-    if (heavyPackages.length > 0) {
+    // Check for very heavy packages (150+ lbs) - suggest pallet
+    const veryHeavyPackages = data.packages.filter((p) => (p.weight || 0) > 150);
+    if (veryHeavyPackages.length > 0) {
       tips.push({
         type: "warning",
+        message: `Package weight exceeds 150 lbs - switching to Pallet may reduce shipping costs`,
+      });
+    }
+
+    // Check for heavy packages (50+ lbs)
+    const heavyPackages = data.packages.filter((p) => {
+      const weight = p.weight || 0;
+      return weight > 50 && weight <= 150;
+    });
+    if (heavyPackages.length > 0) {
+      tips.push({
+        type: "info",
         message: `${heavyPackages.length} package(s) exceed 50 lbs - freight shipping may be more cost-effective`,
       });
     }

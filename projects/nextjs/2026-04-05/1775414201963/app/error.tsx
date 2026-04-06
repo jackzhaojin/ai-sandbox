@@ -29,7 +29,7 @@ export default function Error({
         </div>
         
         <div className="mt-6 space-y-6">
-          {process.env.NODE_ENV === "development" && error && (
+          {typeof window !== "undefined" && error && (
             <div className="rounded-md bg-muted p-4">
               <p className="mb-2 text-sm font-semibold text-error-600">Error Details:</p>
               <pre className="max-h-32 overflow-auto text-xs text-muted-foreground">

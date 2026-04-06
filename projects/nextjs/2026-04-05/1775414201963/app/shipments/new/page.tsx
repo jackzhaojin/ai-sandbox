@@ -41,7 +41,7 @@ import {
 } from "@/lib/validation/shipment-details-schema";
 import { applyPreset, type ShipmentPreset } from "@/lib/data/shipment-presets";
 import { calculateDimensionalWeight } from "@/lib/validation/shipment-details-schema";
-import { MapPin, Package, Settings, Truck, AlertTriangle, ArrowRight, Save } from "lucide-react";
+import { MapPin, Package, Settings, Truck, AlertTriangle, ArrowRight, Save, RotateCcw, Calculator } from "lucide-react";
 
 // Checkout steps for the step indicator
 const checkoutSteps = [
@@ -192,6 +192,14 @@ export default function ShipmentDetailsPage() {
       toast.success("Your shipment has been saved as a draft.");
     } catch (error) {
       toast.error("Failed to save draft");
+    }
+  }, [form]);
+
+  // Handle start over - clear form
+  const handleStartOver = React.useCallback(() => {
+    if (confirm("Are you sure you want to clear all form data and start over?")) {
+      form.reset(defaultShipmentDetails);
+      toast.info("Form has been cleared.");
     }
   }, [form]);
 
@@ -563,10 +571,11 @@ export default function ShipmentDetailsPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => router.push("/shipments")}
+                    onClick={handleStartOver}
                     disabled={isSubmitting}
                   >
-                    Cancel
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Start Over
                   </Button>
                   <Button
                     type="submit"
@@ -576,12 +585,12 @@ export default function ShipmentDetailsPage() {
                     {isSubmitting ? (
                       <>
                         <LoadingSpinner className="mr-2 h-4 w-4" />
-                        Saving...
+                        Getting Quotes...
                       </>
                     ) : (
                       <>
-                        Continue to Rates
-                        <ArrowRight className="ml-2 h-4 w-4" />
+                        <Calculator className="mr-2 h-4 w-4" />
+                        Get Quotes
                       </>
                     )}
                   </Button>
