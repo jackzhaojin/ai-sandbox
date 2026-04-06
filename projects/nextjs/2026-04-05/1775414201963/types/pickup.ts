@@ -69,6 +69,34 @@ export interface PickupEquipment {
 // PICKUP CONTACT
 // ============================================
 
+export type PreferredContactMethod = 'email' | 'phone' | 'sms';
+
+export interface PrimaryContact {
+  name: string;
+  jobTitle: string;
+  mobilePhone: string;
+  altPhone?: string;
+  email: string;
+  preferredContactMethod: PreferredContactMethod;
+}
+
+export interface BackupContact {
+  name: string;
+  phone: string;
+  email?: string;
+}
+
+export interface AuthorizedPerson {
+  id: string;
+  name: string;
+}
+
+export interface SpecialAuthorization {
+  idVerificationRequired: boolean;
+  signatureRequired: boolean;
+  photoIdMatching: boolean;
+}
+
 export interface PickupContact {
   name: string;
   phone: string;
@@ -79,6 +107,22 @@ export interface PickupContact {
 // ============================================
 // NOTIFICATION PREFERENCES
 // ============================================
+
+export interface NotificationPreferenceItem {
+  id: string;
+  label: string;
+  description: string;
+  defaultChecked: boolean;
+}
+
+export interface NotificationPreferencesData {
+  emailReminder24h: boolean;
+  smsReminder2h: boolean;
+  callReminder30m: boolean;
+  driverEnRoute: boolean;
+  pickupCompletion: boolean;
+  transitUpdates: boolean;
+}
 
 export interface NotificationPreferences {
   emailConfirmation: boolean;
