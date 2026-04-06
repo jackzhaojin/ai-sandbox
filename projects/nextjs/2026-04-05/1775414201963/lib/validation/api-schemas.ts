@@ -235,6 +235,100 @@ export const processPaymentSchema = z.object({
   payment_method_id: uuidSchema,
 }).strict();
 
+// Purchase Order payment schema
+export const purchaseOrderPaymentSchema = z.object({
+  po_number: z.string().min(1, "PO Number is required").max(50),
+  authorized_amount: z.number().positive("Authorized amount must be positive"),
+  po_expiry_date: z.string().datetime().optional(),
+  department: z.string().max(100).optional(),
+  cost_center: z.string().max(100).optional(),
+  gl_account: z.string().max(100).optional(),
+  approver_name: z.string().max(100).optional(),
+  approver_email: emailSchema.optional(),
+});
+
+// Bill of Lading payment schema
+export const billOfLadingPaymentSchema = z.object({
+  bol_number: z.string().min(1, "BOL Number is required").max(50),
+  carrier_id: uuidSchema.optional(),
+  account_number: z.string().max(100).optional(),
+  authorized_amount: z.number().positive().optional(),
+  expiry_date: z.string().datetime().optional(),
+});
+
+// Third Party Billing payment schema
+export const thirdPartyPaymentSchema = z.object({
+  company_name: z.string().min(1, "Company name is required").max(100),
+  account_number: z.string().min(1, "Account number is required").max(100),
+  address_id: uuidSchema.optional(),
+  contact_name: z.string().max(100).optional(),
+  contact_phone: phoneSchema.optional(),
+  contact_email: emailSchema.optional(),
+  authorization_on_file: z.boolean().default(false),
+});
+
+// Net Terms payment schema
+export const netTermsReferenceSchema = z.object({
+  company_name: z.string().min(1, "Company name is required").max(100),
+  contact_name: z.string().min(1, "Contact name is required").max(100),
+  contact_phone: phoneSchema,
+  relationship_length_months: z.number().int().min(0).max(600),
+});
+
+export const netTermsPaymentSchema = z.object({
+  terms_days: z.number().int().refine((val) => [15, 30, 45, 60, 90].includes(val), {
+    message: "Terms days must be 15, 30, 45, 60, or 90",
+  }),
+  credit_limit: z.number().positive().optional(),
+  early_payment_discount_percent: z.number().min(0).max(100).default(0),
+  early_payment_discount_days: z.number().int().min(0).default(0),
+  trade_references: z.array(netTermsReferenceSchema).max(3).optional(),
+});
+
+// Corporate Account payment schema
+export const corporateAccountPaymentSchema = z.object({
+  account_number: z.string().min(1, "Account number is required").max(100),
+  department_code: z.string().max(50).optional(),
+  cost_center: z.string().max(50).optional(),
+  project_code: z.string().max(50).optional(),
+  monthly_limit: z.number().positive().optional(),
+});
+
+// Main payment request schema
+export const paymentRequestSchema = z.object({
+  payment_method: z.enum([
+    "purchase_order",
+    "bill_of_lading",
+    "third_party_billing",
+    "net_terms",
+    "corporate_account",
+  ] as const),
+  purchase_order: purchaseOrderPaymentSchema.optional(),
+  bill_of_lading: billOfLadingPaymentSchema.optional(),
+  third_party: thirdPartyPaymentSchema.optional(),
+  net_terms: netTermsPaymentSchema.optional(),
+  corporate_account: corporateAccountPaymentSchema.optional(),
+}).refine((data) => {
+  // Ensure the correct payment method details are provided
+  switch (data.payment_method) {
+    case "purchase_order":
+      return data.purchase_order !== undefined;
+    case "bill_of_lading":
+      return data.bill_of_lading !== undefined;
+    case "third_party_billing":
+      return data.third_party !== undefined;
+    case "net_terms":
+      return data.net_terms !== undefined;
+    case "corporate_account":
+      return data.corporate_account !== undefined;
+    default:
+      return false;
+  }
+}, {
+  message: "Payment method details must match the selected payment method",
+  path: ["payment_method"],
+});
+
 // ============================================
 // TYPE EXPORTS
 // ============================================
@@ -245,5 +339,11 @@ export type CreateAddressInput = z.infer<typeof createAddressSchema>;
 export type UpdateAddressInput = z.infer<typeof updateAddressSchema>;
 export type CalculateRatesInput = z.infer<typeof calculateRatesSchema>;
 export type ProcessPaymentInput = z.infer<typeof processPaymentSchema>;
+export type PaymentRequestInput = z.infer<typeof paymentRequestSchema>;
+export type PurchaseOrderPaymentInput = z.infer<typeof purchaseOrderPaymentSchema>;
+export type BillOfLadingPaymentInput = z.infer<typeof billOfLadingPaymentSchema>;
+export type ThirdPartyPaymentInput = z.infer<typeof thirdPartyPaymentSchema>;
+export type NetTermsPaymentInput = z.infer<typeof netTermsPaymentSchema>;
+export type CorporateAccountPaymentInput = z.infer<typeof corporateAccountPaymentSchema>;
 export type ShipmentListQueryInput = z.infer<typeof shipmentListQuerySchema>;
 export type PaginationQueryInput = z.infer<typeof paginationQuerySchema>;

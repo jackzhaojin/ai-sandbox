@@ -499,6 +499,114 @@ export interface ShipmentListQuery extends PaginationParams {
 }
 
 // ============================================
+// PAYMENT ENDPOINTS
+// ============================================
+
+// POST /api/shipments/[id]/payment - Process payment for shipment
+export interface PaymentRequest {
+  payment_method: 'purchase_order' | 'bill_of_lading' | 'third_party_billing' | 'net_terms' | 'corporate_account';
+  
+  // Purchase Order fields
+  purchase_order?: {
+    po_number: string;
+    authorized_amount: number;
+    po_expiry_date?: string;
+    department?: string;
+    cost_center?: string;
+    gl_account?: string;
+    approver_name?: string;
+    approver_email?: string;
+  };
+  
+  // Bill of Lading fields
+  bill_of_lading?: {
+    bol_number: string;
+    carrier_id?: string;
+    account_number?: string;
+    authorized_amount?: number;
+    expiry_date?: string;
+  };
+  
+  // Third Party Billing fields
+  third_party?: {
+    company_name: string;
+    account_number: string;
+    address_id?: string;
+    contact_name?: string;
+    contact_phone?: string;
+    contact_email?: string;
+    authorization_on_file?: boolean;
+  };
+  
+  // Net Terms fields
+  net_terms?: {
+    terms_days: number;
+    credit_limit?: number;
+    early_payment_discount_percent?: number;
+    early_payment_discount_days?: number;
+    trade_references?: {
+      company_name: string;
+      contact_name: string;
+      contact_phone: string;
+      relationship_length_months: number;
+    }[];
+  };
+  
+  // Corporate Account fields
+  corporate_account?: {
+    account_number: string;
+    department_code?: string;
+    cost_center?: string;
+    project_code?: string;
+    monthly_limit?: number;
+  };
+}
+
+export interface PaymentData {
+  payment: {
+    id: string;
+    shipment_id: string;
+    payment_info_id: string;
+    payment_type: string;
+    status: 'pending' | 'processing' | 'succeeded' | 'failed';
+    amount: number;
+    currency: string;
+    created_at: string;
+  };
+  message: string;
+}
+
+export type PaymentResponse = ApiResponse<PaymentData>;
+
+// Payment method fee configuration
+export interface PaymentMethodFee {
+  method: string;
+  fee_amount: number;
+  fee_type: 'flat' | 'percentage';
+  fee_label: string;
+}
+
+// Cost summary data
+export interface CostSummaryData {
+  base_rate: number;
+  fuel_surcharge: number;
+  fuel_surcharge_percent: number;
+  insurance_cost: number;
+  insurance_percent: number;
+  handling_fees: number;
+  delivery_preferences_fees: number;
+  taxes: number;
+  tax_percent: number;
+  subtotal: number;
+  payment_method_fee: number;
+  total: number;
+  currency: string;
+  payment_method_fees: PaymentMethodFee[];
+}
+
+export type CostSummaryResponse = ApiResponse<CostSummaryData>;
+
+// ============================================
 // WEBHOOK PAYLOADS
 // ============================================
 
