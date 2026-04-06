@@ -328,6 +328,11 @@ export function StepIndicator({
 
 /**
  * MobileStepIndicator - Compact mobile progress indicator
+ * 
+ * Mobile-specific features:
+ * - Larger touch-friendly progress bar
+ * - Compact step counter display
+ * - Progress percentage indicator
  */
 export interface MobileStepIndicatorProps {
   /** Current step number (1-based) */
@@ -338,6 +343,8 @@ export interface MobileStepIndicatorProps {
   currentLabel: string
   /** Additional CSS classes */
   className?: string
+  /** Show percentage complete */
+  showPercentage?: boolean
 }
 
 export function MobileStepIndicator({
@@ -345,21 +352,35 @@ export function MobileStepIndicator({
   totalSteps,
   currentLabel,
   className,
+  showPercentage = true,
 }: MobileStepIndicatorProps) {
   const progress = (currentStep / totalSteps) * 100
 
   return (
     <div className={cn("w-full", className)}>
+      {/* Mobile: Compact step info with percentage */}
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium">
-          Step {currentStep} of {totalSteps}
-        </span>
-        <span className="text-sm text-muted-foreground truncate ml-4">
-          {currentLabel}
-        </span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-semibold text-foreground">
+            Step {currentStep}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            of {totalSteps}
+          </span>
+          <span className="text-sm text-muted-foreground truncate hidden sm:inline">
+            — {currentLabel}
+          </span>
+        </div>
+        {showPercentage && (
+          <span className="text-sm font-medium text-primary">
+            {Math.round(progress)}%
+          </span>
+        )}
       </div>
+      
+      {/* Mobile: Larger touch-friendly progress bar */}
       <div
-        className="h-2 w-full rounded-full bg-gray-200 overflow-hidden"
+        className="h-2.5 w-full rounded-full bg-gray-200 overflow-hidden sm:h-2"
         role="progressbar"
         aria-valuenow={currentStep}
         aria-valuemin={1}
@@ -367,10 +388,15 @@ export function MobileStepIndicator({
         aria-label={`Step ${currentStep} of ${totalSteps}: ${currentLabel}`}
       >
         <div
-          className="h-full rounded-full bg-primary transition-all duration-300 ease-in-out"
-          style={{ width: `${progress}%` }}
+          className="h-full rounded-full bg-primary transition-all duration-300 ease-in-out min-w-[4px]"
+          style={{ width: `${Math.max(progress, 5)}%` }}
         />
       </div>
+      
+      {/* Mobile: Current step label below progress bar */}
+      <p className="mt-1.5 text-sm text-muted-foreground truncate sm:hidden">
+        {currentLabel}
+      </p>
     </div>
   )
 }

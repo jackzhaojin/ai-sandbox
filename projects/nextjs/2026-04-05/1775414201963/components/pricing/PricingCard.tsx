@@ -153,36 +153,43 @@ export function PricingCard({
       data-selected={selected}
       id={cardId}
     >
-      {/* Radio Button - Positioned absolutely */}
-      <div className="absolute right-4 top-4" onClick={(e) => e.stopPropagation()}>
-        <RadioGroupItem value={radioId} id={radioId} />
+      {/* Radio Button - Positioned absolutely with larger touch target for mobile */}
+      <div 
+        className="absolute right-2 top-2 sm:right-4 sm:top-4 p-2 -m-2" 
+        onClick={(e) => e.stopPropagation()}
+      >
+        <RadioGroupItem 
+          value={radioId} 
+          id={radioId}
+          className="h-5 w-5 sm:h-4 sm:w-4"
+        />
       </div>
 
-      <CardHeader className="pb-2">
-        <div className="flex items-start gap-3 pr-8">
-          {/* Carrier Logo */}
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted">
+      <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-4">
+        <div className="flex items-start gap-2 sm:gap-3 pr-8 sm:pr-10">
+          {/* Carrier Logo - Smaller on mobile */}
+          <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg bg-muted">
             {quote.carrier.logo_url ? (
               <img
                 src={quote.carrier.logo_url}
                 alt={quote.carrier.display_name}
-                className="h-8 w-8 object-contain"
+                className="h-6 w-6 sm:h-8 sm:w-8 object-contain"
               />
             ) : (
-              <Truck className="h-6 w-6 text-muted-foreground" />
+              <Truck className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
             )}
           </div>
 
           {/* Carrier & Service Info */}
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-foreground truncate">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+              <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">
                 {quote.carrier.display_name}
               </h3>
               {selected && (
-                <Badge variant="default" className="h-5 px-1.5 text-xs">
-                  <Check className="h-3 w-3 mr-0.5" />
-                  Selected
+                <Badge variant="default" className="h-4 sm:h-5 px-1 sm:px-1.5 text-[10px] sm:text-xs shrink-0">
+                  <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5" />
+                  <span className="hidden sm:inline">Selected</span>
                 </Badge>
               )}
             </div>
@@ -191,59 +198,61 @@ export function PricingCard({
             {renderReliabilityRating()}
             
             {/* Service Name */}
-            <p className="mt-0.5 text-sm text-muted-foreground truncate">
+            <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground truncate">
               {quote.service.display_name}
             </p>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        {/* Transit Time & Delivery Date */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5 text-sm">
-            <Clock className="h-4 w-4 text-muted-foreground" />
+      <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-3 sm:pb-6">
+        {/* Transit Time & Delivery Date - Stacked on mobile */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4 text-xs sm:text-sm">
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
             <span>{getTransitTimeLabel()}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-sm">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
             <span className="font-medium">
               {formatDeliveryDate(quote.estimated_delivery)}
             </span>
           </div>
         </div>
 
-        {/* Price */}
+        {/* Price - Smaller on mobile */}
         <div className="flex items-baseline gap-1">
-          <span className="text-3xl font-bold tracking-tight">
+          <span className="text-2xl sm:text-3xl font-bold tracking-tight">
             {formatCurrency(quote.pricing.total)}
           </span>
-          <span className="text-sm text-muted-foreground">total</span>
+          <span className="text-xs sm:text-sm text-muted-foreground">total</span>
         </div>
 
-        {/* Features */}
+        {/* Features - Smaller badges on mobile */}
         {features.length > 0 && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
             {features.map((feature, index) => (
               <Badge
                 key={index}
                 variant="secondary"
-                className="flex items-center gap-1 text-xs font-normal"
+                className="flex items-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs font-normal py-0.5 sm:py-1"
               >
                 {feature.icon}
-                {feature.label}
+                <span className="hidden sm:inline">{feature.label}</span>
+                <span className="sm:hidden">{feature.label.split(' ')[0]}</span>
               </Badge>
             ))}
           </div>
         )}
 
-        {/* Carbon Footprint Badge */}
+        {/* Carbon Footprint Badge - Compact on mobile */}
         {quote.carbon_footprint.kg_co2 > 0 && (
-          <div className="flex items-center gap-2 rounded-md bg-success-50 px-3 py-2 text-sm">
-            <Leaf className="h-4 w-4 text-success-600" />
+          <div className="flex items-center gap-1.5 sm:gap-2 rounded-md bg-success-50 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm">
+            <Leaf className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-success-600" />
             <span className="text-success-800">
-              <span className="font-medium">{quote.carbon_footprint.kg_co2.toFixed(1)} kg CO₂</span>
-              {" "}emitted
+              <span className="font-medium">{quote.carbon_footprint.kg_co2.toFixed(1)} kg</span>
+              <span className="hidden sm:inline"> CO₂ emitted</span>
+              <span className="sm:hidden"> CO₂</span>
             </span>
           </div>
         )}

@@ -227,48 +227,113 @@ export function CheckoutNavigation({
         </div>
       </div>
 
-      {/* Navigation Bar */}
+      {/* Navigation Bar - Responsive: Desktop inline, Mobile sticky bottom */}
       {(buttonConfig.showPrev || buttonConfig.showNext || showSaveDraft) && (
-        <div
-          className={cn(
-            "border-b bg-background",
-            sticky && "sticky bottom-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
-          )}
-        >
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between gap-4">
-              {/* Left side - Start Over & Previous */}
-              <div className="flex items-center gap-3">
-                {showStartOver && onStartOver && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={onStartOver}
-                    disabled={isLoading || isSavingDraft}
-                    className="text-muted-foreground hover:text-destructive"
-                  >
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    Start Over
-                  </Button>
-                )}
+        <>
+          {/* Desktop Navigation */}
+          <div className="hidden md:block border-b bg-background">
+            <div className="container mx-auto px-4 py-4">
+              <div className="flex items-center justify-between gap-4">
+                {/* Left side - Start Over & Previous */}
+                <div className="flex items-center gap-3">
+                  {showStartOver && onStartOver && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={onStartOver}
+                      disabled={isLoading || isSavingDraft}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <RotateCcw className="mr-2 h-4 w-4" />
+                      Start Over
+                    </Button>
+                  )}
 
-                {buttonConfig.showPrev && onPrevious && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={onPrevious}
-                    disabled={isLoading}
-                    className="gap-2"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    {buttonConfig.prev}
-                  </Button>
-                )}
+                  {buttonConfig.showPrev && onPrevious && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onPrevious}
+                      disabled={isLoading}
+                      className="gap-2"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      {buttonConfig.prev}
+                    </Button>
+                  )}
+                </div>
+
+                {/* Right side - Save Draft & Next */}
+                <div className="flex items-center gap-3">
+                  {showSaveDraft && onSaveDraft && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={onSaveDraft}
+                      disabled={isSavingDraft || isLoading}
+                    >
+                      {isSavingDraft ? (
+                        <>
+                          <LoadingSpinner className="mr-2 h-4 w-4" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Draft
+                        </>
+                      )}
+                    </Button>
+                  )}
+
+                  {buttonConfig.showNext && onNext && (
+                    <Button
+                      type="submit"
+                      onClick={onNext}
+                      disabled={nextDisabled || isLoading}
+                      className="min-w-[160px] gap-2"
+                    >
+                      {isLoading ? (
+                        <>
+                          <LoadingSpinner className="h-4 w-4" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          {buttonConfig.next}
+                          <ChevronRight className="h-4 w-4" />
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
               </div>
+            </div>
+          </div>
 
-              {/* Right side - Save Draft & Next */}
-              <div className="flex items-center gap-3">
+          {/* Mobile Sticky Bottom Navigation */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-safe">
+            <div className="px-4 py-3">
+              {/* Top row: Start Over & Save Draft (icon only) */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  {showStartOver && onStartOver && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={onStartOver}
+                      disabled={isLoading || isSavingDraft}
+                      className="h-10 px-2 text-muted-foreground hover:text-destructive"
+                      aria-label="Start Over"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+
                 {showSaveDraft && onSaveDraft && (
                   <Button
                     type="button"
@@ -276,18 +341,30 @@ export function CheckoutNavigation({
                     size="sm"
                     onClick={onSaveDraft}
                     disabled={isSavingDraft || isLoading}
+                    className="h-10 px-2"
+                    aria-label="Save Draft"
                   >
                     {isSavingDraft ? (
-                      <>
-                        <LoadingSpinner className="mr-2 h-4 w-4" />
-                        Saving...
-                      </>
+                      <LoadingSpinner className="h-4 w-4" />
                     ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Draft
-                      </>
+                      <Save className="h-4 w-4" />
                     )}
+                  </Button>
+                )}
+              </div>
+
+              {/* Bottom row: Previous & Next (full width) */}
+              <div className="flex items-center gap-3">
+                {buttonConfig.showPrev && onPrevious && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onPrevious}
+                    disabled={isLoading}
+                    className="flex-1 h-12 gap-2"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                    Back
                   </Button>
                 )}
 
@@ -296,17 +373,22 @@ export function CheckoutNavigation({
                     type="submit"
                     onClick={onNext}
                     disabled={nextDisabled || isLoading}
-                    className="min-w-[160px] gap-2"
+                    className={cn(
+                      "h-12 gap-2",
+                      buttonConfig.showPrev ? "flex-[2]" : "w-full"
+                    )}
                   >
                     {isLoading ? (
                       <>
-                        <LoadingSpinner className="h-4 w-4" />
-                        Processing...
+                        <LoadingSpinner className="h-5 w-5" />
+                        <span className="hidden sm:inline">Processing...</span>
                       </>
                     ) : (
                       <>
-                        {buttonConfig.next}
-                        <ChevronRight className="h-4 w-4" />
+                        <span className="truncate">
+                          {buttonConfig.next.replace("Continue to ", "")}
+                        </span>
+                        <ChevronRight className="h-5 w-5 shrink-0" />
                       </>
                     )}
                   </Button>
@@ -314,7 +396,10 @@ export function CheckoutNavigation({
               </div>
             </div>
           </div>
-        </div>
+
+          {/* Spacer for mobile bottom nav */}
+          <div className="md:hidden h-32" aria-hidden="true" />
+        </>
       )}
     </div>
   );

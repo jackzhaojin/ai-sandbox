@@ -63,21 +63,21 @@ export function SuccessBanner({
         className
       )}
     >
-      <CardContent className="p-6 sm:p-8">
+      <CardContent className="p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col items-center text-center">
-          {/* Animated Checkmark */}
+          {/* Animated Checkmark - Smaller on mobile */}
           <div
             className={cn(
-              "relative mb-6 transition-all duration-500",
+              "relative mb-4 sm:mb-6 transition-all duration-500",
               showCheckmark ? "scale-100 opacity-100" : "scale-50 opacity-0"
             )}
             aria-hidden="true"
           >
             <div className="absolute inset-0 rounded-full bg-success-400/20 animate-ping" />
-            <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-success-500 shadow-lg shadow-success-500/30">
+            <div className="relative flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-success-500 shadow-lg shadow-success-500/30">
               <svg
                 className={cn(
-                  "h-10 w-10 text-white transition-all duration-700 ease-out",
+                  "h-8 w-8 sm:h-10 sm:w-10 text-white transition-all duration-700 ease-out",
                   showCheckmark ? "scale-100" : "scale-0"
                 )}
                 fill="none"
@@ -101,7 +101,7 @@ export function SuccessBanner({
           {/* Success Message */}
           <h1
             className={cn(
-              "text-2xl sm:text-3xl font-bold text-success-900 mb-2 transition-all duration-500 delay-200",
+              "text-xl sm:text-2xl lg:text-3xl font-bold text-success-900 mb-2 transition-all duration-500 delay-200",
               showCheckmark ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
             )}
           >
@@ -111,7 +111,7 @@ export function SuccessBanner({
           {/* Subtitle */}
           <p
             className={cn(
-              "text-success-700 mb-6 max-w-md transition-all duration-500 delay-300",
+              "text-sm sm:text-base text-success-700 mb-4 sm:mb-6 max-w-md transition-all duration-500 delay-300",
               showCheckmark ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
             )}
           >
@@ -125,12 +125,12 @@ export function SuccessBanner({
               showCheckmark ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
             )}
           >
-            <div className="bg-white rounded-xl border border-success-200 p-4 shadow-sm">
-              <p className="text-sm text-muted-foreground mb-2">
+            <div className="bg-white rounded-lg sm:rounded-xl border border-success-200 p-3 sm:p-4 shadow-sm">
+              <p className="text-xs sm:text-sm text-muted-foreground mb-1.5 sm:mb-2">
                 Confirmation Number
               </p>
-              <div className="flex items-center justify-center gap-3">
-                <code className="text-xl sm:text-2xl font-mono font-bold text-foreground tracking-wide">
+              <div className="flex items-center justify-center gap-2 sm:gap-3">
+                <code className="text-lg sm:text-xl lg:text-2xl font-mono font-bold text-foreground tracking-wide">
                   {confirmationNumber}
                 </code>
                 <CopyButton
@@ -139,26 +139,28 @@ export function SuccessBanner({
                   size="sm"
                   onCopy={onCopy}
                   ariaLabel="Copy confirmation number"
+                  className="h-8 w-8 sm:h-9 sm:w-9"
                 />
               </div>
             </div>
           </div>
 
-          {/* QR Code */}
+          {/* QR Code - Smaller on mobile */}
           <div
             className={cn(
-              "mt-6 transition-all duration-500 delay-500",
+              "mt-4 sm:mt-6 transition-all duration-500 delay-500",
               showCheckmark ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
             )}
           >
-            <div className="bg-white rounded-xl border border-success-200 p-4 shadow-sm">
-              <p className="text-sm text-muted-foreground mb-3">
+            <div className="bg-white rounded-lg sm:rounded-xl border border-success-200 p-3 sm:p-4 shadow-sm">
+              <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3">
                 Scan to track shipment
               </p>
               <div className="flex justify-center">
                 <QRCodeSVG
                   value={qrCodeData}
-                  size={128}
+                  size={96}
+                  className="sm:w-32 sm:h-32"
                   level="M"
                   includeMargin={false}
                   bgColor="#ffffff"

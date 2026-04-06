@@ -178,27 +178,27 @@ export function ConfirmationSection({
           <CollapsibleTrigger asChild>
             <button
               type="button"
-              className="w-full px-6 py-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
+              className="w-full px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between hover:bg-muted/50 transition-colors min-h-[44px]"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                 {icon && (
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    {icon}
+                  <div className="flex h-7 w-7 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <span className="scale-90 sm:scale-100">{icon}</span>
                   </div>
                 )}
-                <div className="text-left">
-                  <h3 className="font-semibold">{title}</h3>
+                <div className="text-left min-w-0">
+                  <h3 className="font-semibold text-sm sm:text-base truncate">{title}</h3>
                 </div>
-                <div className="ml-2">{getStatusBadge(status, statusLabel)}</div>
+                <div className="ml-1 sm:ml-2 shrink-0">{getStatusBadge(status, statusLabel)}</div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2 shrink-0 ml-2">
                 {headerAction}
                 {headerAction && <div className="w-px h-4 bg-border mx-1" />}
                 {expanded ? (
-                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                  <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                 ) : (
-                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                 )}
               </div>
             </button>
@@ -206,8 +206,8 @@ export function ConfirmationSection({
         </CardHeader>
 
         <CollapsibleContent>
-          <CardContent className="pt-0 pb-6 px-6">
-            <div className="pt-4 border-t border-border/50">
+          <CardContent className="pt-0 pb-4 sm:pb-6 px-3 sm:px-6">
+            <div className="pt-3 sm:pt-4 border-t border-border/50">
               {data.map((item, index) => (
                 <DataRow
                   key={index}
@@ -215,7 +215,7 @@ export function ConfirmationSection({
                   isLast={index === data.length - 1}
                 />
               ))}
-              {children && <div className="mt-4">{children}</div>}
+              {children && <div className="mt-3 sm:mt-4">{children}</div>}
             </div>
           </CardContent>
         </CollapsibleContent>

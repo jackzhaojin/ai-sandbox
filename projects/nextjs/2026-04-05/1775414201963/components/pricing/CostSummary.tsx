@@ -295,7 +295,7 @@ export function CostSummary({
             Cost Summary
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6">
           <div className="animate-pulse space-y-3">
             <div className="h-4 bg-muted rounded w-3/4" />
             <div className="h-4 bg-muted rounded w-1/2" />
@@ -309,9 +309,9 @@ export function CostSummary({
 
   return (
     <Card className={cn("w-full", className)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Wallet className="h-5 w-5" />
+      <CardHeader className="pb-3 px-3 sm:px-6">
+        <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+          <Wallet className="h-4 w-4 sm:h-5 sm:w-5" />
           Cost Summary
         </CardTitle>
       </CardHeader>
@@ -412,15 +412,15 @@ export function CostSummary({
         {/* Total */}
         <Separator />
         <div className="flex items-center justify-between py-2">
-          <span className="text-base font-semibold">Total</span>
-          <span className="text-xl font-bold tabular-nums text-primary">
+          <span className="text-sm sm:text-base font-semibold">Total</span>
+          <span className="text-lg sm:text-xl font-bold tabular-nums text-primary">
             {formatCurrency(calculatedTotal, data.currency)}
           </span>
         </div>
 
         {/* Payment Method Notice */}
         {!selectedPaymentMethod && (
-          <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground text-center">
+          <div className="rounded-md bg-muted p-2.5 sm:p-3 text-xs sm:text-sm text-muted-foreground text-center">
             Select a payment method to see the final total
           </div>
         )}

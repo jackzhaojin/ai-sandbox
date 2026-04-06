@@ -287,20 +287,21 @@ export function PricingGrid({
         </div>
       </div>
 
-      {/* Category Tabs */}
+      {/* Category Tabs - Scrollable on mobile */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full justify-start overflow-x-auto">
+        <TabsList className="w-full justify-start overflow-x-auto scrollbar-hide -mx-1 px-1 sm:mx-0 sm:px-0">
           {categoryTabs.map((tab) => (
             <TabsTrigger
               key={tab.id}
               value={tab.id}
-              className="flex items-center gap-2 whitespace-nowrap"
+              className="flex items-center gap-1.5 whitespace-nowrap px-2 py-1.5 sm:px-3 sm:gap-2"
             >
-              {tab.icon}
-              <span>{tab.label}</span>
+              <span className="shrink-0">{tab.icon}</span>
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden text-xs">{tab.label.split(' ')[0]}</span>
               <Badge
                 variant={activeTab === tab.id ? "default" : "secondary"}
-                className="ml-1 h-5 px-1.5 text-xs"
+                className="ml-0.5 h-4 px-1 text-[10px] sm:h-5 sm:px-1.5 sm:text-xs"
               >
                 {tab.count}
               </Badge>

@@ -139,32 +139,32 @@ export function ShipmentSummaryBar({
         className
       )}
     >
-      <CardContent className="p-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
           {/* Route Section */}
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-              <MapPin className="h-5 w-5 text-primary" />
+          <div className="flex items-start gap-2 sm:gap-3">
+            <div className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+              <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
                 {/* Origin */}
                 <div className="min-w-0">
-                  <p className="truncate font-medium">{originFormatted.location}</p>
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="truncate font-medium text-sm sm:text-base">{originFormatted.location}</p>
+                  <p className="truncate text-xs text-muted-foreground hidden sm:block">
                     {originFormatted.name}
                   </p>
                 </div>
 
                 {/* Arrow */}
-                <div className="flex items-center justify-center">
-                  <ArrowRight className="h-4 w-4 text-muted-foreground sm:mx-2" />
+                <div className="flex items-center sm:justify-center py-0.5 sm:py-0">
+                  <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground sm:mx-2 rotate-90 sm:rotate-0" />
                 </div>
 
                 {/* Destination */}
                 <div className="min-w-0">
-                  <p className="truncate font-medium">{destinationFormatted.location}</p>
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="truncate font-medium text-sm sm:text-base">{destinationFormatted.location}</p>
+                  <p className="truncate text-xs text-muted-foreground hidden sm:block">
                     {destinationFormatted.name}
                   </p>
                 </div>
@@ -172,62 +172,66 @@ export function ShipmentSummaryBar({
             </div>
           </div>
 
-          {/* Package Summary */}
-          <div className="flex items-start gap-3 lg:border-l lg:border-border lg:pl-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary/50">
-              <Package className="h-5 w-5 text-secondary-foreground" />
+          {/* Package Summary - Border on desktop, separator line on mobile */}
+          <div className="flex items-start gap-2 sm:gap-3 pt-2 border-t sm:pt-0 sm:border-t-0 lg:border-l lg:border-border lg:pl-4">
+            <div className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg bg-secondary/50">
+              <Package className="h-4 w-4 sm:h-5 sm:w-5 text-secondary-foreground" />
             </div>
-            <div>
-              <p className="font-medium">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-sm sm:text-base truncate">
                 {packages.count > 1 ? `${packages.count} Packages` : packages.packageType}
               </p>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <Scale className="h-3.5 w-3.5" />
+                  <Scale className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   {packages.weight.toFixed(1)} {packages.weightUnit}
                 </span>
                 {packages.dimensions && (
                   <span className="flex items-center gap-1">
-                    <Ruler className="h-3.5 w-3.5" />
-                    {packages.dimensions.length}×{packages.dimensions.width}×
-                    {packages.dimensions.height} {packages.dimensions.unit}
+                    <Ruler className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">
+                      {packages.dimensions.length}×{packages.dimensions.width}×{packages.dimensions.height} {packages.dimensions.unit}
+                    </span>
+                    <span className="sm:hidden">
+                      {packages.dimensions.length}×{packages.dimensions.width}×{packages.dimensions.height}
+                    </span>
                   </span>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Special Handling */}
+          {/* Special Handling - Collapsible on mobile if many items */}
           {specialHandling.length > 0 && (
-            <div className="flex items-start gap-3 lg:border-l lg:border-border lg:pl-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warning-50">
-                <AlertTriangle className="h-5 w-5 text-warning-600" />
+            <div className="flex items-start gap-2 sm:gap-3 pt-2 border-t sm:pt-0 sm:border-t-0 lg:border-l lg:border-border lg:pl-4">
+              <div className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg bg-warning-50">
+                <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-warning-600" />
               </div>
-              <div className="flex flex-wrap gap-1">
-                {specialHandling.slice(0, 3).map((handling, index) => (
+              <div className="flex flex-wrap gap-1 min-w-0 flex-1">
+                {specialHandling.slice(0, 2).map((handling, index) => (
                   <Badge
                     key={index}
                     variant="outline"
-                    className="flex items-center gap-1 text-xs font-normal"
+                    className="flex items-center gap-1 text-[10px] sm:text-xs font-normal py-0.5 px-1.5"
                   >
-                    {handling.icon || getHandlingIcon(handling.type)}
-                    {handling.label}
+                    <span className="shrink-0">{handling.icon || getHandlingIcon(handling.type)}</span>
+                    <span className="truncate">{handling.label}</span>
                   </Badge>
                 ))}
-                {specialHandling.length > 3 && (
-                  <Badge variant="outline" className="text-xs font-normal">
-                    +{specialHandling.length - 3} more
+                {specialHandling.length > 2 && (
+                  <Badge variant="outline" className="text-[10px] sm:text-xs font-normal">
+                    +{specialHandling.length - 2}
                   </Badge>
                 )}
               </div>
             </div>
           )}
 
-          {/* Declared Value */}
+          {/* Declared Value - Hidden on smallest screens */}
           {declaredValue && declaredValue.amount > 0 && (
-            <div className="flex items-start gap-3 lg:border-l lg:border-border lg:pl-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-success-50">
-                <Shield className="h-5 w-5 text-success-600" />
+            <div className="hidden sm:flex items-start gap-3 pt-2 border-t sm:pt-0 sm:border-t-0 lg:border-l lg:border-border lg:pl-4">
+              <div className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg bg-success-50">
+                <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-success-600" />
               </div>
               <div>
                 <p className="text-sm font-medium">Declared Value</p>
@@ -242,23 +246,23 @@ export function ShipmentSummaryBar({
           )}
 
           {/* Edit Button */}
-          <div className="flex items-center lg:border-l lg:border-border lg:pl-4">
+          <div className="flex items-center justify-end pt-2 border-t sm:pt-0 sm:border-t-0 sm:justify-start lg:border-l lg:border-border lg:pl-4">
             <Button
               variant="outline"
               size="sm"
               onClick={onEdit}
               asChild={!!editHref}
-              className="gap-2"
+              className="gap-2 h-9 sm:h-10"
             >
               {editHref ? (
                 <a href={editHref}>
-                  <Edit3 className="h-4 w-4" />
-                  Edit
+                  <Edit3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Edit</span>
                 </a>
               ) : (
                 <>
-                  <Edit3 className="h-4 w-4" />
-                  Edit
+                  <Edit3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Edit</span>
                 </>
               )}
             </Button>

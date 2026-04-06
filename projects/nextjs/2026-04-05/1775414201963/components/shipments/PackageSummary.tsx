@@ -142,41 +142,41 @@ export function PackageSummary({ data, className }: PackageSummaryProps) {
   const currencySymbol = data.currency === "USD" ? "$" : data.currency === "CAD" ? "C$" : "Mex$";
 
   return (
-    <Card className={cn("sticky top-4", className)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Package className="h-5 w-5" />
+    <Card className={cn("lg:sticky lg:top-4", className)}>
+      <CardHeader className="pb-3 px-3 sm:px-6">
+        <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+          <Package className="h-4 w-4 sm:h-5 sm:w-5" />
           Shipment Summary
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6">
         {/* Package Count */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm">
-            <Package className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+            <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Packages</span>
           </div>
-          <span className="font-medium">{totals.packageCount}</span>
+          <span className="font-medium text-sm sm:text-base">{totals.packageCount}</span>
         </div>
 
         {/* Total Weight */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm">
-            <Scale className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+            <Scale className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Total Weight</span>
           </div>
-          <span className="font-medium">
+          <span className="font-medium text-sm sm:text-base">
             {totals.totalWeight.toFixed(1)} lbs
           </span>
         </div>
 
         {/* Declared Value */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm">
-            <Shield className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+            <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Declared Value</span>
           </div>
-          <span className="font-medium">
+          <span className="font-medium text-sm sm:text-base">
             {currencySymbol}
             {totals.totalValue.toLocaleString()}
           </span>
