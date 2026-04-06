@@ -58,5 +58,4 @@ export {
   type PickupFeeBreakdown,
   type EquipmentFee,
   type AccessRequirementFee,
-  type LoadingAssistanceType,
 } from './PickupFeeSummary';

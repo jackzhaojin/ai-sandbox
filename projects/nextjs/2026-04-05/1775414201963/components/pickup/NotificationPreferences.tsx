@@ -84,7 +84,7 @@ export interface NotificationOption {
   requiresCalls?: boolean;
 }
 
-const NOTIFICATION_OPTIONS: NotificationOption[] = [
+export const NOTIFICATION_OPTIONS: NotificationOption[] = [
   {
     id: "emailReminder24h",
     label: "Email Reminder (24 hours)",
