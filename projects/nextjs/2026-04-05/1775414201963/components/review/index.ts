@@ -29,3 +29,24 @@ export {
   type PaymentMethodType,
   type PickupScheduleSectionProps,
 } from "./ReviewSection";
+
+// Terms and Conditions
+export {
+  TermsAndConditions,
+  defaultTermsState,
+  areAllRequiredTermsAccepted,
+  getUnacceptedTerms,
+  type TermsAndConditionsProps,
+  type TermsState,
+} from "./TermsAndConditions";
+
+// Validation Errors
+export {
+  ValidationErrors,
+  generateValidationErrors,
+  canSubmitShipment,
+  type ValidationErrorsProps,
+  type ValidationError,
+  type CheckoutStep,
+  type ShipmentValidationData,
+} from "./ValidationErrors";
