@@ -12,3 +12,18 @@ export {
   type TimeSlotPeriod,
   DEFAULT_TIME_SLOTS,
 } from './TimeSlotSelector';
+
+export {
+  PickupLocationForm,
+  type PickupLocationFormProps,
+  type PickupLocationFormData,
+  type LocationType,
+} from './PickupLocationForm';
+
+export {
+  PickupEquipmentSelector,
+  type PickupEquipmentSelectorProps,
+  type PickupEquipmentFormData,
+  type EquipmentType,
+  type LoadingAssistanceType,
+} from './PickupEquipmentSelector';

@@ -7,6 +7,7 @@ export { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 export { Checkbox } from "./checkbox"
 export { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./dialog"
 export { Input } from "./input"
+export { Textarea } from "./textarea"
 export { Label } from "./label"
 export { RadioGroup, RadioGroupItem } from "./radio-group"
 export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select"
