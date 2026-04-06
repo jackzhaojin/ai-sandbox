@@ -330,6 +330,88 @@ export const paymentRequestSchema = z.object({
 });
 
 // ============================================
+// PICKUP SCHEMAS
+// ============================================
+
+export const pickupEquipmentSchema = z.object({
+  equipment_type: z.string().min(1),
+  quantity: z.number().int().positive().default(1),
+  is_required: z.boolean().default(true),
+  notes: z.string().max(200).optional(),
+});
+
+export const pickupContactSchema = z.object({
+  name: z.string().min(1, "Contact name is required").max(100),
+  job_title: z.string().min(1, "Job title is required").max(100),
+  mobile_phone: phoneSchema,
+  alt_phone: phoneSchema.optional().or(z.literal("")),
+  email: emailSchema,
+  preferred_contact_method: z.enum(["email", "phone", "sms"]),
+});
+
+export const pickupBackupContactSchema = z.object({
+  name: z.string().min(1, "Backup contact name is required").max(100),
+  phone: phoneSchema,
+  email: emailSchema.optional().or(z.literal("")),
+});
+
+export const pickupNotificationsSchema = z.object({
+  email_confirmation: z.boolean().default(true),
+  sms_reminder: z.boolean().default(false),
+  email_reminder: z.boolean().default(true),
+  driver_arrival_notification: z.boolean().default(true),
+  phone_number: z.string().optional(),
+});
+
+export const pickupRequestSchema = z.object({
+  // Pickup Details
+  pickup_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+  time_slot_id: z.enum(["morning", "afternoon", "evening"]),
+  pickup_address_id: uuidSchema,
+  special_instructions: z.string().max(500).optional(),
+  driver_instructions: z.string().max(500).optional(),
+  
+  // Location Details
+  location_type: z.enum(["loading_dock", "ground_level", "residential", "storage", "construction", "other"]),
+  dock_number: z.string().max(50).optional(),
+  package_location: z.string().max(200).optional(),
+  
+  // Equipment & Services
+  equipment_needed: z.array(pickupEquipmentSchema).optional(),
+  loading_assistance: z.enum(["customer", "driver_assist", "full_service"]),
+  
+  // Access Requirements
+  access_requirements: z.array(z.string()).optional(),
+  gate_code: z.string().max(50).optional(),
+  parking_instructions: z.string().max(200).optional(),
+  
+  // Contacts
+  primary_contact: pickupContactSchema,
+  backup_contact: pickupBackupContactSchema,
+  
+  // Authorized Personnel
+  authorized_personnel: z.array(z.string().min(1).max(100)).optional(),
+  
+  // Special Authorization
+  special_authorization: z.object({
+    id_verification_required: z.boolean().default(false),
+    signature_required: z.boolean().default(false),
+    photo_id_matching: z.boolean().default(false),
+  }).optional(),
+  
+  // Notifications
+  notifications: pickupNotificationsSchema,
+  
+  // Fees
+  time_slot_fee: z.number().nonnegative().default(0),
+  location_surcharge: z.number().nonnegative().default(0),
+  equipment_fees: z.number().nonnegative().default(0),
+  loading_fee: z.number().nonnegative().default(0),
+  access_fee: z.number().nonnegative().default(0),
+  total_pickup_fee: z.number().nonnegative(),
+}).strict();
+
+// ============================================
 // TYPE EXPORTS
 // ============================================
 
@@ -347,3 +429,4 @@ export type NetTermsPaymentInput = z.infer<typeof netTermsPaymentSchema>;
 export type CorporateAccountPaymentInput = z.infer<typeof corporateAccountPaymentSchema>;
 export type ShipmentListQueryInput = z.infer<typeof shipmentListQuerySchema>;
 export type PaginationQueryInput = z.infer<typeof paginationQuerySchema>;
+export type PickupRequestInput = z.infer<typeof pickupRequestSchema>;

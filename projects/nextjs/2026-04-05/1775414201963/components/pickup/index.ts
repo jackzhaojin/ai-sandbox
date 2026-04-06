@@ -46,3 +46,17 @@ export {
   type NotificationOption,
   NOTIFICATION_OPTIONS,
 } from './NotificationPreferences';
+
+export {
+  PickupGuidelinesSidebar,
+  type PickupGuidelinesSidebarProps,
+} from './PickupGuidelinesSidebar';
+
+export {
+  PickupFeeSummary,
+  type PickupFeeSummaryProps,
+  type PickupFeeBreakdown,
+  type EquipmentFee,
+  type AccessRequirementFee,
+  type LoadingAssistanceType,
+} from './PickupFeeSummary';

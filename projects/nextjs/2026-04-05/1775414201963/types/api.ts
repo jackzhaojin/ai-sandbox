@@ -607,6 +607,126 @@ export interface CostSummaryData {
 export type CostSummaryResponse = ApiResponse<CostSummaryData>;
 
 // ============================================
+// PICKUP ENDPOINTS
+// ============================================
+
+// POST /api/shipments/[id]/pickup - Schedule pickup for shipment
+export interface PickupRequest {
+  // Pickup Details
+  pickup_date: string; // ISO date YYYY-MM-DD
+  time_slot_id: string; // morning, afternoon, evening
+  pickup_address_id: string;
+  special_instructions?: string;
+  driver_instructions?: string;
+  
+  // Location Details
+  location_type: 'loading_dock' | 'ground_level' | 'residential' | 'storage' | 'construction' | 'other';
+  dock_number?: string;
+  package_location?: string;
+  
+  // Equipment & Services
+  equipment_needed?: Array<{
+    equipment_type: string;
+    quantity: number;
+    is_required: boolean;
+    notes?: string;
+  }>;
+  loading_assistance: 'customer' | 'driver_assist' | 'full_service';
+  
+  // Access Requirements
+  access_requirements?: string[]; // call_upon_arrival, security_checkin, gate_code, etc.
+  gate_code?: string;
+  parking_instructions?: string;
+  
+  // Contacts
+  primary_contact: {
+    name: string;
+    job_title: string;
+    mobile_phone: string;
+    alt_phone?: string;
+    email: string;
+    preferred_contact_method: 'email' | 'phone' | 'sms';
+  };
+  backup_contact: {
+    name: string;
+    phone: string;
+    email?: string;
+  };
+  
+  // Authorized Personnel
+  authorized_personnel?: string[];
+  
+  // Special Authorization (for high-value shipments)
+  special_authorization?: {
+    id_verification_required: boolean;
+    signature_required: boolean;
+    photo_id_matching: boolean;
+  };
+  
+  // Notifications
+  notifications: {
+    email_confirmation: boolean;
+    sms_reminder: boolean;
+    email_reminder: boolean;
+    driver_arrival_notification: boolean;
+    phone_number?: string;
+  };
+  
+  // Fees
+  time_slot_fee: number;
+  location_surcharge: number;
+  equipment_fees: number;
+  loading_fee: number;
+  access_fee: number;
+  total_pickup_fee: number;
+}
+
+export interface PickupData {
+  pickup: {
+    id: string;
+    shipment_id: string;
+    pickup_number: string;
+    status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+    pickup_date: string;
+    ready_time: string;
+    close_time: string;
+    total_fee: number;
+    created_at: string;
+  };
+  confirmation: {
+    confirmation_number: string;
+    estimated_pickup_window: string;
+  };
+  message: string;
+}
+
+export type PickupResponse = ApiResponse<PickupData>;
+
+// Pickup fee breakdown
+export interface PickupFeeBreakdown {
+  time_slot_fee: number;
+  location_surcharge: number;
+  equipment_fees: number;
+  loading_assistance_fee: number;
+  access_requirements_fee: number;
+  weekend_premium: number;
+  evening_premium: number;
+  remote_area_fee: number;
+  total: number;
+}
+
+export interface PickupFeeEstimateData {
+  zip_code: string;
+  service_area: {
+    zone: string;
+    description: string;
+  };
+  fees: PickupFeeBreakdown;
+}
+
+export type PickupFeeEstimateResponse = ApiResponse<PickupFeeEstimateData>;
+
+// ============================================
 // WEBHOOK PAYLOADS
 // ============================================
 
