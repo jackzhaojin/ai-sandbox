@@ -29,3 +29,47 @@ export {
   type TrackingInformationSectionProps,
   type TrackingNotificationPreference,
 } from "./ConfirmationSections";
+
+// Package Documentation Section
+export {
+  PackageDocumentationSection,
+  type PackageDocumentationSectionProps,
+  type DocumentItem,
+  type DocumentStatus,
+  type DocumentType,
+} from "./PackageDocumentationSection";
+
+// Contact Information Section
+export {
+  ContactInformationSection,
+  type ContactInformationSectionProps,
+  type CustomerServiceContact,
+  type AccountManagerInfo,
+  type ClaimsDepartmentInfo,
+  type EmergencyContactInfo,
+} from "./ContactInformationSection";
+
+// Next Steps Checklist Section
+export {
+  NextStepsChecklistSection,
+  type NextStepsChecklistSectionProps,
+  type ChecklistTask,
+  type TaskPriority,
+  type TaskStatus,
+} from "./NextStepsChecklistSection";
+
+// Additional Actions Section
+export {
+  AdditionalActionsSection,
+  type AdditionalActionsSectionProps,
+  type InsuranceOption,
+  type HoldLocation,
+} from "./AdditionalActionsSection";
+
+// Recent Shipments Component
+export {
+  RecentShipments,
+  type RecentShipmentsProps,
+  type RecentShipment,
+  type ShipmentStatus,
+} from "./RecentShipments";
