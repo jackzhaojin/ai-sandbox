@@ -9,6 +9,9 @@ e2e/
 ├── step1-shipment-details.spec.ts   # Step 1: Shipment Details tests
 ├── step2-rate-selection.spec.ts     # Step 2: Rate Selection tests
 ├── step3-payment.spec.ts            # Step 3: Payment tests
+├── step4-pickup.spec.ts             # Step 4: Pickup Scheduling tests
+├── step5-review.spec.ts             # Step 5: Review & Confirm tests
+├── step6-confirmation.spec.ts       # Step 6: Confirmation tests
 ├── utils/
 │   └── test-helpers.ts              # Shared test utilities
 └── README.md                        # This file
@@ -53,6 +56,43 @@ e2e/
 - **Cost Summary**: Tests fee calculation and total updates
 - **Navigation**: Tests back button, save draft, continue to Step 4
 - **Accessibility**: Tests heading structure and keyboard navigation
+
+### Step 4: Pickup Scheduling (`step4-pickup.spec.ts`)
+
+- **Pickup Calendar Component**: Tests date selection display on confirmation
+- **Date Validation**: Tests 3+ business day requirement logic
+- **Time Window Display**: Tests pickup time window information
+- **Location Details**: Tests loading dock, gate code, special instructions display
+- **Next Steps Checklist**: Tests before/after pickup tasks
+- **Contact Information**: Tests customer service and account manager display
+- **Accessibility**: Tests heading structure
+
+### Step 5: Review & Confirm (`step5-review.spec.ts`)
+
+- **Confirmation Number**: Tests prominent display of confirmation number
+- **Shipment Summary**: Tests all review sections display correctly
+- **Edit Navigation**: Tests schedule another and repeat shipment buttons
+- **Terms Acceptance**: Tests implicit terms acceptance on confirmation
+- **Recent Shipments**: Tests recent shipments list display
+- **Validation State**: Tests all sections show as complete
+- **Accessibility**: Tests proper heading structure and button labels
+
+### Step 6: Confirmation (`step6-confirmation.spec.ts`)
+
+- **Page Rendering**: Tests page loads without errors
+- **Confirmation Number**: Tests display and copy functionality
+- **QR Code**: Tests QR code display for confirmation
+- **Pickup Details**: Tests pickup date, time window, location, status
+- **Delivery Information**: Tests estimated delivery, address, contact
+- **Tracking Information**: Tests tracking status and carrier links
+- **Package Documentation**: Tests shipping label and commercial invoice
+- **Next Steps Checklist**: Tests before/after pickup tasks with checkboxes
+- **Contact Information**: Tests customer service, account manager, claims
+- **Additional Actions**: Tests schedule another, repeat shipment, insurance
+- **Recent Shipments**: Tests recent shipments list with statuses
+- **Navigation**: Tests navigation to new shipment
+- **Accessibility**: Tests heading hierarchy, ARIA attributes, focus
+- **Responsive Design**: Tests mobile, tablet, and desktop viewports
 
 ## Running Tests
 

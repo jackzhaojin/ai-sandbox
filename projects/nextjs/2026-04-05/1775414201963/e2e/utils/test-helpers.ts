@@ -380,3 +380,304 @@ export async function waitForToast(
     : "[role='status'], [data-testid='toast']";
   await page.waitForSelector(toastSelector, { timeout });
 }
+
+// ============================================
+// STEP 4 HELPERS (Pickup Scheduling)
+// ============================================
+
+export interface PickupLocationData {
+  locationType: string;
+  dockNumber?: string;
+  gateCode?: string;
+  parkingInstructions?: string;
+  specialInstructions?: string;
+}
+
+export interface PickupContactData {
+  name: string;
+  phone: string;
+  email?: string;
+  alternatePhone?: string;
+}
+
+/**
+ * Generate a future business date (skipping weekends)
+ */
+export function getFutureBusinessDate(daysOut: number = 5): string {
+  const date = new Date();
+  let addedDays = 0;
+
+  while (addedDays < daysOut) {
+    date.setDate(date.getDate() + 1);
+    const dayOfWeek = date.getDay();
+    // Skip weekends (0 = Sunday, 6 = Saturday)
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      addedDays++;
+    }
+  }
+
+  return date.toISOString().split("T")[0];
+}
+
+/**
+ * Fill pickup location form
+ */
+export async function fillPickupLocation(
+  page: Page,
+  data: PickupLocationData
+): Promise<void> {
+  // Select location type
+  await page.locator("button", { hasText: /Location Type/i }).click();
+  await page.waitForTimeout(200);
+  await page.locator("[role='option']", { hasText: new RegExp(data.locationType, "i") }).click();
+
+  // Fill dock number if provided
+  if (data.dockNumber) {
+    await page.locator('input[placeholder*="dock" i]').fill(data.dockNumber);
+  }
+
+  // Fill gate code if provided
+  if (data.gateCode) {
+    await page.locator('input[placeholder*="gate" i]').fill(data.gateCode);
+  }
+
+  // Fill parking instructions if provided
+  if (data.parkingInstructions) {
+    await page.locator('textarea[placeholder*="parking" i]').fill(data.parkingInstructions);
+  }
+
+  // Fill special instructions if provided
+  if (data.specialInstructions) {
+    await page.locator('textarea[placeholder*="special" i]').fill(data.specialInstructions);
+  }
+}
+
+/**
+ * Fill pickup contact form
+ */
+export async function fillPickupContact(
+  page: Page,
+  data: PickupContactData,
+  type: "primary" | "backup" = "primary"
+): Promise<void> {
+  const index = type === "primary" ? 0 : 1;
+
+  // Fill name
+  await page.locator('input[placeholder*="name" i]').nth(index).fill(data.name);
+
+  // Fill phone
+  await page.locator('input[type="tel"]').nth(index).fill(data.phone);
+
+  // Fill email if provided
+  if (data.email) {
+    await page.locator('input[type="email"]').nth(index).fill(data.email);
+  }
+
+  // Fill alternate phone if provided
+  if (data.alternatePhone) {
+    await page.locator('input[placeholder*="alternate" i]').nth(index).fill(data.alternatePhone);
+  }
+}
+
+/**
+ * Select pickup date from calendar
+ */
+export async function selectPickupDate(
+  page: Page,
+  date: string
+): Promise<void> {
+  // Look for date input or calendar
+  const dateInput = page.locator('input[type="date"]');
+  
+  if (await dateInput.isVisible().catch(() => false)) {
+    await dateInput.fill(date);
+  } else {
+    // Try calendar picker
+    const dateCell = page.locator(`[data-date="${date}"], [aria-label*="${date}"]`);
+    if (await dateCell.isVisible().catch(() => false)) {
+      await dateCell.click();
+    }
+  }
+}
+
+/**
+ * Select time slot
+ */
+export async function selectTimeSlot(
+  page: Page,
+  slot: "morning" | "afternoon" | "evening"
+): Promise<void> {
+  const slotMap: Record<string, string> = {
+    morning: "9:00 AM - 12:00 PM",
+    afternoon: "12:00 PM - 5:00 PM",
+    evening: "5:00 PM - 8:00 PM",
+  };
+
+  await page.locator("[role='radio'], button", { hasText: new RegExp(slotMap[slot], "i") }).click();
+}
+
+/**
+ * Select pickup equipment
+ */
+export async function selectPickupEquipment(
+  page: Page,
+  equipment: string[]
+): Promise<void> {
+  for (const item of equipment) {
+    const checkbox = page.locator(`[data-equipment="${item}"], input[value="${item}"]`);
+    if (await checkbox.isVisible().catch(() => false)) {
+      await checkbox.click();
+    }
+  }
+}
+
+/**
+ * Complete Step 4 (Pickup Scheduling)
+ */
+export async function completeStep4(page: Page): Promise<void> {
+  // Select pickup date (5 business days out)
+  const futureDate = getFutureBusinessDate(5);
+  await selectPickupDate(page, futureDate);
+
+  // Select time slot
+  await selectTimeSlot(page, "morning");
+
+  // Fill location
+  await fillPickupLocation(page, {
+    locationType: "warehouse",
+    dockNumber: "Dock 3",
+    gateCode: "1234",
+    parkingInstructions: "Park in visitor spots",
+    specialInstructions: "Ring bell for assistance",
+  });
+
+  // Fill primary contact
+  await fillPickupContact(page, {
+    name: "John Pickup",
+    phone: "(555) 123-4567",
+    email: "pickup@example.com",
+  }, "primary");
+
+  // Fill backup contact
+  await fillPickupContact(page, {
+    name: "Jane Backup",
+    phone: "(555) 111-2222",
+    email: "backup@example.com",
+  }, "backup");
+
+  // Select equipment
+  await selectPickupEquipment(page, ["pallet_jack", "loading_dock"]);
+
+  // Continue to Step 5
+  const continueButton = page.locator('button:has-text("Continue")');
+  if (await continueButton.isEnabled().catch(() => false)) {
+    await continueButton.click();
+    await page.waitForURL(/\/shipments\/.*\/review/, { timeout: 10000 });
+  }
+}
+
+// ============================================
+// STEP 5 HELPERS (Review)
+// ============================================
+
+/**
+ * Accept terms and conditions
+ */
+export async function acceptTerms(page: Page): Promise<void> {
+  // Look for terms checkboxes
+  const termsCheckboxes = page.locator(
+    'input[type="checkbox"]:near(:text("terms")), input[type="checkbox"]:near(:text("agree"))'
+  );
+
+  const count = await termsCheckboxes.count();
+  for (let i = 0; i < count; i++) {
+    await termsCheckboxes.nth(i).click();
+  }
+}
+
+/**
+ * Complete Step 5 (Review) and submit
+ */
+export async function completeStep5(page: Page): Promise<void> {
+  // Accept terms
+  await acceptTerms(page);
+
+  // Submit shipment
+  const submitButton = page.locator('button:has-text("Submit")');
+  if (await submitButton.isEnabled().catch(() => false)) {
+    await submitButton.click();
+    await page.waitForURL(/\/shipments\/.*\/confirm/, { timeout: 10000 });
+  }
+}
+
+// ============================================
+// STEP 6 HELPERS (Confirmation)
+// ============================================
+
+/**
+ * Navigate to confirmation page
+ */
+export async function navigateToConfirmation(page: Page, shipmentId?: string): Promise<void> {
+  const id = shipmentId || "test-confirmation";
+  await page.goto(`/shipments/${id}/confirm`);
+  await expect(page.locator("text=Shipment Confirmed!")).toBeVisible();
+}
+
+/**
+ * Verify confirmation page elements
+ */
+export async function verifyConfirmationPage(page: Page): Promise<void> {
+  // Success banner
+  await expect(page.locator("text=Shipment Confirmed!")).toBeVisible();
+
+  // Confirmation number pattern
+  const confirmationPattern = /B2B-\d{4}-[A-Z0-9]+/;
+  const pageContent = await page.textContent("body");
+  expect(pageContent).toMatch(confirmationPattern);
+
+  // Key sections
+  await expect(page.locator("text=Pickup Details").first()).toBeVisible();
+  await expect(page.locator("text=Delivery Information").first()).toBeVisible();
+  await expect(page.locator("text=Tracking Information").first()).toBeVisible();
+}
+
+/**
+ * Download shipping label from confirmation page
+ */
+export async function downloadShippingLabel(page: Page): Promise<void> {
+  const downloadButton = page.locator(
+    'button:has-text("Download"), a:has-text("Download")'
+  ).first();
+
+  if (await downloadButton.isVisible().catch(() => false)) {
+    await downloadButton.click();
+  }
+}
+
+// ============================================
+// ASSERTION HELPERS FOR STEPS 4-6
+// ============================================
+
+/**
+ * Verify that the current page is the pickup page (Step 4)
+ */
+export async function expectToBeOnPickupPage(page: Page): Promise<void> {
+  await expect(page).toHaveURL(/\/shipments\/.*\/pickup/);
+  await expect(page.locator("text=Pickup").first()).toBeVisible();
+}
+
+/**
+ * Verify that the current page is the review page (Step 5)
+ */
+export async function expectToBeOnReviewPage(page: Page): Promise<void> {
+  await expect(page).toHaveURL(/\/shipments\/.*\/review/);
+  await expect(page.locator("text=Review").first()).toBeVisible();
+}
+
+/**
+ * Verify that the current page is the confirmation page (Step 6)
+ */
+export async function expectToBeOnConfirmationPage(page: Page): Promise<void> {
+  await expect(page).toHaveURL(/\/shipments\/.*\/confirm/);
+  await expect(page.locator("text=Confirmed")).toBeVisible();
+}
