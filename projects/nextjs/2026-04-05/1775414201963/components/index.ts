@@ -102,4 +102,8 @@ export {
 export {
   PickupCalendar,
   type PickupCalendarProps,
+  TimeSlotSelector,
+  type TimeSlotSelectorProps,
+  type TimeSlotOption,
+  type TimeSlotPeriod,
 } from "./pickup"
