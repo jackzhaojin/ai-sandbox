@@ -30,3 +30,18 @@ export {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "./collapsible"
+
+export {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "./tabs"
+
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+} from "./dropdown-menu"
