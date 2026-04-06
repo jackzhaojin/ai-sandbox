@@ -144,3 +144,22 @@ export {
   type CheckoutStep,
   type ShipmentValidationData,
 } from "./review"
+
+// Confirmation Components
+export {
+  SuccessBanner,
+  ConfirmationSection,
+  ShipmentReferenceSection,
+  PickupConfirmationSection,
+  DeliveryInformationSection,
+  TrackingInformationSection,
+  type SuccessBannerProps,
+  type ConfirmationSectionProps,
+  type ConfirmationSectionStatus,
+  type ShipmentReferenceSectionProps,
+  type PickupConfirmationSectionProps,
+  type PickupStatus,
+  type DeliveryInformationSectionProps,
+  type TrackingInformationSectionProps,
+  type TrackingNotificationPreference,
+} from "./confirmation"

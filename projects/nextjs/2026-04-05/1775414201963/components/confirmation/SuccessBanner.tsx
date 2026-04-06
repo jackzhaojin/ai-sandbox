@@ -1,0 +1,177 @@
+"use client";
+
+import * as React from "react";
+import { cn } from "@/lib/utils";
+import { CopyButton } from "@/components/shared";
+import { Card, CardContent } from "@/components/ui/card";
+import { QRCodeSVG } from "qrcode.react";
+
+export interface SuccessBannerProps {
+  /** Confirmation number to display */
+  confirmationNumber: string;
+  /** Additional CSS classes */
+  className?: string;
+  /** Callback when confirmation number is copied */
+  onCopy?: () => void;
+  /** Custom success message */
+  successMessage?: string;
+  /** Subtitle text */
+  subtitle?: string;
+}
+
+/**
+ * SuccessBanner - Animated success confirmation banner
+ *
+ * Features:
+ * - Animated green checkmark with CSS animation
+ * - Confirmation number display with copy button
+ * - QR code generation from confirmation number
+ * - Accessible with proper ARIA labels
+ *
+ * @example
+ * <SuccessBanner
+ *   confirmationNumber="B2B-2024-ABC123"
+ *   successMessage="Shipment Confirmed!"
+ *   subtitle="Your shipment has been booked successfully."
+ * />
+ */
+export function SuccessBanner({
+  confirmationNumber,
+  className,
+  onCopy,
+  successMessage = "Shipment Confirmed!",
+  subtitle = "Your shipment has been successfully booked and confirmed.",
+}: SuccessBannerProps) {
+  const [showCheckmark, setShowCheckmark] = React.useState(false);
+
+  // Trigger checkmark animation on mount
+  React.useEffect(() => {
+    const timer = setTimeout(() => setShowCheckmark(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Generate QR code data (confirmation number with tracking URL)
+  const qrCodeData = React.useMemo(() => {
+    // In production, this would be a real tracking URL
+    return `${typeof window !== "undefined" ? window.location.origin : ""}/track/${confirmationNumber}`;
+  }, [confirmationNumber]);
+
+  return (
+    <Card
+      className={cn(
+        "overflow-hidden border-success-200 bg-gradient-to-br from-success-50 to-success-100/50",
+        className
+      )}
+    >
+      <CardContent className="p-6 sm:p-8">
+        <div className="flex flex-col items-center text-center">
+          {/* Animated Checkmark */}
+          <div
+            className={cn(
+              "relative mb-6 transition-all duration-500",
+              showCheckmark ? "scale-100 opacity-100" : "scale-50 opacity-0"
+            )}
+            aria-hidden="true"
+          >
+            <div className="absolute inset-0 rounded-full bg-success-400/20 animate-ping" />
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-success-500 shadow-lg shadow-success-500/30">
+              <svg
+                className={cn(
+                  "h-10 w-10 text-white transition-all duration-700 ease-out",
+                  showCheckmark ? "scale-100" : "scale-0"
+                )}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={3}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={cn(
+                    "success-checkmark",
+                    showCheckmark && "animate-checkmark"
+                  )}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+          </div>
+
+          {/* Success Message */}
+          <h1
+            className={cn(
+              "text-2xl sm:text-3xl font-bold text-success-900 mb-2 transition-all duration-500 delay-200",
+              showCheckmark ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+            )}
+          >
+            {successMessage}
+          </h1>
+
+          {/* Subtitle */}
+          <p
+            className={cn(
+              "text-success-700 mb-6 max-w-md transition-all duration-500 delay-300",
+              showCheckmark ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+            )}
+          >
+            {subtitle}
+          </p>
+
+          {/* Confirmation Number */}
+          <div
+            className={cn(
+              "w-full max-w-md transition-all duration-500 delay-400",
+              showCheckmark ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+            )}
+          >
+            <div className="bg-white rounded-xl border border-success-200 p-4 shadow-sm">
+              <p className="text-sm text-muted-foreground mb-2">
+                Confirmation Number
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                <code className="text-xl sm:text-2xl font-mono font-bold text-foreground tracking-wide">
+                  {confirmationNumber}
+                </code>
+                <CopyButton
+                  text={confirmationNumber}
+                  variant="outline"
+                  size="sm"
+                  onCopy={onCopy}
+                  ariaLabel="Copy confirmation number"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* QR Code */}
+          <div
+            className={cn(
+              "mt-6 transition-all duration-500 delay-500",
+              showCheckmark ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+            )}
+          >
+            <div className="bg-white rounded-xl border border-success-200 p-4 shadow-sm">
+              <p className="text-sm text-muted-foreground mb-3">
+                Scan to track shipment
+              </p>
+              <div className="flex justify-center">
+                <QRCodeSVG
+                  value={qrCodeData}
+                  size={128}
+                  level="M"
+                  includeMargin={false}
+                  bgColor="#ffffff"
+                  fgColor="#111827"
+                  aria-label={`QR code for tracking shipment ${confirmationNumber}`}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default SuccessBanner;
