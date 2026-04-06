@@ -324,6 +324,112 @@ export interface ServiceTypeListData {
 export type ServiceTypeListResponse = ApiResponse<ServiceTypeListData>;
 
 // ============================================
+// QUOTE ENDPOINT
+// ============================================
+
+export interface QuoteRequest {
+  shipment_id?: string;
+  sender_address_id?: string;
+  recipient_address_id?: string;
+  package: {
+    weight: number;
+    length: number;
+    width: number;
+    height: number;
+  };
+  declared_value?: number;
+  special_handling?: string[];
+  signature_required?: boolean;
+  adult_signature_required?: boolean;
+}
+
+export interface QuoteCarrierInfo {
+  code: string;
+  name: string;
+  display_name: string;
+  logo_url: string | null;
+  reliability_rating: number | null;
+  speed_rating: number | null;
+  value_rating: number | null;
+}
+
+export interface QuoteServiceInfo {
+  code: string;
+  name: string;
+  display_name: string;
+  description: string | null;
+  category: string;
+  is_trackable: boolean;
+  is_insurable: boolean;
+  min_delivery_days: number | null;
+  max_delivery_days: number | null;
+}
+
+export interface QuotePricingBreakdown {
+  base_rate: number;
+  weight_charge: number;
+  zone_charge: number;
+  fuel_surcharge: number;
+  residential_fee: number;
+  extended_area_fee: number;
+  handling_fees: number;
+  insurance_cost: number;
+  delivery_confirmation_fee: number;
+  subtotal: number;
+  taxes: number;
+  total: number;
+  currency: string;
+}
+
+export interface QuoteCarbonFootprint {
+  kg_co2: number;
+  distance_km: number;
+}
+
+export interface QuoteDetail {
+  carrier_id: string;
+  service_type_id: string;
+  carrier: QuoteCarrierInfo;
+  service: QuoteServiceInfo;
+  pricing: QuotePricingBreakdown;
+  estimated_delivery: string;
+  carbon_footprint: QuoteCarbonFootprint;
+}
+
+export interface QuoteCategoryData {
+  category: string;
+  display_name: string;
+  count: number;
+  quotes: QuoteDetail[];
+}
+
+export interface QuoteSummary {
+  total_quotes: number;
+  categories: number;
+  cheapest_quote: {
+    carrier: string;
+    service: string;
+    total: number;
+  } | null;
+  fastest_quote: QuoteDetail | null;
+  persisted_count: number;
+}
+
+export interface QuoteMeta {
+  calculated_at: string;
+  expires_at: string;
+  shipment_id: string | null;
+}
+
+export interface QuoteCalculationData {
+  quotes: QuoteCategoryData[];
+  summary: QuoteSummary;
+  meta: QuoteMeta;
+}
+
+export type QuoteCalculationResponse = ApiResponse<QuoteCalculationData>;
+
+// ============================================
 // ERROR CODES
 // ============================================
 
