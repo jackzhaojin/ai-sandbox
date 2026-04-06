@@ -12,3 +12,16 @@ export {
   type PurchaseOrderFormData,
   type PurchaseOrderFormProps,
 } from "./PurchaseOrderForm";
+
+export {
+  BillOfLadingForm,
+  type BillOfLadingFormData,
+  type BillOfLadingFormProps,
+  type FreightTerm,
+} from "./BillOfLadingForm";
+
+export {
+  ThirdPartyBillingForm,
+  type ThirdPartyBillingFormData,
+  type ThirdPartyBillingFormProps,
+} from "./ThirdPartyBillingForm";

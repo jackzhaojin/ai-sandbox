@@ -1,4 +1,5 @@
 // UI Components - shadcn/ui base components
+export { Alert, AlertTitle, AlertDescription } from "./alert"
 export { Badge, badgeVariants } from "./badge"
 export { Button, buttonVariants } from "./button"
 export { Calendar } from "./calendar"
@@ -45,3 +46,10 @@ export {
   DropdownMenuItem,
   DropdownMenuCheckboxItem,
 } from "./dropdown-menu"
+
+export {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverAnchor,
+} from "./popover"
