@@ -727,6 +727,87 @@ export interface PickupFeeEstimateData {
 export type PickupFeeEstimateResponse = ApiResponse<PickupFeeEstimateData>;
 
 // ============================================
+// SUBMISSION ENDPOINTS
+// ============================================
+
+// POST /api/shipments/[id]/submit - Submit a shipment for processing
+export interface SubmitShipmentRequest {
+  terms_accepted: {
+    declaredValueAccurate: boolean;
+    insuranceUnderstanding: boolean;
+    contentsComply: boolean;
+    carrierAuthorized: boolean;
+    hazmatCertificationAccurate: boolean;
+  };
+  acknowledgments?: Array<{
+    type: 'declared_value_accurate' | 'insurance_understanding' | 'contents_comply' | 'carrier_authorized' | 'hazmat_certification_accurate';
+    accepted: boolean;
+    accepted_at?: string;
+  }>;
+  client_info?: {
+    user_agent?: string;
+    ip_address?: string;
+    submitted_from?: string;
+  };
+}
+
+export interface CarrierInfo {
+  id: string;
+  code: string;
+  name: string;
+  display_name: string;
+}
+
+export interface ServiceTypeInfo {
+  id: string;
+  code: string;
+  name: string;
+  display_name: string;
+}
+
+export interface SubmitShipmentData {
+  confirmation: {
+    confirmation_number: string;
+    shipment_id: string;
+    status: 'confirmed';
+    submitted_at: string;
+  };
+  tracking: {
+    tracking_number: string | null;
+    tracking_available_at: string;
+  };
+  delivery: {
+    estimated_delivery: string;
+    transit_days: number;
+    pickup_date: string;
+  };
+  carrier: {
+    id: string;
+    name: string;
+    display_name: string;
+    service: {
+      id: string;
+      name: string;
+      display_name: string;
+    };
+  };
+  cost: {
+    total: number;
+    currency: string;
+    breakdown: {
+      base_rate: number;
+      fuel_surcharge: number;
+      insurance_cost: number;
+      handling_fees: number;
+      taxes: number;
+    };
+  };
+  message: string;
+}
+
+export type SubmitShipmentResponse = ApiResponse<SubmitShipmentData>;
+
+// ============================================
 // WEBHOOK PAYLOADS
 // ============================================
 

@@ -17,6 +17,7 @@ export type ShipmentStatus =
   | 'pending_payment' 
   | 'paid' 
   | 'label_generated' 
+  | 'confirmed'
   | 'picked_up' 
   | 'in_transit' 
   | 'delivered' 
@@ -211,6 +212,9 @@ export interface Shipment {
   pickup_id: string | null;
   special_instructions: string | null;
   internal_notes: string | null;
+  confirmation_number: string | null;
+  submitted_at: string | null;
+  confirmed_at: string | null;
   created_at: string;
   updated_at: string;
 }

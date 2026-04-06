@@ -412,10 +412,44 @@ export const pickupRequestSchema = z.object({
 }).strict();
 
 // ============================================
+// SUBMISSION SCHEMAS
+// ============================================
+
+export const submitShipmentSchema = z.object({
+  // Terms acceptance - all required
+  terms_accepted: z.object({
+    declaredValueAccurate: z.boolean(),
+    insuranceUnderstanding: z.boolean(),
+    contentsComply: z.boolean(),
+    carrierAuthorized: z.boolean(),
+    hazmatCertificationAccurate: z.boolean(),
+  }),
+  // Acknowledgments array for tracking
+  acknowledgments: z.array(z.object({
+    type: z.enum([
+      'declared_value_accurate',
+      'insurance_understanding',
+      'contents_comply',
+      'carrier_authorized',
+      'hazmat_certification_accurate'
+    ]),
+    accepted: z.boolean(),
+    accepted_at: z.string().datetime().optional(),
+  })).optional(),
+  // Client metadata
+  client_info: z.object({
+    user_agent: z.string().optional(),
+    ip_address: z.string().optional(),
+    submitted_from: z.string().optional(),
+  }).optional(),
+}).strict();
+
+// ============================================
 // TYPE EXPORTS
 // ============================================
 
 export type CreateShipmentInput = z.infer<typeof createShipmentSchema>;
+export type SubmitShipmentInput = z.infer<typeof submitShipmentSchema>;
 export type UpdateShipmentInput = z.infer<typeof updateShipmentSchema>;
 export type CreateAddressInput = z.infer<typeof createAddressSchema>;
 export type UpdateAddressInput = z.infer<typeof updateAddressSchema>;
