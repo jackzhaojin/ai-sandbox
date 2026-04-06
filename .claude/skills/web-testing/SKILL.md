@@ -1,25 +1,12 @@
 ---
 name: web-testing
-category: skill
-version: 1.0.0
 description: >
   Mandatory visual testing protocol for all web projects using playwright-cli.
   Enforces pre-flight site health check and post-build visual verification.
-  Use when: building any web UI (Next.js, React, Vue, Angular, HTML/CSS).
-use_cases:
-  - Web application development
-  - UI component building
-  - Frontend projects
-tools_required: [playwright-cli]
-setup: []
-tags: [web, testing, playwright, visual-verification, ui]
-track_record:
-  total_executions: 0
-  successes: 0
-  failures: 0
-  last_executed: null
-  confidence: 80
-  maturity: Declared
+  Use when building any web UI (Next.js, React, Vue, Angular, HTML/CSS).
+user-invocable: false
+metadata:
+  category: skill
 ---
 
 # Visual Testing Protocol for Web Projects

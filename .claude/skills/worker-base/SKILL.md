@@ -1,24 +1,12 @@
 ---
 name: worker-base
-category: skill
-version: 1.0.0
 description: >
   Core worker instructions for all autonomous agent workers. Includes constitution limits,
   monorepo rules, navigation protocol, technology preferences, and execution guidelines.
   Loaded for EVERY worker task regardless of type or vendor.
-use_cases:
-  - All worker tasks
-  - Any vendor (Claude, Kimi, Codex)
-tools_required: []
-setup: []
-tags: [worker, base, constitution, monorepo]
-track_record:
-  total_executions: 0
-  successes: 0
-  failures: 0
-  last_executed: null
-  confidence: 80
-  maturity: Declared
+user-invocable: false
+metadata:
+  category: skill
 ---
 
 # Worker Base Instructions
@@ -65,27 +53,6 @@ ls -la                              # Understand project structure
 - **Do NOT create `.claude/` inside your project.** Skills and agents are shared at the root `.claude/` only — use via Skill/Task tools, do NOT copy them
 - **Projects CAN have their own CLAUDE.md** — CLAUDE.md inherits hierarchically, so your project-level CLAUDE.md adds to (not replaces) the root one
 - Do NOT run `git init` — you are inside a monorepo. Commit to the monorepo's git from your project directory
-
-## Reference Materials
-
-**Location:** `references/`
-
-Working proof-of-concept projects are available as references. Consult these when you need patterns or examples for unfamiliar technologies.
-
-### Available POCs
-
-| POC | When to Use | Key Learnings |
-|-----|-------------|---------------|
-| `references/poc/claude/chat-cli/` | Agent SDK basics, streaming, auth | `query()` usage, message type handling, OAuth vs API key auth |
-| `references/poc/claude/agent-sdk-skills-poc/` | Claude Code skills integration | `settingSources: ['user', 'project']` required, `allowedTools: ['Skill']`, SKILL.md format |
-| `references/poc/claude/agent-sdk-subagents-poc/` | Subagent delegation via Task tool | `allowedTools: ['Task']`, agents in `.claude/agents/`, isolated context, no nesting |
-
-### How to Use References
-
-1. **Check if relevant** - Does your task involve Agent SDK, skills, or subagents?
-2. **Read the FINDINGS.md** - Each POC has key learnings documented
-3. **Study the working code** - See how patterns are implemented
-4. **Don't copy blindly** - Adapt patterns to your task's needs
 
 ## Technology Preferences
 
