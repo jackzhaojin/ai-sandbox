@@ -141,27 +141,44 @@ export function PricingCard({
   const cardId = `pricing-card-${quote.carrier_id}-${quote.service_type_id}`;
   const radioId = radioValue || `${quote.carrier_id}-${quote.service_type_id}`;
 
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onSelect?.();
+    }
+  };
+
   return (
     <Card
       className={cn(
         "relative cursor-pointer transition-all duration-200",
         "hover:shadow-md hover:border-primary/30",
+        "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
         selected && "ring-2 ring-primary border-primary shadow-lg bg-primary/5",
         className
       )}
       onClick={onSelect}
+      onKeyDown={handleKeyDown}
       data-selected={selected}
       id={cardId}
+      role="radio"
+      aria-checked={selected}
+      aria-labelledby={`${cardId}-title`}
+      aria-describedby={`${cardId}-description`}
+      tabIndex={0}
     >
       {/* Radio Button - Positioned absolutely with larger touch target for mobile */}
       <div 
         className="absolute right-2 top-2 sm:right-4 sm:top-4 p-2 -m-2" 
         onClick={(e) => e.stopPropagation()}
+        aria-hidden="true"
       >
         <RadioGroupItem 
           value={radioId} 
           id={radioId}
           className="h-5 w-5 sm:h-4 sm:w-4"
+          tabIndex={-1}
         />
       </div>
 
@@ -183,7 +200,10 @@ export function PricingCard({
           {/* Carrier & Service Info */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-              <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">
+              <h3 
+                id={`${cardId}-title`}
+                className="font-semibold text-foreground text-sm sm:text-base truncate"
+              >
                 {quote.carrier.display_name}
               </h3>
               {selected && (
@@ -198,7 +218,10 @@ export function PricingCard({
             {renderReliabilityRating()}
             
             {/* Service Name */}
-            <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground truncate">
+            <p 
+              id={`${cardId}-description`}
+              className="mt-0.5 text-xs sm:text-sm text-muted-foreground truncate"
+            >
               {quote.service.display_name}
             </p>
           </div>

@@ -1,5 +1,8 @@
 // Shared Components - Reusable across the application
 
+// Accessibility Components
+export { SkipLink, type SkipLinkProps } from "./SkipLink"
+
 // Form Components
 export { FormField, type FormFieldProps } from "./FormField"
 export { AddressInput, type AddressInputProps, type AddressInputValue } from "./AddressInput"
