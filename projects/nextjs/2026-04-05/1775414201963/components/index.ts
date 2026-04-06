@@ -71,3 +71,11 @@ export {
   type ShippingLayoutProps,
   type CheckoutLayoutProps,
 } from "./layout"
+
+// Pricing Components
+export {
+  PricingCard,
+  type PricingCardProps,
+  PriceBreakdown,
+  type PriceBreakdownProps,
+} from "./pricing"

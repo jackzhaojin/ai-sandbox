@@ -24,3 +24,9 @@ export {
   FormMessage,
   useFormField,
 } from "./form"
+
+export {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "./collapsible"
