@@ -5,22 +5,14 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { StepIndicator } from "@/components/shared/StepIndicator";
 import { PricingGrid } from "@/components/pricing/PricingGrid";
 import { ShipmentSummaryBar, ShipmentSummaryBarSkeleton } from "@/components/pricing/ShipmentSummaryBar";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
-import type { QuoteCategoryData, QuoteDetail, QuoteCalculationData } from "@/types/api";
+import type { QuoteCategoryData, QuoteDetail } from "@/types/api";
 import type { Address } from "@/types/database";
 import { Calculator, ArrowLeft, ArrowRight, Package } from "lucide-react";
-
-// Checkout steps for the step indicator
-const checkoutSteps = [
-  { id: "details", label: "Shipment Details" },
-  { id: "rates", label: "Select Rate" },
-  { id: "payment", label: "Payment" },
-  { id: "pickup", label: "Schedule Pickup" },
-  { id: "review", label: "Review & Confirm" },
-];
+import { CheckoutLayout } from "@/components/checkout";
+import { useCheckoutNavigation } from "@/hooks/use-checkout-navigation";
 
 interface ShipmentData {
   id: string;
@@ -47,6 +39,7 @@ interface ShipmentData {
  * - Sort and filter controls
  * - Quote cards with pricing breakdown
  * - Quote selection with API call to /api/quote/select
+ * - Step navigation with progress tracking
  */
 export default function RateSelectionPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -64,9 +57,20 @@ export default function RateSelectionPage({ params }: { params: Promise<{ id: st
   const [selectedQuote, setSelectedQuote] = React.useState<QuoteDetail>();
   const [error, setError] = React.useState<string | null>(null);
 
+  // Initialize checkout navigation
+  const navigation = useCheckoutNavigation({
+    currentStep: "rates",
+    shipmentId,
+    completedStepIndex: 0, // Step 1 (details) is completed
+    allowStepNavigation: true,
+    validateStep: () => !!selectedQuoteId,
+  });
+
   // Fetch shipment and calculate quotes on mount
   React.useEffect(() => {
     const loadData = async () => {
+      if (!shipmentId) return;
+      
       setIsLoading(true);
       setError(null);
 
@@ -149,13 +153,12 @@ export default function RateSelectionPage({ params }: { params: Promise<{ id: st
     setIsSelecting(true);
     try {
       // Find the quote ID from the database (we need to match the quote by carrier/service)
-      // For now, we'll use the shipment_id to find and select the quote
       const quoteRes = await fetch("/api/quote/select", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shipment_id: shipmentId,
-          quote_id: selectedQuoteId, // In a real implementation, we'd need the actual quote ID from the database
+          quote_id: selectedQuoteId,
         }),
       });
 
@@ -163,6 +166,13 @@ export default function RateSelectionPage({ params }: { params: Promise<{ id: st
         const errorData = await quoteRes.json();
         throw new Error(errorData.error?.message || "Failed to select quote");
       }
+
+      // Create step completed event
+      await navigation.createStepEvent("rates", "step_completed", {
+        selected_carrier: selectedQuote.carrier.name,
+        selected_service: selectedQuote.service.name,
+        total_cost: selectedQuote.pricing.total,
+      });
 
       toast.success("Rate selected successfully!");
 
@@ -174,107 +184,87 @@ export default function RateSelectionPage({ params }: { params: Promise<{ id: st
     } finally {
       setIsSelecting(false);
     }
-  }, [selectedQuote, shipment, shipmentId, selectedQuoteId, router]);
+  }, [selectedQuote, shipment, shipmentId, selectedQuoteId, router, navigation]);
 
   // Handle back to shipment details
   const handleBack = () => {
     router.push("/shipments/new");
   };
 
+  // Handle save as draft
+  const handleSaveDraft = React.useCallback(async () => {
+    try {
+      await fetch(`/api/shipments/${shipmentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "draft" }),
+      });
+      
+      await navigation.createStepEvent("rates", "draft_saved");
+      toast.success("Progress saved as draft");
+    } catch {
+      toast.error("Failed to save draft");
+    }
+  }, [shipmentId, navigation]);
+
+  // Handle start over
+  const handleStartOver = React.useCallback(() => {
+    if (confirm("Are you sure you want to start over? All progress will be lost.")) {
+      localStorage.removeItem("shipmentDraft");
+      router.push("/shipments/new");
+      toast.info("Starting over...");
+    }
+  }, [router]);
+
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        {/* Header */}
-        <header className="border-b bg-card">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-xl font-semibold">Select Shipping Rate</h1>
-                <p className="text-sm text-muted-foreground">
-                  Step 2 of 5: Choose your preferred shipping method
-                </p>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Step Indicator */}
-        <div className="border-b bg-card">
-          <div className="container mx-auto px-4 py-4">
-            <StepIndicator
-              steps={checkoutSteps}
-              currentStep="rates"
-              completedSteps={["details"]}
-            />
+      <CheckoutLayout
+        currentStep="rates"
+        completedStepIndex={0}
+        onPrevious={handleBack}
+        isLoading={true}
+        nextDisabled={true}
+      >
+        <div className="space-y-6">
+          <ShipmentSummaryBarSkeleton />
+          <div className="flex items-center justify-center py-20">
+            <LoadingSpinner size="lg" className="mr-3" />
+            <span className="text-lg text-muted-foreground">Loading rates...</span>
           </div>
         </div>
-
-        {/* Loading State */}
-        <main className="container mx-auto px-4 py-6">
-          <div className="space-y-6">
-            <ShipmentSummaryBarSkeleton />
-            <div className="flex items-center justify-center py-20">
-              <LoadingSpinner size="lg" className="mr-3" />
-              <span className="text-lg text-muted-foreground">Loading rates...</span>
-            </div>
-          </div>
-        </main>
-      </div>
+      </CheckoutLayout>
     );
   }
 
   // Error state
   if (error || !shipment) {
     return (
-      <div className="min-h-screen bg-background">
-        {/* Header */}
-        <header className="border-b bg-card">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-xl font-semibold">Select Shipping Rate</h1>
-                <p className="text-sm text-muted-foreground">
-                  Step 2 of 5: Choose your preferred shipping method
-                </p>
-              </div>
+      <CheckoutLayout
+        currentStep="rates"
+        completedStepIndex={0}
+        onPrevious={handleBack}
+        showSaveDraft={false}
+      >
+        <Card className="border-destructive">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="mb-4 rounded-full bg-destructive/10 p-4">
+              <Calculator className="h-8 w-8 text-destructive" />
             </div>
-          </div>
-        </header>
-
-        {/* Step Indicator */}
-        <div className="border-b bg-card">
-          <div className="container mx-auto px-4 py-4">
-            <StepIndicator
-              steps={checkoutSteps}
-              currentStep="rates"
-              completedSteps={["details"]}
-            />
-          </div>
-        </div>
-
-        {/* Error State */}
-        <main className="container mx-auto px-4 py-6">
-          <Card className="border-destructive">
-            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="mb-4 rounded-full bg-destructive/10 p-4">
-                <Calculator className="h-8 w-8 text-destructive" />
-              </div>
-              <h2 className="text-xl font-semibold">Failed to Load Rates</h2>
-              <p className="mt-2 max-w-sm text-muted-foreground">
-                {error || "Could not load shipment data. Please try again."}
-              </p>
-              <div className="mt-6 flex gap-3">
-                <Button variant="outline" onClick={handleBack}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to Details
-                </Button>
-                <Button onClick={() => window.location.reload()}>Try Again</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
+            <h2 className="text-xl font-semibold">Failed to Load Rates</h2>
+            <p className="mt-2 max-w-sm text-muted-foreground">
+              {error || "Could not load shipment data. Please try again."}
+            </p>
+            <div className="mt-6 flex gap-3">
+              <Button variant="outline" onClick={handleBack}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Details
+              </Button>
+              <Button onClick={() => window.location.reload()}>Try Again</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </CheckoutLayout>
     );
   }
 
@@ -283,14 +273,14 @@ export default function RateSelectionPage({ params }: { params: Promise<{ id: st
     packageType: shipment.package_type || "Package",
     count: 1,
     weight: shipment.weight || 0,
-    weightUnit: "lbs",
+    weightUnit: "lbs" as const,
     dimensions:
       shipment.length && shipment.width && shipment.height
         ? {
             length: shipment.length,
             width: shipment.width,
             height: shipment.height,
-            unit: "in",
+            unit: "in" as const,
           }
         : undefined,
   };
@@ -302,82 +292,61 @@ export default function RateSelectionPage({ params }: { params: Promise<{ id: st
   }));
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-semibold">Select Shipping Rate</h1>
-              <p className="text-sm text-muted-foreground">
-                Step 2 of 5: Choose your preferred shipping method
+    <CheckoutLayout
+      currentStep="rates"
+      completedStepIndex={0}
+      onPrevious={handleBack}
+      onNext={handleConfirm}
+      onSaveDraft={handleSaveDraft}
+      onStartOver={handleStartOver}
+      isLoading={isSelecting}
+      nextDisabled={!selectedQuoteId}
+      showSaveDraft
+      showStartOver
+    >
+      <div className="space-y-6">
+        {/* Shipment Summary Bar */}
+        <ShipmentSummaryBar
+          origin={shipment.sender_address}
+          destination={shipment.recipient_address}
+          packages={packageSummary}
+          specialHandling={specialHandlingItems}
+          declaredValue={
+            shipment.declared_value
+              ? { amount: shipment.declared_value, currency: "USD" }
+              : undefined
+          }
+          editHref="/shipments/new"
+        />
+
+        {/* Pricing Grid */}
+        {quoteData.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="mb-4 rounded-full bg-muted p-4">
+                <Package className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h2 className="text-xl font-semibold">No Rates Available</h2>
+              <p className="mt-2 max-w-sm text-muted-foreground">
+                We couldn&apos;t find any shipping rates for your shipment. Please check your
+                package details and try again.
               </p>
-            </div>
-            <Button variant="outline" onClick={handleBack}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Details
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Step Indicator */}
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <StepIndicator
-            steps={checkoutSteps}
-            currentStep="rates"
-            completedSteps={["details"]}
+              <Button className="mt-6" onClick={handleBack}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Details
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <PricingGrid
+            categories={quoteData}
+            selectedQuoteId={selectedQuoteId}
+            onSelectQuote={handleSelectQuote}
+            onConfirm={handleConfirm}
+            isConfirming={isSelecting}
           />
-        </div>
+        )}
       </div>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
-        <div className="space-y-6">
-          {/* Shipment Summary Bar */}
-          <ShipmentSummaryBar
-            origin={shipment.sender_address}
-            destination={shipment.recipient_address}
-            packages={packageSummary}
-            specialHandling={specialHandlingItems}
-            declaredValue={
-              shipment.declared_value
-                ? { amount: shipment.declared_value, currency: "USD" }
-                : undefined
-            }
-            editHref="/shipments/new"
-          />
-
-          {/* Pricing Grid */}
-          {quoteData.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="mb-4 rounded-full bg-muted p-4">
-                  <Package className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h2 className="text-xl font-semibold">No Rates Available</h2>
-                <p className="mt-2 max-w-sm text-muted-foreground">
-                  We couldn&apos;t find any shipping rates for your shipment. Please check your
-                  package details and try again.
-                </p>
-                <Button className="mt-6" onClick={handleBack}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to Details
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <PricingGrid
-              categories={quoteData}
-              selectedQuoteId={selectedQuoteId}
-              onSelectQuote={handleSelectQuote}
-              onConfirm={handleConfirm}
-              isConfirming={isSelecting}
-            />
-          )}
-        </div>
-      </main>
-    </div>
+    </CheckoutLayout>
   );
 }

@@ -6,10 +6,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Form } from "@/components/ui/form";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { StepIndicator } from "@/components/shared/StepIndicator";
 import { AddressInput } from "@/components/shared/AddressInput";
 import { PresetSelector } from "@/components/shipments/PresetSelector";
 import { PackageTypeSelector } from "@/components/shipments/PackageTypeSelector";
@@ -21,7 +19,6 @@ import { DeliveryPreferencesSelector } from "@/components/shipments/DeliveryPref
 import { HazmatForm } from "@/components/shipments/HazmatForm";
 import { MultiPieceForm } from "@/components/shipments/MultiPieceForm";
 import { PackageSummary } from "@/components/shipments/PackageSummary";
-import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { contentsCategories } from "@/lib/data/shipment-presets";
 import {
   Select,
@@ -41,16 +38,9 @@ import {
 } from "@/lib/validation/shipment-details-schema";
 import { applyPreset, type ShipmentPreset } from "@/lib/data/shipment-presets";
 import { calculateDimensionalWeight } from "@/lib/validation/shipment-details-schema";
-import { MapPin, Package, Settings, Truck, AlertTriangle, ArrowRight, Save, RotateCcw, Calculator } from "lucide-react";
-
-// Checkout steps for the step indicator
-const checkoutSteps = [
-  { id: "details", label: "Shipment Details" },
-  { id: "rates", label: "Select Rate" },
-  { id: "payment", label: "Payment" },
-  { id: "pickup", label: "Schedule Pickup" },
-  { id: "review", label: "Review & Confirm" },
-];
+import { MapPin, Package, Settings, Truck, AlertTriangle } from "lucide-react";
+import { CheckoutLayout } from "@/components/checkout";
+import { useCheckoutNavigation } from "@/hooks/use-checkout-navigation";
 
 /**
  * Step 1: Shipment Details Page
@@ -64,10 +54,11 @@ const checkoutSteps = [
  * - Hazmat declaration
  * - Real-time validation
  * - Package summary sidebar
+ * - Step navigation with progress tracking
  */
 export default function ShipmentDetailsPage() {
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [createdShipmentId, setCreatedShipmentId] = React.useState<string>();
 
   // Initialize form with React Hook Form
   const form = useForm<ShipmentDetailsFormData>({
@@ -91,6 +82,15 @@ export default function ShipmentDetailsPage() {
     );
   }, [formValues.packages]);
 
+  // Initialize checkout navigation
+  const navigation = useCheckoutNavigation({
+    currentStep: "details",
+    shipmentId: createdShipmentId,
+    completedStepIndex: -1,
+    allowStepNavigation: false, // First step - no navigation back
+    validateStep: () => form.formState.isValid,
+  });
+
   // Handle preset selection
   const handlePresetSelect = React.useCallback(
     (preset: ShipmentPreset) => {
@@ -104,7 +104,6 @@ export default function ShipmentDetailsPage() {
   // Handle form submission
   const onSubmit = React.useCallback(
     async (data: ShipmentDetailsFormData) => {
-      setIsSubmitting(true);
       try {
         // Create shipment via API
         const response = await fetch("/api/shipments", {
@@ -155,18 +154,24 @@ export default function ShipmentDetailsPage() {
         }
 
         const result = await response.json();
+        const shipmentId = result.data.shipment.id;
+        
+        setCreatedShipmentId(shipmentId);
+        
+        // Create step completed event
+        await navigation.createStepEvent("details", "step_completed", {
+          shipment_id: shipmentId,
+        });
         
         toast.success("Your shipment has been saved. Proceeding to rate selection.");
 
         // Navigate to rate selection (Step 2)
-        router.push(`/shipments/${result.data.shipment.id}/rates`);
+        router.push(`/shipments/${shipmentId}/rates`);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to create shipment");
-      } finally {
-        setIsSubmitting(false);
       }
     },
-    [router]
+    [router, navigation]
   );
 
   // Handle save as draft
@@ -188,423 +193,376 @@ export default function ShipmentDetailsPage() {
       }
 
       const result = await response.json();
+      setCreatedShipmentId(result.data.shipment.id);
+      
+      // Create draft saved event
+      await navigation.createStepEvent("details", "draft_saved", {
+        shipment_id: result.data.shipment.id,
+      });
       
       toast.success("Your shipment has been saved as a draft.");
     } catch (error) {
       toast.error("Failed to save draft");
     }
-  }, [form]);
+  }, [form, navigation]);
 
   // Handle start over - clear form
   const handleStartOver = React.useCallback(() => {
     if (confirm("Are you sure you want to clear all form data and start over?")) {
       form.reset(defaultShipmentDetails);
+      setCreatedShipmentId(undefined);
+      localStorage.removeItem("shipmentDraft");
       toast.info("Form has been cleared.");
     }
   }, [form]);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-semibold">Create Shipment</h1>
-              <p className="text-sm text-muted-foreground">
-                Step 1 of 5: Enter shipment details
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              onClick={handleSaveDraft}
-              disabled={isSubmitting}
-            >
-              <Save className="mr-2 h-4 w-4" />
-              Save Draft
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Step Indicator */}
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <StepIndicator
-            steps={checkoutSteps}
-            currentStep="details"
-            completedSteps={[]}
+    <CheckoutLayout
+      currentStep="details"
+      completedStepIndex={-1}
+      onNext={form.handleSubmit(onSubmit)}
+      onSaveDraft={handleSaveDraft}
+      onStartOver={handleStartOver}
+      isLoading={navigation.isNavigating}
+      isSavingDraft={navigation.isSaving}
+      nextDisabled={!form.formState.isValid}
+      showSaveDraft
+      showStartOver
+    >
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {/* Preset Selector */}
+          <PresetSelector
+            selectedPresetId={formValues.presetId}
+            onSelect={handlePresetSelect}
+            disabled={navigation.isNavigating}
           />
-        </div>
-      </div>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Preset Selector */}
-            <PresetSelector
-              selectedPresetId={formValues.presetId}
-              onSelect={handlePresetSelect}
-              disabled={isSubmitting}
-            />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            {/* Main Form */}
+            <div className="space-y-6 lg:col-span-2">
+              {/* Addresses Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Addresses
+                  </CardTitle>
+                  <CardDescription>
+                    Enter the origin and destination addresses
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Origin Address */}
+                  <div className="space-y-4">
+                    <h3 className="font-medium">Origin (From)</h3>
+                    <AddressInput
+                      value={formValues.origin}
+                      onChange={(value) =>
+                        form.setValue("origin", { ...formValues.origin, ...value }, {
+                          shouldValidate: true,
+                        })
+                      }
+                      showRecipient
+                      required
+                      disabled={navigation.isNavigating}
+                    />
+                  </div>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              {/* Main Form */}
-              <div className="space-y-6 lg:col-span-2">
-                {/* Addresses Section */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MapPin className="h-5 w-5" />
-                      Addresses
-                    </CardTitle>
-                    <CardDescription>
-                      Enter the origin and destination addresses
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* Origin Address */}
-                    <div className="space-y-4">
-                      <h3 className="font-medium">Origin (From)</h3>
-                      <AddressInput
-                        value={formValues.origin}
-                        onChange={(value) =>
-                          form.setValue("origin", { ...formValues.origin, ...value }, {
+                  <Separator />
+
+                  {/* Destination Address */}
+                  <div className="space-y-4">
+                    <h3 className="font-medium">Destination (To)</h3>
+                    <AddressInput
+                      value={formValues.destination}
+                      onChange={(value) =>
+                        form.setValue(
+                          "destination",
+                          { ...formValues.destination, ...value },
+                          { shouldValidate: true }
+                        )
+                      }
+                      showRecipient
+                      required
+                      disabled={navigation.isNavigating}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Package Details Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="h-5 w-5" />
+                    Package Details
+                  </CardTitle>
+                  <CardDescription>
+                    Specify package type, dimensions, and weight
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {formValues.isMultiPiece ? (
+                    <MultiPieceForm
+                      packages={formValues.packages}
+                      onChange={(packages) =>
+                        form.setValue("packages", packages, { shouldValidate: true })
+                      }
+                      currency={formValues.currency}
+                      disabled={navigation.isNavigating}
+                    />
+                  ) : (
+                    <>
+                      <PackageTypeSelector
+                        selectedType={formValues.packages[0]?.packageType}
+                        onSelect={(type) =>
+                          form.setValue("packages.0.packageType", type, {
                             shouldValidate: true,
                           })
                         }
-                        showRecipient
-                        required
-                        disabled={isSubmitting}
+                        disabled={navigation.isNavigating}
                       />
-                    </div>
 
-                    <Separator />
-
-                    {/* Destination Address */}
-                    <div className="space-y-4">
-                      <h3 className="font-medium">Destination (To)</h3>
-                      <AddressInput
-                        value={formValues.destination}
-                        onChange={(value) =>
-                          form.setValue(
-                            "destination",
-                            { ...formValues.destination, ...value },
-                            { shouldValidate: true }
-                          )
-                        }
-                        showRecipient
-                        required
-                        disabled={isSubmitting}
+                      <DimensionsInput
+                        length={formValues.packages[0]?.length}
+                        width={formValues.packages[0]?.width}
+                        height={formValues.packages[0]?.height}
+                        unit={(formValues.packages[0]?.dimensionsUnit as DimensionsUnit) || "in"}
+                        onChange={(dims) => {
+                          form.setValue("packages.0.length", dims.length ?? 0, {
+                            shouldValidate: true,
+                          });
+                          form.setValue("packages.0.width", dims.width ?? 0, {
+                            shouldValidate: true,
+                          });
+                          form.setValue("packages.0.height", dims.height ?? 0, {
+                            shouldValidate: true,
+                          });
+                          form.setValue("packages.0.dimensionsUnit", dims.unit, {
+                            shouldValidate: true,
+                          });
+                        }}
+                        disabled={navigation.isNavigating}
+                        dimensionalWeight={dimensionalWeight}
                       />
-                    </div>
-                  </CardContent>
-                </Card>
 
-                {/* Package Details Section */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Package className="h-5 w-5" />
-                      Package Details
-                    </CardTitle>
-                    <CardDescription>
-                      Specify package type, dimensions, and weight
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {formValues.isMultiPiece ? (
-                      <MultiPieceForm
-                        packages={formValues.packages}
-                        onChange={(packages) =>
-                          form.setValue("packages", packages, { shouldValidate: true })
-                        }
+                      <WeightInput
+                        weight={formValues.packages[0]?.weight}
+                        unit={(formValues.packages[0]?.weightUnit as WeightUnit) || "lbs"}
+                        dimensionalWeight={dimensionalWeight}
+                        onChange={(weight) => {
+                          form.setValue("packages.0.weight", weight.weight ?? 0, {
+                            shouldValidate: true,
+                          });
+                          form.setValue("packages.0.weightUnit", weight.unit, {
+                            shouldValidate: true,
+                          });
+                        }}
+                        disabled={navigation.isNavigating}
+                      />
+
+                      <DeclaredValueInput
+                        value={formValues.packages[0]?.declaredValue}
                         currency={formValues.currency}
-                        disabled={isSubmitting}
+                        onChange={(value) => {
+                          form.setValue(
+                            "packages.0.declaredValue",
+                            value.declaredValue,
+                            { shouldValidate: true }
+                          );
+                          form.setValue("currency", value.currency, {
+                            shouldValidate: true,
+                          });
+                        }}
+                        disabled={navigation.isNavigating}
                       />
-                    ) : (
-                      <>
-                        <PackageTypeSelector
-                          selectedType={formValues.packages[0]?.packageType}
-                          onSelect={(type) =>
-                            form.setValue("packages.0.packageType", type, {
+
+                      <FormField label="Contents Category">
+                        <Select
+                          value={formValues.packages[0]?.contentsDescription || undefined}
+                          onValueChange={(value) =>
+                            form.setValue("packages.0.contentsDescription", value, {
                               shouldValidate: true,
                             })
                           }
-                          disabled={isSubmitting}
-                        />
+                          disabled={navigation.isNavigating}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select contents category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {contentsCategories.map((category) => (
+                              <SelectItem key={category.value} value={category.value}>
+                                {category.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormField>
 
-                        <DimensionsInput
-                          length={formValues.packages[0]?.length}
-                          width={formValues.packages[0]?.width}
-                          height={formValues.packages[0]?.height}
-                          unit={(formValues.packages[0]?.dimensionsUnit as DimensionsUnit) || "in"}
-                          onChange={(dims) => {
-                            form.setValue("packages.0.length", dims.length ?? 0, {
-                              shouldValidate: true,
-                            });
-                            form.setValue("packages.0.width", dims.width ?? 0, {
-                              shouldValidate: true,
-                            });
-                            form.setValue("packages.0.height", dims.height ?? 0, {
-                              shouldValidate: true,
-                            });
-                            form.setValue("packages.0.dimensionsUnit", dims.unit, {
-                              shouldValidate: true,
-                            });
-                          }}
-                          disabled={isSubmitting}
-                          dimensionalWeight={dimensionalWeight}
-                        />
-
-                        <WeightInput
-                          weight={formValues.packages[0]?.weight}
-                          unit={(formValues.packages[0]?.weightUnit as WeightUnit) || "lbs"}
-                          dimensionalWeight={dimensionalWeight}
-                          onChange={(weight) => {
-                            form.setValue("packages.0.weight", weight.weight ?? 0, {
-                              shouldValidate: true,
-                            });
-                            form.setValue("packages.0.weightUnit", weight.unit, {
-                              shouldValidate: true,
-                            });
-                          }}
-                          disabled={isSubmitting}
-                        />
-
-                        <DeclaredValueInput
-                          value={formValues.packages[0]?.declaredValue}
-                          currency={formValues.currency}
-                          onChange={(value) => {
+                      <FormField label="Detailed Description">
+                        <Input
+                          placeholder="Describe the contents of your package"
+                          value={formValues.packages[0]?.contentsDescription || ""}
+                          onChange={(e) =>
                             form.setValue(
-                              "packages.0.declaredValue",
-                              value.declaredValue,
+                              "packages.0.contentsDescription",
+                              e.target.value || undefined,
                               { shouldValidate: true }
-                            );
-                            form.setValue("currency", value.currency, {
-                              shouldValidate: true,
-                            });
-                          }}
-                          disabled={isSubmitting}
+                            )
+                          }
+                          disabled={navigation.isNavigating}
                         />
+                      </FormField>
+                    </>
+                  )}
 
-                        <FormField label="Contents Category">
-                          <Select
-                            value={formValues.packages[0]?.contentsDescription || undefined}
-                            onValueChange={(value) =>
-                              form.setValue("packages.0.contentsDescription", value, {
-                                shouldValidate: true,
-                              })
-                            }
-                            disabled={isSubmitting}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select contents category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {contentsCategories.map((category) => (
-                                <SelectItem key={category.value} value={category.value}>
-                                  {category.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormField>
-
-                        <FormField label="Detailed Description">
-                          <Input
-                            placeholder="Describe the contents of your package"
-                            value={formValues.packages[0]?.contentsDescription || ""}
-                            onChange={(e) =>
-                              form.setValue(
-                                "packages.0.contentsDescription",
-                                e.target.value || undefined,
-                                { shouldValidate: true }
-                              )
-                            }
-                            disabled={isSubmitting}
-                          />
-                        </FormField>
-                      </>
-                    )}
-
-                    {/* Multi-piece toggle */}
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="multi-piece"
-                        checked={formValues.isMultiPiece}
-                        onChange={(e) =>
-                          form.setValue("isMultiPiece", e.target.checked, {
-                            shouldValidate: true,
-                          })
-                        }
-                        disabled={isSubmitting}
-                        className="h-4 w-4 rounded border-gray-300"
-                      />
-                      <label htmlFor="multi-piece" className="text-sm">
-                        This is a multi-piece shipment
-                      </label>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Special Handling Section */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Settings className="h-5 w-5" />
-                      Special Handling
-                    </CardTitle>
-                    <CardDescription>
-                      Select any special handling requirements
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <SpecialHandlingSelector
-                      value={formValues.specialHandling}
-                      onChange={(handling) =>
-                        form.setValue("specialHandling", handling, {
+                  {/* Multi-piece toggle */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="multi-piece"
+                      checked={formValues.isMultiPiece}
+                      onChange={(e) =>
+                        form.setValue("isMultiPiece", e.target.checked, {
                           shouldValidate: true,
                         })
                       }
-                      disabled={isSubmitting}
+                      disabled={navigation.isNavigating}
+                      className="h-4 w-4 rounded border-gray-300"
                     />
-                  </CardContent>
-                </Card>
+                    <label htmlFor="multi-piece" className="text-sm">
+                      This is a multi-piece shipment
+                    </label>
+                  </div>
+                </CardContent>
+              </Card>
 
-                {/* Delivery Preferences Section */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Truck className="h-5 w-5" />
-                      Delivery Preferences
-                    </CardTitle>
-                    <CardDescription>
-                      Customize delivery options
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <DeliveryPreferencesSelector
-                      value={formValues.deliveryPreferences}
-                      onChange={(prefs) =>
-                        form.setValue("deliveryPreferences", prefs, {
+              {/* Special Handling Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Special Handling
+                  </CardTitle>
+                  <CardDescription>
+                    Select any special handling requirements
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <SpecialHandlingSelector
+                    value={formValues.specialHandling}
+                    onChange={(handling) =>
+                      form.setValue("specialHandling", handling, {
+                        shouldValidate: true,
+                      })
+                    }
+                    disabled={navigation.isNavigating}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Delivery Preferences Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Truck className="h-5 w-5" />
+                    Delivery Preferences
+                  </CardTitle>
+                  <CardDescription>
+                    Customize delivery options
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <DeliveryPreferencesSelector
+                    value={formValues.deliveryPreferences}
+                    onChange={(prefs) =>
+                      form.setValue("deliveryPreferences", prefs, {
+                        shouldValidate: true,
+                      })
+                    }
+                    disabled={navigation.isNavigating}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Hazmat Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-warning-600">
+                    <AlertTriangle className="h-5 w-5" />
+                    Hazardous Materials
+                  </CardTitle>
+                  <CardDescription>
+                    Declare if your shipment contains hazardous materials
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <HazmatForm
+                    value={formValues.hazmat}
+                    onChange={(hazmat) =>
+                      form.setValue("hazmat", hazmat, { shouldValidate: true })
+                    }
+                    disabled={navigation.isNavigating}
+                    errors={{
+                      hazmatClass: form.formState.errors.hazmat?.hazmatClass?.message,
+                      unNumber: form.formState.errors.hazmat?.unNumber?.message,
+                      properShippingName: form.formState.errors.hazmat?.properShippingName?.message,
+                      packingGroup: form.formState.errors.hazmat?.packingGroup?.message,
+                      quantity: form.formState.errors.hazmat?.quantity?.message,
+                      quantityUnit: form.formState.errors.hazmat?.quantityUnit?.message,
+                      emergencyContactName: form.formState.errors.hazmat?.emergencyContactName?.message,
+                      emergencyContactPhone: form.formState.errors.hazmat?.emergencyContactPhone?.message,
+                    }}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Reference Numbers */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Reference Information</CardTitle>
+                  <CardDescription>
+                    Add reference numbers for tracking
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <FormField label="Reference Number">
+                    <Input
+                      placeholder="e.g., INV-001234"
+                      value={formValues.referenceNumber || ""}
+                      onChange={(e) =>
+                        form.setValue("referenceNumber", e.target.value, {
                           shouldValidate: true,
                         })
                       }
-                      disabled={isSubmitting}
+                      disabled={navigation.isNavigating}
                     />
-                  </CardContent>
-                </Card>
-
-                {/* Hazmat Section */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-warning-600">
-                      <AlertTriangle className="h-5 w-5" />
-                      Hazardous Materials
-                    </CardTitle>
-                    <CardDescription>
-                      Declare if your shipment contains hazardous materials
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <HazmatForm
-                      value={formValues.hazmat}
-                      onChange={(hazmat) =>
-                        form.setValue("hazmat", hazmat, { shouldValidate: true })
+                  </FormField>
+                  <FormField label="PO Number">
+                    <Input
+                      placeholder="e.g., PO-567890"
+                      value={formValues.poNumber || ""}
+                      onChange={(e) =>
+                        form.setValue("poNumber", e.target.value, {
+                          shouldValidate: true,
+                        })
                       }
-                      disabled={isSubmitting}
-                      errors={{
-                        hazmatClass: form.formState.errors.hazmat?.hazmatClass?.message,
-                        unNumber: form.formState.errors.hazmat?.unNumber?.message,
-                        properShippingName: form.formState.errors.hazmat?.properShippingName?.message,
-                        packingGroup: form.formState.errors.hazmat?.packingGroup?.message,
-                        quantity: form.formState.errors.hazmat?.quantity?.message,
-                        quantityUnit: form.formState.errors.hazmat?.quantityUnit?.message,
-                        emergencyContactName: form.formState.errors.hazmat?.emergencyContactName?.message,
-                        emergencyContactPhone: form.formState.errors.hazmat?.emergencyContactPhone?.message,
-                      }}
+                      disabled={navigation.isNavigating}
                     />
-                  </CardContent>
-                </Card>
-
-                {/* Reference Numbers */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Reference Information</CardTitle>
-                    <CardDescription>
-                      Add reference numbers for tracking
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <FormField label="Reference Number">
-                      <Input
-                        placeholder="e.g., INV-001234"
-                        value={formValues.referenceNumber || ""}
-                        onChange={(e) =>
-                          form.setValue("referenceNumber", e.target.value, {
-                            shouldValidate: true,
-                          })
-                        }
-                        disabled={isSubmitting}
-                      />
-                    </FormField>
-                    <FormField label="PO Number">
-                      <Input
-                        placeholder="e.g., PO-567890"
-                        value={formValues.poNumber || ""}
-                        onChange={(e) =>
-                          form.setValue("poNumber", e.target.value, {
-                            shouldValidate: true,
-                          })
-                        }
-                        disabled={isSubmitting}
-                      />
-                    </FormField>
-                  </CardContent>
-                </Card>
-
-                {/* Submit Buttons */}
-                <div className="flex items-center justify-between">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleStartOver}
-                    disabled={isSubmitting}
-                  >
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    Start Over
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="min-w-[200px]"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <LoadingSpinner className="mr-2 h-4 w-4" />
-                        Getting Quotes...
-                      </>
-                    ) : (
-                      <>
-                        <Calculator className="mr-2 h-4 w-4" />
-                        Get Quotes
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Summary Sidebar */}
-              <div className="lg:col-span-1">
-                <PackageSummary data={formValues} />
-              </div>
+                  </FormField>
+                </CardContent>
+              </Card>
             </div>
-          </form>
-        </Form>
-      </main>
-    </div>
+
+            {/* Summary Sidebar */}
+            <div className="lg:col-span-1">
+              <PackageSummary data={formValues} />
+            </div>
+          </div>
+        </form>
+      </Form>
+    </CheckoutLayout>
   );
 }
