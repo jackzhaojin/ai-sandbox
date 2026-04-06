@@ -97,3 +97,9 @@ export {
   type ThirdPartyBillingFormData,
   type ThirdPartyBillingFormProps,
 } from "./payment"
+
+// Pickup Components
+export {
+  PickupCalendar,
+  type PickupCalendarProps,
+} from "./pickup"

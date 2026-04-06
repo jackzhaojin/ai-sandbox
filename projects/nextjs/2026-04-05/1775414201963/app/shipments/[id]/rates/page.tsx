@@ -48,9 +48,13 @@ interface ShipmentData {
  * - Quote cards with pricing breakdown
  * - Quote selection with API call to /api/quote/select
  */
-export default function RateSelectionPage({ params }: { params: { id: string } }) {
+export default function RateSelectionPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  const shipmentId = params.id;
+  const [shipmentId, setShipmentId] = React.useState<string>("");
+  
+  React.useEffect(() => {
+    params.then(p => setShipmentId(p.id));
+  }, [params]);
 
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSelecting, setIsSelecting] = React.useState(false);
