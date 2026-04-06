@@ -25,3 +25,12 @@ export {
   type ThirdPartyBillingFormData,
   type ThirdPartyBillingFormProps,
 } from "./ThirdPartyBillingForm";
+
+export {
+  NetTermsForm,
+  type NetTermsFormData,
+  type NetTermsFormProps,
+  type PaymentPeriod,
+  type AnnualRevenueRange,
+  type TradeReference,
+} from "./NetTermsForm";
