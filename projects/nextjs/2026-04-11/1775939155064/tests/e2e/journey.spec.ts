@@ -17,6 +17,31 @@ export async function completePriorSteps(page: Page, opts: { through: number }) 
     // Verify we're on the shipment creation page
     await expect(page).toHaveURL(/\/shipments\/new/)
   }
+  
+  // Step 2: Verify layout components and form configuration API (Gate 2)
+  if (opts.through >= 2) {
+    // Verify header components are present
+    await expect(page.getByRole('link', { name: /Go back/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Save Draft/i })).toBeVisible()
+    
+    // Verify step indicator shows all steps
+    await expect(page.getByText('Details').first()).toBeVisible()
+    await expect(page.getByText('Rates').first()).toBeVisible()
+    await expect(page.getByText('Payment').first()).toBeVisible()
+    await expect(page.getByText('Pickup').first()).toBeVisible()
+    await expect(page.getByText('Review').first()).toBeVisible()
+    await expect(page.getByText('Confirm').first()).toBeVisible()
+    
+    // Verify footer is present
+    await expect(page.getByRole('heading', { name: /Company/i })).toBeVisible()
+    
+    // Verify form configuration API is accessible
+    const response = await page.request.get('/api/form-config')
+    expect(response.status()).toBe(200)
+    const data = await response.json()
+    expect(data.packageTypes).toBeDefined()
+    expect(data.packageTypes.length).toBeGreaterThan(0)
+  }
 }
 
 /**
@@ -31,7 +56,7 @@ test('Gate 1: Home page to shipment form journey', async ({ page }) => {
   
   // Verify the shipment form page loaded
   await expect(page.getByRole('heading', { name: /Create New Shipment/i })).toBeVisible()
-  await expect(page.getByText(/Step 1 of 5: Enter shipment details/i)).toBeVisible()
+  await expect(page.getByText(/Enter the shipment details below/i)).toBeVisible()
   
   // Verify Origin Address section exists with all fields
   await expect(page.getByRole('heading', { name: /Origin Address/i })).toBeVisible()
@@ -56,8 +81,12 @@ test('Gate 1: Home page to shipment form journey', async ({ page }) => {
   await expect(page.getByLabel(/Width \(in\)/i)).toBeVisible()
   await expect(page.getByLabel(/Height \(in\)/i)).toBeVisible()
   
+  // Verify Contents Description section exists
+  await expect(page.getByRole('heading', { name: /Contents Description/i })).toBeVisible()
+  await expect(page.getByLabel(/What's inside/i)).toBeVisible()
+  
   // Verify action buttons exist
-  await expect(page.getByRole('button', { name: /Cancel/i })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Go back/i })).toBeVisible()
   await expect(page.getByRole('button', { name: /Continue to Rates/i })).toBeVisible()
 })
 
@@ -88,8 +117,108 @@ test('Gate 1: Shipment form accepts user input', async ({ page }) => {
   await page.getByLabel(/Width \(in\)/i).fill('10')
   await page.getByLabel(/Height \(in\)/i).fill('8')
   
+  // Fill in contents description
+  await page.getByLabel(/What's inside/i).fill('Office supplies and documents')
+  
   // Verify values are set (form state is working)
   await expect(page.getByLabel(/Company\/Recipient Name/i).first()).toHaveValue('Acme Corp')
   await expect(page.getByLabel(/City/i).nth(1)).toHaveValue('Los Angeles')
   await expect(page.getByLabel(/Weight \(lbs\)/i)).toHaveValue('5.5')
+  await expect(page.getByLabel(/What's inside/i)).toHaveValue('Office supplies and documents')
+})
+
+/**
+ * Gate 2: Verify layout components and step indicator render correctly.
+ * This test validates:
+ * - Header with back button and save draft is visible
+ * - Step indicator shows all 6 steps (Details, Rates, Payment, Pickup, Review, Confirm)
+ * - Footer with navigation links is visible
+ * - Navigation buttons are present
+ */
+test('Gate 2: Layout components and step indicator', async ({ page }) => {
+  await completePriorSteps(page, { through: 1 })
+  
+  // Verify Header components
+  await expect(page.getByRole('link', { name: /Go back/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Save Draft/i })).toBeVisible()
+  await expect(page.getByRole('link', { name: /^Help$/i })).toBeVisible()
+  await expect(page.getByRole('link', { name: /B2B Shipping/i }).first()).toBeVisible()
+  
+  // Verify Step Indicator shows all 6 steps (use first() since both desktop and mobile render them)
+  await expect(page.getByText('Details').first()).toBeVisible()
+  await expect(page.getByText('Rates').first()).toBeVisible()
+  await expect(page.getByText('Payment').first()).toBeVisible()
+  await expect(page.getByText('Pickup').first()).toBeVisible()
+  await expect(page.getByText('Review').first()).toBeVisible()
+  await expect(page.getByText('Confirm').first()).toBeVisible()
+  
+  // Verify step numbers are visible (1-6)
+  await expect(page.getByText('1').first()).toBeVisible()
+  await expect(page.getByText('2').first()).toBeVisible()
+  await expect(page.getByText('3').first()).toBeVisible()
+  await expect(page.getByText('4').first()).toBeVisible()
+  await expect(page.getByText('5').first()).toBeVisible()
+  await expect(page.getByText('6').first()).toBeVisible()
+  
+  // Verify Footer is present with navigation sections
+  await expect(page.getByRole('heading', { name: /Company/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Support/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Legal/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Resources/i })).toBeVisible()
+  
+  // Verify footer links
+  await expect(page.getByRole('link', { name: /Help Center/i })).toBeVisible()
+  await expect(page.getByRole('link', { name: /API Documentation/i })).toBeVisible()
+})
+
+/**
+ * Gate 2: Verify form configuration API returns valid data.
+ * This test validates:
+ * - /api/form-config endpoint returns 200 status
+ * - Response contains expected configuration sections
+ * - Package types, special handling, delivery preferences are present
+ */
+test('Gate 2: Form configuration API returns valid data', async ({ page }) => {
+  // Make a direct API call to the form config endpoint
+  const response = await page.request.get('/api/form-config')
+  
+  // Verify successful response
+  expect(response.status()).toBe(200)
+  expect(response.headers()['content-type']).toContain('application/json')
+  
+  // Parse response body
+  const data = await response.json()
+  
+  // Verify required sections exist
+  expect(data.packageTypes).toBeDefined()
+  expect(data.packageTypes.length).toBeGreaterThan(0)
+  expect(data.specialHandling).toBeDefined()
+  expect(data.specialHandling.length).toBeGreaterThan(0)
+  expect(data.deliveryPreferences).toBeDefined()
+  expect(data.deliveryPreferences.length).toBeGreaterThan(0)
+  expect(data.contentsCategories).toBeDefined()
+  expect(data.contentsCategories.length).toBeGreaterThan(0)
+  expect(data.countries).toBeDefined()
+  expect(data.countries.length).toBeGreaterThan(0)
+  expect(data.validationRules).toBeDefined()
+  expect(data.validationRules.length).toBeGreaterThan(0)
+  expect(data.metadata).toBeDefined()
+  
+  // Verify specific package types
+  const packageTypeIds = data.packageTypes.map((pt: { id: string }) => pt.id)
+  expect(packageTypeIds).toContain('envelope')
+  expect(packageTypeIds).toContain('small-box')
+  expect(packageTypeIds).toContain('medium-box')
+  expect(packageTypeIds).toContain('large-box')
+  expect(packageTypeIds).toContain('custom')
+  
+  // Verify countries include US, CA, MX
+  const countryCodes = data.countries.map((c: { code: string }) => c.code)
+  expect(countryCodes).toContain('US')
+  expect(countryCodes).toContain('CA')
+  expect(countryCodes).toContain('MX')
+  
+  // Verify metadata
+  expect(data.metadata.version).toBeDefined()
+  expect(data.metadata.supportedCountries).toContain('US')
 })
