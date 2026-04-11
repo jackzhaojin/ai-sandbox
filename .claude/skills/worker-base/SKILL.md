@@ -96,28 +96,41 @@ Workers who build in isolation produce beautiful parts that don't connect. This 
 
 This is not optional and it is not the same as your progress report. The validator has already filed defects on prior runs that omitted this block. Do not be the next one.
 
-**⚠️ CRITICAL: replace every placeholder with your REAL answer. Do NOT copy the placeholder text literally. Do NOT write `>` as a value. Each field is a single-line plain string (wrap in double quotes if it contains a colon).**
+**⚠️ CRITICAL: every value must describe YOUR actual work in THIS step. Do not copy text from this skill file. Do not invent work you didn't do. Honest under-claiming beats fabricated over-claiming every time.**
 
-**Concrete example — this is the real shape of a good handoff. Use this as your template:**
+**Emit EXACTLY this YAML shape, replacing each `<...>` placeholder with a real sentence describing what YOU did:**
 
 ```yaml
-step: "step-2"
-what_i_built: "Next.js 15 scaffold at projects/nextjs/2026-04-11/.../ with package.json, app/layout.tsx, app/page.tsx, and src/lib/supabase/{client,server}.ts pinned to the postal_v2 schema."
-what_connects: "Reads SUPABASE_URL/SUPABASE_ANON_KEY from .env.local (sourced from /Users/jackjin/dev/ai-sandbox/.env.app). Writes tables shipments/rates/carriers/pickups under postal_v2.* via migrations/0001_init.sql (ran DROP SCHEMA IF EXISTS postal_v2 CASCADE; CREATE SCHEMA postal_v2; first)."
-what_i_verified: "1) npm run build exited 0 (NODE_ENV=production). 2) npm run dev served / with a placeholder page. 3) Ran 'select 1 from postal_v2.shipments limit 1;' via psql — table exists. 4) journey.spec.ts not added yet; no UI surface to walk in step 2."
-known_gaps: "No seed data yet (step 4). No UI routes other than /. No journey.spec.ts yet."
-next_step_should_know: "Supabase client must be instantiated with { db: { schema: 'postal_v2' } } — the helper in src/lib/supabase/client.ts already does this; do not create a second client elsewhere."
+step: "<the step id assigned to you — e.g. step-4, or step-4.1 if this is a defect subtask>"
+what_i_built: "<ONE concrete sentence about what YOU produced this step. For a research/planning step, name the plan document you wrote. For a scaffold step, name the files and directories you created. For a feature step, name the components/routes/tables. Do NOT describe work that belongs to a future step.>"
+what_connects: "<Where does YOUR code read state FROM, and where does it write state TO? Name real file paths, route names, hook names, table names. If this step is pure research and connects to nothing yet, say 'none yet — research step, no runtime wiring.'>"
+what_i_verified: "<The actual commands YOU ran this step, and what YOU saw. Examples of valid answers: 'Read prior project at path X, noted 12 API routes, no commands run.' OR 'Ran npm install (succeeded), npm run build (succeeded, NODE_ENV=production), npm run dev served / at localhost:3000 with default page.' Do NOT write verification you did not perform.>"
+known_gaps: "<What you knowingly did NOT do in this step. Be specific. If truly nothing is missing, say 'none known'.>"
+next_step_should_know: "<One or two non-obvious facts the next worker won't spot in the diff — env expectations, file-naming conventions, gotchas you hit.>"
 journey_blocks_added: 0
 ```
 
-**Rules:**
-- Every value must be a concrete sentence describing YOUR step. Not `">"`, not `"TODO"`, not `"see above"`.
-- Replace `"step-2"` with your actual step number (e.g. `"step-5"`, `"step-7.1"` for a defect subtask).
-- `what_i_verified` MUST name commands and files you actually ran. "Looks good" / "builds fine" is rejected.
-- If `what_i_verified` is just "npm run build passed" on a user-facing change, your task is NOT done — run the actual journey.
-- If you cannot truthfully fill in `what_connects`, you built in isolation — that is the exact failure mode this harness exists to prevent. Go back to the task, wire the integration, then come back.
-- The YAML block MUST be the LAST content in your final message. Anything after the closing ``` is ignored.
-- Single-line plain strings only. No multi-line folded scalars (`>` / `|`). Put everything on one line per field. Quote strings that contain `:` or other YAML-special characters.
+**Forbidden — these cause automatic rejection:**
+- Copying any text from this skill file verbatim (including the phrase `postal_v2` if your task doesn't actually use it, or `Next.js 15 scaffold` if you didn't run the scaffold, etc.).
+- Writing values that describe a future step's work as if it were yours.
+- Placeholder literals like `<...>`, `TODO`, `see above`, `same as before`, `N/A`.
+- Multi-line folded scalars (`>` or `|`). Every value is a single-line double-quoted string.
+- Any content after the closing ``` of the YAML block — the harness reads to the last closing fence and ignores the rest.
+
+**Research/planning steps (no code built):** A valid handoff still uses the YAML block. Example field values for a research step:
+- `what_i_built`: `"Research plan document at <your actual path>.md covering stack choice, table schema, and 6-step wizard flow."`
+- `what_connects`: `"none yet — research step, no runtime wiring."`
+- `what_i_verified`: `"Read prior-run project files at /path/..., grepped for API routes and table names, wrote plan.md with the findings. No commands run."`
+- `known_gaps`: `"Nothing built yet — all implementation is in subsequent steps."`
+- `journey_blocks_added`: `0`
+
+**Scaffold/build steps (actual code):** A valid handoff names real filenames YOU created and real commands YOU ran with their exit codes and observed behavior.
+
+**Failure modes the validator checks for (don't be these):**
+- `what_connects` that lists no upstream and no downstream → you built in isolation.
+- `what_i_verified` that says "npm run build passed" on a user-facing change → compilation isn't verification of behavior.
+- Handoff text matching another step's handoff word-for-word → you copied someone else's work.
+- `journey_blocks_added` > 0 but `tests/e2e/journey.spec.ts` has no new `test(...)` blocks → you lied.
 
 ### If You Cannot Complete
 
