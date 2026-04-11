@@ -1,114 +1,41 @@
-# Universal .gitignore - Covers all common technologies
-# Used as default for misc category and fallback for all projects
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# ============================================
-# Dependencies
-# ============================================
-node_modules/
-vendor/
-bower_components/
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
-# Python virtual environments
-.venv/
-venv/
-env/
-ENV/
-.Python
+# testing
+/coverage
 
-# ============================================
-# Build Outputs
-# ============================================
-build/
-dist/
-out/
-*.egg-info/
-*.egg
-.eggs/
+# next.js
+/.next/
+/out/
 
-# ============================================
-# Python
-# ============================================
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-pip-log.txt
-pip-delete-this-directory.txt
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-.nox/
-.mypy_cache/
-.ruff_cache/
+# production
+/build
 
-# ============================================
-# Environment & Secrets
-# ============================================
-.env
-.env.local
-.env.*.local
-.env.development
-.env.production
+# misc
+.DS_Store
 *.pem
-*.key
 
-# ============================================
-# Logs
-# ============================================
-*.log
-logs/
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
 
-# ============================================
-# Claude Code (copied by agent, not project source)
-# ============================================
-.claude/
+# env files (can opt-in for committing if needed)
+.env*
 
-# ============================================
-# IDE & Editors
-# ============================================
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-*.sublime-workspace
-*.sublime-project
+# vercel
+.vercel
 
-# ============================================
-# OS Files
-# ============================================
-.DS_Store
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# ============================================
-# Testing & Coverage
-# ============================================
-coverage/
-.nyc_output/
-*.lcov
-
-# ============================================
-# Next.js / React
-# ============================================
-.next/
-.nuxt/
-.cache/
-
-# ============================================
-# Jupyter
-# ============================================
-.ipynb_checkpoints/
-
-# ============================================
-# Temporary & Misc
-# ============================================
-*.tmp
-*.temp
-*.bak
-*.pid
+# typescript
+*.tsbuildinfo
+next-env.d.ts
