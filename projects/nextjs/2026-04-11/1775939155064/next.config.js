@@ -11,6 +11,13 @@ const nextConfig = {
   // Disable ESLint during build
   eslint: {
     ignoreDuringBuilds: true
+  },
+
+  // Disable static page generation for error pages
+  // This prevents the <Html> import error during build
+  experimental: {
+    // Disable the built-in error pages from pages router
+    disableOptimizedLoading: true
   }
 }
 
