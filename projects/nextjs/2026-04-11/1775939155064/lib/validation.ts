@@ -1,0 +1,322 @@
+import { z } from "zod"
+
+// Country codes supported
+export const SUPPORTED_COUNTRIES = ["US", "CA", "MX"] as const
+export type CountryCode = (typeof SUPPORTED_COUNTRIES)[number]
+
+// ZIP code regex patterns per country
+const ZIP_PATTERNS: Record<CountryCode, RegExp> = {
+  US: /^\d{5}(-\d{4})?$/,
+  CA: /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z]\s?\d[ABCEGHJ-NPRSTV-Z]\d$/i,
+  MX: /^\d{5}$/,
+}
+
+// ZIP code error messages per country
+const ZIP_ERROR_MESSAGES: Record<CountryCode, string> = {
+  US: "ZIP code must be 5 digits (e.g., 12345) or ZIP+4 (e.g., 12345-6789)",
+  CA: "Postal code must be in Canadian format (e.g., A1A 1A1)",
+  MX: "Código postal must be 5 digits (e.g., 01000)",
+}
+
+// Phone regex patterns
+const PHONE_PATTERNS: Record<CountryCode, RegExp> = {
+  US: /^\+?1?[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}$/,
+  CA: /^\+?1?[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}$/,
+  MX: /^\+?52?[-.\s]?\(?\d{2,3}\)?[-.\s]?\d{4}[-.\s]?\d{4}$/,
+}
+
+// Phone error messages
+const PHONE_ERROR_MESSAGES: Record<CountryCode, string> = {
+  US: "Phone number must be a valid US number (e.g., 555-123-4567)",
+  CA: "Phone number must be a valid Canadian number (e.g., 555-123-4567)",
+  MX: "Phone number must be a valid Mexican number (e.g., 55-1234-5678)",
+}
+
+// Location types
+export const LOCATION_TYPES = ["commercial", "residential"] as const
+export type LocationType = (typeof LOCATION_TYPES)[number]
+
+// Base address fields schema
+const baseAddressSchema = {
+  originName: z
+    .string()
+    .min(1, "Name is required")
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must not exceed 100 characters"),
+  originCompany: z
+    .string()
+    .max(100, "Company name must not exceed 100 characters")
+    .optional(),
+  originLine1: z
+    .string()
+    .min(1, "Street address is required")
+    .min(5, "Street address must be at least 5 characters")
+    .max(100, "Street address must not exceed 100 characters"),
+  originLine2: z
+    .string()
+    .max(50, "Suite/Apt must not exceed 50 characters")
+    .optional(),
+  originCity: z
+    .string()
+    .min(1, "City is required")
+    .min(2, "City must be at least 2 characters")
+    .max(50, "City must not exceed 50 characters"),
+  originState: z.string().min(1, "State/Province is required"),
+  originPostal: z
+    .string()
+    .min(1, "ZIP/Postal code is required"),
+  originCountry: z.enum(SUPPORTED_COUNTRIES, {
+    errorMap: () => ({ message: "Country must be US, CA, or MX" }),
+  }),
+  originLocationType: z.enum(LOCATION_TYPES, {
+    errorMap: () => ({ message: "Location type is required" }),
+  }),
+  originPhone: z
+    .string()
+    .min(1, "Phone number is required"),
+  originExtension: z
+    .string()
+    .max(10, "Extension must not exceed 10 characters")
+    .optional(),
+  originEmail: z
+    .string()
+    .min(1, "Email is required")
+    .email("Email must be a valid email address"),
+  destinationName: z
+    .string()
+    .min(1, "Name is required")
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must not exceed 100 characters"),
+  destinationCompany: z
+    .string()
+    .max(100, "Company name must not exceed 100 characters")
+    .optional(),
+  destinationLine1: z
+    .string()
+    .min(1, "Street address is required")
+    .min(5, "Street address must be at least 5 characters")
+    .max(100, "Street address must not exceed 100 characters"),
+  destinationLine2: z
+    .string()
+    .max(50, "Suite/Apt must not exceed 50 characters")
+    .optional(),
+  destinationCity: z
+    .string()
+    .min(1, "City is required")
+    .min(2, "City must be at least 2 characters")
+    .max(50, "City must not exceed 50 characters"),
+  destinationState: z.string().min(1, "State/Province is required"),
+  destinationPostal: z
+    .string()
+    .min(1, "ZIP/Postal code is required"),
+  destinationCountry: z.enum(SUPPORTED_COUNTRIES, {
+    errorMap: () => ({ message: "Country must be US, CA, or MX" }),
+  }),
+  destinationLocationType: z.enum(LOCATION_TYPES, {
+    errorMap: () => ({ message: "Location type is required" }),
+  }),
+  destinationPhone: z
+    .string()
+    .min(1, "Phone number is required"),
+  destinationExtension: z
+    .string()
+    .max(10, "Extension must not exceed 10 characters")
+    .optional(),
+  destinationEmail: z
+    .string()
+    .min(1, "Email is required")
+    .email("Email must be a valid email address"),
+}
+
+// Complete shipment step 1 schema with cross-field validation
+export const shipmentStep1Schema = z.object(baseAddressSchema).superRefine((data, ctx) => {
+  // Validate origin ZIP based on country
+  const originCountry = data.originCountry
+  const originPostal = data.originPostal
+  const originPhone = data.originPhone
+
+  if (originCountry && originPostal) {
+    const pattern = ZIP_PATTERNS[originCountry]
+    if (pattern && !pattern.test(originPostal)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: ZIP_ERROR_MESSAGES[originCountry],
+        path: ["originPostal"],
+      })
+    }
+  }
+
+  // Validate origin phone based on country
+  if (originCountry && originPhone) {
+    const pattern = PHONE_PATTERNS[originCountry]
+    if (pattern && !pattern.test(originPhone)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: PHONE_ERROR_MESSAGES[originCountry],
+        path: ["originPhone"],
+      })
+    }
+  }
+
+  // Validate destination ZIP based on country
+  const destCountry = data.destinationCountry
+  const destPostal = data.destinationPostal
+  const destPhone = data.destinationPhone
+
+  if (destCountry && destPostal) {
+    const pattern = ZIP_PATTERNS[destCountry]
+    if (pattern && !pattern.test(destPostal)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: ZIP_ERROR_MESSAGES[destCountry],
+        path: ["destinationPostal"],
+      })
+    }
+  }
+
+  // Validate destination phone based on country
+  if (destCountry && destPhone) {
+    const pattern = PHONE_PATTERNS[destCountry]
+    if (pattern && !pattern.test(destPhone)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: PHONE_ERROR_MESSAGES[destCountry],
+        path: ["destinationPhone"],
+      })
+    }
+  }
+
+  // Cross-field validation: origin !== destination
+  const originKey = `${data.originLine1}-${data.originCity}-${data.originState}-${data.originPostal}`.toLowerCase().replace(/\s/g, '')
+  const destKey = `${data.destinationLine1}-${data.destinationCity}-${data.destinationState}-${data.destinationPostal}`.toLowerCase().replace(/\s/g, '')
+  
+  if (originKey === destKey) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Destination address cannot be the same as origin address",
+      path: ["destinationLine1"],
+    })
+  }
+})
+
+// Type for the form data
+export type ShipmentStep1FormData = z.infer<typeof shipmentStep1Schema>
+
+// State/Province data by country
+export const STATES_BY_COUNTRY: Record<CountryCode, { code: string; name: string }[]> = {
+  US: [
+    { code: "AL", name: "Alabama" },
+    { code: "AK", name: "Alaska" },
+    { code: "AZ", name: "Arizona" },
+    { code: "AR", name: "Arkansas" },
+    { code: "CA", name: "California" },
+    { code: "CO", name: "Colorado" },
+    { code: "CT", name: "Connecticut" },
+    { code: "DE", name: "Delaware" },
+    { code: "FL", name: "Florida" },
+    { code: "GA", name: "Georgia" },
+    { code: "HI", name: "Hawaii" },
+    { code: "ID", name: "Idaho" },
+    { code: "IL", name: "Illinois" },
+    { code: "IN", name: "Indiana" },
+    { code: "IA", name: "Iowa" },
+    { code: "KS", name: "Kansas" },
+    { code: "KY", name: "Kentucky" },
+    { code: "LA", name: "Louisiana" },
+    { code: "ME", name: "Maine" },
+    { code: "MD", name: "Maryland" },
+    { code: "MA", name: "Massachusetts" },
+    { code: "MI", name: "Michigan" },
+    { code: "MN", name: "Minnesota" },
+    { code: "MS", name: "Mississippi" },
+    { code: "MO", name: "Missouri" },
+    { code: "MT", name: "Montana" },
+    { code: "NE", name: "Nebraska" },
+    { code: "NV", name: "Nevada" },
+    { code: "NH", name: "New Hampshire" },
+    { code: "NJ", name: "New Jersey" },
+    { code: "NM", name: "New Mexico" },
+    { code: "NY", name: "New York" },
+    { code: "NC", name: "North Carolina" },
+    { code: "ND", name: "North Dakota" },
+    { code: "OH", name: "Ohio" },
+    { code: "OK", name: "Oklahoma" },
+    { code: "OR", name: "Oregon" },
+    { code: "PA", name: "Pennsylvania" },
+    { code: "RI", name: "Rhode Island" },
+    { code: "SC", name: "South Carolina" },
+    { code: "SD", name: "South Dakota" },
+    { code: "TN", name: "Tennessee" },
+    { code: "TX", name: "Texas" },
+    { code: "UT", name: "Utah" },
+    { code: "VT", name: "Vermont" },
+    { code: "VA", name: "Virginia" },
+    { code: "WA", name: "Washington" },
+    { code: "WV", name: "West Virginia" },
+    { code: "WI", name: "Wisconsin" },
+    { code: "WY", name: "Wyoming" },
+    { code: "DC", name: "District of Columbia" },
+  ],
+  CA: [
+    { code: "AB", name: "Alberta" },
+    { code: "BC", name: "British Columbia" },
+    { code: "MB", name: "Manitoba" },
+    { code: "NB", name: "New Brunswick" },
+    { code: "NL", name: "Newfoundland and Labrador" },
+    { code: "NS", name: "Nova Scotia" },
+    { code: "NT", name: "Northwest Territories" },
+    { code: "NU", name: "Nunavut" },
+    { code: "ON", name: "Ontario" },
+    { code: "PE", name: "Prince Edward Island" },
+    { code: "QC", name: "Quebec" },
+    { code: "SK", name: "Saskatchewan" },
+    { code: "YT", name: "Yukon" },
+  ],
+  MX: [
+    { code: "AGU", name: "Aguascalientes" },
+    { code: "BCN", name: "Baja California" },
+    { code: "BCS", name: "Baja California Sur" },
+    { code: "CAM", name: "Campeche" },
+    { code: "CHP", name: "Chiapas" },
+    { code: "CHH", name: "Chihuahua" },
+    { code: "CMX", name: "Ciudad de México" },
+    { code: "COA", name: "Coahuila" },
+    { code: "COL", name: "Colima" },
+    { code: "DUR", name: "Durango" },
+    { code: "GUA", name: "Guanajuato" },
+    { code: "GRO", name: "Guerrero" },
+    { code: "HID", name: "Hidalgo" },
+    { code: "JAL", name: "Jalisco" },
+    { code: "MEX", name: "México" },
+    { code: "MIC", name: "Michoacán" },
+    { code: "MOR", name: "Morelos" },
+    { code: "NAY", name: "Nayarit" },
+    { code: "NLE", name: "Nuevo León" },
+    { code: "OAX", name: "Oaxaca" },
+    { code: "PUE", name: "Puebla" },
+    { code: "QUE", name: "Querétaro" },
+    { code: "ROO", name: "Quintana Roo" },
+    { code: "SLP", name: "San Luis Potosí" },
+    { code: "SIN", name: "Sinaloa" },
+    { code: "SON", name: "Sonora" },
+    { code: "TAB", name: "Tabasco" },
+    { code: "TAM", name: "Tamaulipas" },
+    { code: "TLA", name: "Tlaxcala" },
+    { code: "VER", name: "Veracruz" },
+    { code: "YUC", name: "Yucatán" },
+    { code: "ZAC", name: "Zacatecas" },
+  ],
+}
+
+// Country display names
+export const COUNTRY_NAMES: Record<CountryCode, string> = {
+  US: "United States",
+  CA: "Canada",
+  MX: "Mexico",
+}
+
+// Location type labels
+export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
+  commercial: "Commercial/Business",
+  residential: "Residential/Home",
+}
