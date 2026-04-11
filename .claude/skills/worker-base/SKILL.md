@@ -90,20 +90,34 @@ Workers who build in isolation produce beautiful parts that don't connect. This 
 - **Writing test cases for pages that don't exist yet.** Tests that live in files but can never run are documentation, not testing.
 - **Treating your step as isolated.** Your task exists in a flow. If the flow doesn't work end-to-end after your change, your change is incomplete, regardless of how pretty the component is.
 
-### Structured Handoff (required on every step)
+### Structured Handoff (MANDATORY — your task is REJECTED without it)
 
-At the END of your turn, write out these fields. The next step and the Validator will both read them:
+**Your FINAL assistant message before stopping MUST contain a fenced ```yaml block in the exact format below.** Not a summary sentence. Not "here's what I did." An actual fenced YAML block with every field filled in. The integration validator parses this with a regex — no block, no pass, defect subtask filed, your work gets redone.
+
+This is not optional and it is not the same as your progress report. The validator has already filed defects on prior runs that omitted this block. Do not be the next one.
+
+**⚠️ CRITICAL: replace every placeholder with your REAL answer. Do NOT copy the placeholder text literally. Do NOT write `>` as a value. Each field is a single-line plain string (wrap in double quotes if it contains a colon).**
+
+**Concrete example — this is the real shape of a good handoff. Use this as your template:**
 
 ```yaml
-step: step-{N}
-what_i_built: "One sentence. The smallest honest description."
-what_connects: "What upstream state does this read? What downstream state does this write? Name files, routes, hooks, DB tables."
-what_i_verified: "What I ran, in what order, and what I saw. Name the commands. If I walked the journey, say how far."
-known_gaps: "Things I did NOT wire that I know are still broken. Be specific."
-next_step_should_know: "Architectural facts the next worker won't find by reading the diff."
+step: "step-2"
+what_i_built: "Next.js 15 scaffold at projects/nextjs/2026-04-11/.../ with package.json, app/layout.tsx, app/page.tsx, and src/lib/supabase/{client,server}.ts pinned to the postal_v2 schema."
+what_connects: "Reads SUPABASE_URL/SUPABASE_ANON_KEY from .env.local (sourced from /Users/jackjin/dev/ai-sandbox/.env.app). Writes tables shipments/rates/carriers/pickups under postal_v2.* via migrations/0001_init.sql (ran DROP SCHEMA IF EXISTS postal_v2 CASCADE; CREATE SCHEMA postal_v2; first)."
+what_i_verified: "1) npm run build exited 0 (NODE_ENV=production). 2) npm run dev served / with a placeholder page. 3) Ran 'select 1 from postal_v2.shipments limit 1;' via psql — table exists. 4) journey.spec.ts not added yet; no UI surface to walk in step 2."
+known_gaps: "No seed data yet (step 4). No UI routes other than /. No journey.spec.ts yet."
+next_step_should_know: "Supabase client must be instantiated with { db: { schema: 'postal_v2' } } — the helper in src/lib/supabase/client.ts already does this; do not create a second client elsewhere."
+journey_blocks_added: 0
 ```
 
-**If `what_i_verified` is just "npm run build passed" on a user-facing change, your task is NOT done.** `npm run build` verifies compilation, not behavior.
+**Rules:**
+- Every value must be a concrete sentence describing YOUR step. Not `">"`, not `"TODO"`, not `"see above"`.
+- Replace `"step-2"` with your actual step number (e.g. `"step-5"`, `"step-7.1"` for a defect subtask).
+- `what_i_verified` MUST name commands and files you actually ran. "Looks good" / "builds fine" is rejected.
+- If `what_i_verified` is just "npm run build passed" on a user-facing change, your task is NOT done — run the actual journey.
+- If you cannot truthfully fill in `what_connects`, you built in isolation — that is the exact failure mode this harness exists to prevent. Go back to the task, wire the integration, then come back.
+- The YAML block MUST be the LAST content in your final message. Anything after the closing ``` is ignored.
+- Single-line plain strings only. No multi-line folded scalars (`>` / `|`). Put everything on one line per field. Quote strings that contain `:` or other YAML-special characters.
 
 ### If You Cannot Complete
 
