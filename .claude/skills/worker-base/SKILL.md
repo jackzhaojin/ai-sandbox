@@ -67,26 +67,57 @@ ls -la                              # Understand project structure
 - Do not add extra features, languages, or implementations
 - If the task is done, stop - don't "complement" with alternatives
 
-## Execution Guidelines
+## Execution Guidelines — Vertical Slice, Not Horizontal Layer
+
+**You are not done when the file compiles. You are not done when the page renders. You are done when the thing you built works inside the user journey it belongs to.**
+
+Workers who build in isolation produce beautiful parts that don't connect. This has happened before (see `ai-docs/v2/2026-04-01-v2.1/retro-b2b-postal-checkout.md` — 32 steps, 52 commits, 0 working user flows). Do not repeat it.
+
+### Protocol for every task
 
 1. **Navigate to your project directory first** — `cd {{PROJECT_PATH}}`
-2. **Start with understanding** - Read existing code before changing it
-3. **Make incremental changes** - Test after each change
-4. **Commit frequently** - Small, logical commits with clear messages
-5. **Report clearly** - Summarize what you did, what files changed, any issues
+2. **Read the prior step's handoff first.** Look for `{{PROJECT_PATH}}/../step-*-handoff.md` or the handoff appended to this prompt. Specifically note: `what_connects`, `known_gaps`, `next_step_should_know`. If you can't find it, assume you are Step 1.
+3. **Make the smallest change that advances the user journey.** Not "build all of Step 4's UI" — "wire the one interaction that gets a user from where they were to one step further."
+4. **Run the journey, not just your component.** If this is a web project, see the web-testing skill's Journey Verification section. Walk from the natural start of the flow all the way through your change. Assert data you wrote is readable by the next screen.
+5. **Commit frequently** — small, logical commits with clear messages (see `jack-git-commit` skill).
+6. **Fill out the structured handoff honestly.** At the end, produce the fields listed under "Structured Handoff" below. If you cannot truthfully write `what_connects` and `what_i_verified`, your task is NOT done — go back to step 3.
 
-### If You Cannot Complete:
+### Anti-patterns (from the postal-checkout retro — do NOT do these)
 
-1. Document exactly what is blocking you
-2. List what you tried and why it failed
-3. Specify what human input/action would unblock this
-4. This information goes to needs-you.md
+- **Building components against hardcoded mock data when the DB is available.** If a schema and credentials exist, write real data and read it back. Mock data hides integration bugs that ship to the user.
+- **Writing E2E test specs that depend on APIs you haven't smoke-tested first.** If you can't `curl` the endpoint and get a plausible response, don't write 40 test cases asserting its shape.
+- **Marking a wizard step complete when its submit button doesn't persist or navigate.** A button that looks right but does nothing is not "done."
+- **Writing test cases for pages that don't exist yet.** Tests that live in files but can never run are documentation, not testing.
+- **Treating your step as isolated.** Your task exists in a flow. If the flow doesn't work end-to-end after your change, your change is incomplete, regardless of how pretty the component is.
 
-### Output Format:
+### Structured Handoff (required on every step)
+
+At the END of your turn, write out these fields. The next step and the Validator will both read them:
+
+```yaml
+step: step-{N}
+what_i_built: "One sentence. The smallest honest description."
+what_connects: "What upstream state does this read? What downstream state does this write? Name files, routes, hooks, DB tables."
+what_i_verified: "What I ran, in what order, and what I saw. Name the commands. If I walked the journey, say how far."
+known_gaps: "Things I did NOT wire that I know are still broken. Be specific."
+next_step_should_know: "Architectural facts the next worker won't find by reading the diff."
+```
+
+**If `what_i_verified` is just "npm run build passed" on a user-facing change, your task is NOT done.** `npm run build` verifies compilation, not behavior.
+
+### If You Cannot Complete
+
+1. Document exactly what is blocking you.
+2. List what you tried and why it failed.
+3. Specify what human input/action would unblock this.
+4. Fill out the structured handoff anyway — `known_gaps` is where this belongs.
+
+### Output Format
 
 At the end, provide:
+- The structured handoff (above) — this is mandatory
 - Summary of changes made
 - Files modified/created
-- What works vs what doesn't
+- What works end-to-end vs what doesn't
 - Any blockers or issues
-- Whether Definition of Done is met
+- Whether the Definition of Done is met — answer honestly against the *journey*, not against a checklist of components
