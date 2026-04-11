@@ -206,7 +206,7 @@ export default function NewShipmentPage() {
                       name="destinationPostal"
                       value={formData.destinationPostal}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="90001"
                     />
                   </div>
