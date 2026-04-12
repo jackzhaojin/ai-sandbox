@@ -264,12 +264,12 @@ export const STATES_BY_COUNTRY: Record<CountryCode, { code: string; name: string
     { code: "NB", name: "New Brunswick" },
     { code: "NL", name: "Newfoundland and Labrador" },
     { code: "NS", name: "Nova Scotia" },
-    { code: "NT", name: "Northwest Territories" },
-    { code: "NU", name: "Nunavut" },
     { code: "ON", name: "Ontario" },
     { code: "PE", name: "Prince Edward Island" },
     { code: "QC", name: "Quebec" },
     { code: "SK", name: "Saskatchewan" },
+    { code: "NT", name: "Northwest Territories" },
+    { code: "NU", name: "Nunavut" },
     { code: "YT", name: "Yukon" },
   ],
   MX: [
@@ -457,3 +457,136 @@ export const packageConfigSchemaWithLimits = packageConfigSchema.superRefine((da
 
 export type PackageConfigFormData = z.infer<typeof packageConfigSchema>
 export type PackageConfigFormDataWithLimits = z.infer<typeof packageConfigSchemaWithLimits>
+
+// ==========================================
+// Special Handling & Delivery Preferences
+// ==========================================
+
+// Special handling option types
+export const SPECIAL_HANDLING_OPTIONS = [
+  "fragile",
+  "this-side-up",
+  "temperature-controlled",
+  "hazmat",
+  "white-glove",
+  "inside-delivery",
+  "liftgate-pickup",
+  "liftgate-delivery",
+] as const
+export type SpecialHandlingOption = (typeof SPECIAL_HANDLING_OPTIONS)[number]
+
+// Delivery preference option types
+export const DELIVERY_PREFERENCE_OPTIONS = [
+  "signature",
+  "adult-signature",
+  "sms-confirmation",
+  "photo-proof",
+  "saturday-delivery",
+  "hold-at-location",
+] as const
+export type DeliveryPreferenceOption = (typeof DELIVERY_PREFERENCE_OPTIONS)[number]
+
+// Hazmat data schema
+export const hazmatSchema = z.object({
+  unNumber: z
+    .string()
+    .min(1, "UN Number is required")
+    .regex(/^UN\d{4}$/i, "UN Number must be in format UN1234"),
+  properShippingName: z
+    .string()
+    .min(1, "Proper shipping name is required")
+    .min(2, "Name must be at least 2 characters"),
+  hazardClass: z
+    .string()
+    .min(1, "Hazard class is required"),
+  packingGroup: z
+    .string()
+    .min(1, "Packing group is required"),
+  quantity: z
+    .number()
+    .positive("Quantity must be greater than 0"),
+  unit: z
+    .enum(["kg", "lbs", "L", "gal"]),
+  emergencyContactName: z
+    .string()
+    .min(1, "Emergency contact name is required")
+    .min(2, "Name must be at least 2 characters"),
+  emergencyContactPhone: z
+    .string()
+    .min(1, "Emergency contact phone is required")
+    .regex(/^\+?[\d\s\-\(\)]{10,}$/, "Invalid phone number format"),
+})
+
+export type HazmatFormData = z.infer<typeof hazmatSchema>
+
+// Piece type for multi-piece shipments
+export const PIECE_TYPES = ["box", "envelope", "pallet", "tube", "other"] as const
+export type PieceType = (typeof PIECE_TYPES)[number]
+
+// Piece schema
+export const pieceSchema = z.object({
+  id: z.string(),
+  type: z.enum(PIECE_TYPES),
+  description: z.string().max(200, "Description must not exceed 200 characters").optional(),
+  length: z.number().min(0, "Length must be 0 or greater"),
+  width: z.number().min(0, "Width must be 0 or greater"),
+  height: z.number().min(0, "Height must be 0 or greater"),
+  weight: z.number().min(0, "Weight must be 0 or greater"),
+})
+
+export type PieceFormData = z.infer<typeof pieceSchema>
+
+// Multi-piece schema
+export const multiPieceSchema = z.object({
+  pieces: z
+    .array(pieceSchema)
+    .min(1, "At least one piece is required")
+    .max(20, "Maximum 20 pieces allowed"),
+})
+
+export type MultiPieceFormData = z.infer<typeof multiPieceSchema>
+
+// Special handling data schema
+export const specialHandlingDataSchema = z.object({
+  selectedOptions: z.array(z.enum(SPECIAL_HANDLING_OPTIONS)),
+  totalFee: z.number().min(0),
+})
+
+export type SpecialHandlingData = z.infer<typeof specialHandlingDataSchema>
+
+// Delivery preferences data schema
+export const deliveryPreferencesDataSchema = z.object({
+  selectedOptions: z.array(z.enum(DELIVERY_PREFERENCE_OPTIONS)),
+  totalFee: z.number().min(0),
+})
+
+export type DeliveryPreferencesData = z.infer<typeof deliveryPreferencesDataSchema>
+
+// Combined special handling section schema
+export const specialHandlingSectionSchema = z.object({
+  specialHandling: specialHandlingDataSchema,
+  deliveryPreferences: deliveryPreferencesDataSchema,
+  hazmatDetails: hazmatSchema.optional(),
+  multiPiece: multiPieceSchema.optional(),
+}).superRefine((data, ctx) => {
+  // If hazmat is selected, hazmat details are required
+  if (data.specialHandling.selectedOptions.includes("hazmat")) {
+    if (!data.hazmatDetails) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Hazmat details are required when hazmat is selected",
+        path: ["hazmatDetails"],
+      })
+    }
+  }
+})
+
+export type SpecialHandlingSectionData = z.infer<typeof specialHandlingSectionSchema>
+
+// Extended shipment schema including special handling
+export const shipmentStep1WithSpecialHandlingSchema = z.intersection(
+  shipmentStep1Schema,
+  specialHandlingSectionSchema
+)
+
+export type ShipmentStep1WithSpecialHandlingFormData = z.infer<typeof shipmentStep1WithSpecialHandlingSchema>

@@ -11,6 +11,10 @@ import {
   PackageConfigurationSection, 
   type PackageConfigurationData 
 } from '@/components/shipping/PackageConfigurationSection'
+import { 
+  SpecialHandlingSection,
+  type SpecialHandlingSectionData 
+} from '@/components/shipping/SpecialHandlingSection'
 import { shipmentStep1Schema, type ShipmentStep1FormData } from '@/lib/validation'
 import { z } from 'zod'
 
@@ -36,6 +40,18 @@ export default function NewShipmentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [sameAsOrigin, setSameAsOrigin] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+
+  // Special handling state (managed separately since it's a complex nested object)
+  const [specialHandlingData, setSpecialHandlingData] = useState<SpecialHandlingSectionData>({
+    specialHandling: {
+      selectedOptions: [],
+      totalFee: 0,
+    },
+    deliveryPreferences: {
+      selectedOptions: [],
+      totalFee: 0,
+    },
+  })
 
   const {
     control,
@@ -115,7 +131,7 @@ export default function NewShipmentPage() {
 
   const handleSaveDraft = () => {
     const formData = watch()
-    console.log('Saving draft:', formData)
+    console.log('Saving draft:', { ...formData, specialHandling: specialHandlingData })
     alert('Draft saved (placeholder)')
   }
 
@@ -171,6 +187,12 @@ export default function NewShipmentPage() {
             currency: data.currency,
             contentsDescription: data.contentsDescription,
           },
+          specialHandling: specialHandlingData.specialHandling.selectedOptions,
+          specialHandlingFee: specialHandlingData.specialHandling.totalFee,
+          deliveryPreferences: specialHandlingData.deliveryPreferences.selectedOptions,
+          deliveryFee: specialHandlingData.deliveryPreferences.totalFee,
+          hazmatDetails: specialHandlingData.hazmatDetails,
+          multiPiece: specialHandlingData.multiPiece,
           status: 'draft',
         }),
       })
@@ -217,6 +239,10 @@ export default function NewShipmentPage() {
     setValue('declaredValue', data.declaredValue, { shouldValidate: false })
     setValue('currency', data.currency, { shouldValidate: false })
     setValue('contentsDescription', data.contentsDescription, { shouldValidate: false })
+  }
+
+  const handleSpecialHandlingChange = (data: SpecialHandlingSectionData) => {
+    setSpecialHandlingData(data)
   }
 
   return (
@@ -274,6 +300,13 @@ export default function NewShipmentPage() {
               declaredValue: errors.declaredValue?.message,
               contentsDescription: errors.contentsDescription?.message,
             }}
+          />
+
+          <SpecialHandlingSection
+            value={specialHandlingData}
+            onChange={handleSpecialHandlingChange}
+            packageConfig={packageConfigValue}
+            disabled={isSubmitting}
           />
         </form>
       </div>
