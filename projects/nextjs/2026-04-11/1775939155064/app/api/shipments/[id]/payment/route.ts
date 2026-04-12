@@ -485,18 +485,49 @@ export async function POST(
       )
     }
 
-    // Update shipment with payment info and advance status to pickup (step 4)
-    const { error: updateError } = await supabaseServer
-      .from('shipments')
-      .update({
-        payment_id: paymentRecord.id,
-        status: 'pickup',
-        current_step: 4,
-      })
-      .eq('id', shipmentId)
+    // Update shipment with payment info and advance status
+    // Note: Using 'pending_payment' status as 'pickup' is not a valid enum value
+    // The pickup step is tracked via current_step (4) when the column exists
+    const updateData: Record<string, unknown> = {
+      payment_id: paymentRecord.id,
+      status: 'pending_payment',
+    }
+    
+    // Only add current_step if the column exists
+    try {
+      const { error: updateError } = await supabaseServer
+        .from('shipments')
+        .update({
+          ...updateData,
+          current_step: 4,
+        })
+        .eq('id', shipmentId)
 
-    if (updateError) {
-      console.error('Error updating shipment:', updateError)
+      if (updateError) {
+        // If current_step column doesn't exist, try without it
+        if (updateError.message?.includes('current_step')) {
+          const { error: retryError } = await supabaseServer
+            .from('shipments')
+            .update(updateData)
+            .eq('id', shipmentId)
+          
+          if (retryError) {
+            console.error('Error updating shipment:', retryError)
+            return NextResponse.json(
+              { error: 'Failed to update shipment' },
+              { status: 500 }
+            )
+          }
+        } else {
+          console.error('Error updating shipment:', updateError)
+          return NextResponse.json(
+            { error: 'Failed to update shipment', details: updateError.message },
+            { status: 500 }
+          )
+        }
+      }
+    } catch (error) {
+      console.error('Error in shipment update:', error)
       return NextResponse.json(
         { error: 'Failed to update shipment' },
         { status: 500 }
