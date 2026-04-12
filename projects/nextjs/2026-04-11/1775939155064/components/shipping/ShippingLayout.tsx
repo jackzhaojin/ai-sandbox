@@ -67,7 +67,7 @@ function ShippingLayoutInner({
         {/* Step indicator */}
         {showStepIndicator && (
           <div className="bg-white border-b border-gray-200">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
               <StepIndicator shipmentId={shipmentId} />
             </div>
           </div>
@@ -75,7 +75,7 @@ function ShippingLayoutInner({
 
         {/* Page content */}
         <main className="flex-1">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
             {children}
           </div>
         </main>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronDown, ChevronUp, Check, AlertCircle, Pencil } from 'lucide-react'
 import Link from 'next/link'
 
@@ -21,44 +21,62 @@ export function ReviewSection({
   defaultExpanded = true,
   incompleteMessage = 'This section is incomplete',
 }: ReviewSectionProps) {
+  // On mobile, default to collapsed; on desktop, use the prop value
   const [isExpanded, setIsExpanded] = useState(defaultExpanded)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect mobile viewport and adjust default expanded state
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+      // Only override on initial mount - collapse by default on mobile
+      if (mobile && defaultExpanded) {
+        setIsExpanded(false)
+      }
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [defaultExpanded])
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4 bg-gray-50 border-b border-gray-200">
+        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
           {/* Status Badge */}
           {isComplete ? (
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 shrink-0">
               <Check className="h-3 w-3" />
-              Complete
+              <span className="hidden sm:inline">Complete</span>
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 shrink-0">
               <AlertCircle className="h-3 w-3" />
-              Incomplete
+              <span className="hidden sm:inline">Incomplete</span>
             </span>
           )}
           
           {/* Title */}
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <h3 className="text-base md:text-lg font-semibold text-gray-900 truncate">{title}</h3>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 md:gap-2 shrink-0">
           {/* Edit Button */}
           <Link
             href={editHref}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+            className="inline-flex items-center gap-1 px-2 py-1.5 md:px-3 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors min-h-[36px] md:min-h-0"
           >
             <Pencil className="h-3.5 w-3.5" />
-            Edit
+            <span className="hidden sm:inline">Edit</span>
           </Link>
 
           {/* Expand/Collapse Toggle */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-md transition-colors"
+            className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-md transition-colors md:min-h-0 md:min-w-0"
             aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
           >
             {isExpanded ? (
@@ -72,11 +90,11 @@ export function ReviewSection({
 
       {/* Content Area */}
       {isExpanded && (
-        <div className="p-6">
+        <div className="p-4 md:p-6">
           {!isComplete && incompleteMessage && (
             <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
               <p className="text-sm text-amber-700 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
+                <AlertCircle className="h-4 w-4 shrink-0" />
                 {incompleteMessage}
               </p>
             </div>
@@ -118,7 +136,7 @@ export function SectionGrid({ children, columns = 2 }: SectionGridProps) {
   }
 
   return (
-    <dl className={`grid ${gridClasses[columns]} gap-x-6 gap-y-4`}>
+    <dl className={`grid ${gridClasses[columns]} gap-x-4 md:gap-x-6 gap-y-4`}>
       {children}
     </dl>
   )

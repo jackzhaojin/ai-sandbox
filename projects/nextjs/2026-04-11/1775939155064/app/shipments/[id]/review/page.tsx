@@ -764,152 +764,160 @@ export default function ReviewPage() {
         showPrevious: true,
       }}
     >
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Review Shipment
-          </h1>
-          <p className="text-gray-600">
-            Please review all details before confirming your shipment. Click Edit on any section to make changes.
-          </p>
-        </div>
-
-        {/* Error message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-sm text-red-600 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" />
-              {error}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Main content */}
+        <div className="flex-1 min-w-0 space-y-4 md:space-y-6">
+          {/* Header */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">
+              Review Shipment
+            </h1>
+            <p className="text-gray-600 text-sm md:text-base">
+              Please review all details before confirming your shipment. Click Edit on any section to make changes.
             </p>
           </div>
-        )}
 
-        {/* Save success message */}
-        {saveMessage && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            <p className="text-sm text-green-600">{saveMessage}</p>
-          </div>
-        )}
-
-        {/* Validation Errors --}}
-        {showValidationErrors && validationErrors.length > 0 && (
-          <ValidationErrors
-            errors={validationErrors}
-            onErrorClick={(error) => {
-              // Additional handling if needed
-              console.log('Clicked error:', error)
-            }}
-          />
-        )}
-
-        {/* Shipment Summary Card */}
-        {shipment && (
-          <ShipmentSummaryCard
-            originCity={shipment.origin.city}
-            originState={shipment.origin.state}
-            destCity={shipment.destination.city}
-            destState={shipment.destination.state}
-            distance={shipment.pricing?.distance}
-            carrierName={shipment.pricing?.carrierName}
-            serviceName={shipment.pricing?.serviceName}
-            transitMin={shipment.pricing?.transitDaysMin}
-            transitMax={shipment.pricing?.transitDaysMax}
-            totalCost={shipment.pricing?.total}
-            currency={shipment.pricing?.currency}
-            pickupDate={shipment.pickup?.selectedPickup?.date}
-            pickupTimeWindow={shipment.pickup?.selectedPickup?.timeSlot?.timeWindow}
-            estimatedDelivery={calculateEstimatedDelivery()}
-          />
-        )}
-
-        {/* Review Sections */}
-        <div className="space-y-4">
-          {shipment && (
-            <>
-              <div id="origin-section">
-                <OriginReviewSection 
-                  data={shipment.origin} 
-                  shipmentId={shipmentId} 
-                />
-              </div>
-              
-              <div id="destination-section">
-                <DestinationReviewSection 
-                  data={shipment.destination} 
-                  shipmentId={shipmentId} 
-                />
-              </div>
-              
-              <div id="package-section">
-                <PackageReviewSection 
-                  data={shipment.package}
-                  specialHandling={shipment.specialHandling}
-                  deliveryPreferences={shipment.deliveryPreferences}
-                  shipmentId={shipmentId}
-                />
-              </div>
-              
-              <div id="pricing-section">
-                <PricingReviewSection 
-                  data={shipment.pricing}
-                  shipmentId={shipmentId}
-                />
-              </div>
-              
-              <div id="payment-section">
-                <PaymentReviewSection 
-                  payment={shipment.payment}
-                  billing={shipment.billing}
-                  shipmentId={shipmentId}
-                />
-              </div>
-              
-              <div id="pickup-section">
-                <PickupReviewSection 
-                  data={shipment.pickup}
-                  shipmentId={shipmentId}
-                />
-              </div>
-            </>
+          {/* Error message */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-sm text-red-600 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {error}
+              </p>
+            </div>
           )}
+
+          {/* Save success message */}
+          {saveMessage && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
+              <p className="text-sm text-green-600">{saveMessage}</p>
+            </div>
+          )}
+
+          {/* Validation Errors --}}
+          {showValidationErrors && validationErrors.length > 0 && (
+            <ValidationErrors
+              errors={validationErrors}
+              onErrorClick={(error) => {
+                // Additional handling if needed
+                console.log('Clicked error:', error)
+              }}
+            />
+          )}
+
+          {/* Review Sections */}
+          <div className="space-y-4">
+            {shipment && (
+              <>
+                <div id="origin-section">
+                  <OriginReviewSection 
+                    data={shipment.origin} 
+                    shipmentId={shipmentId} 
+                  />
+                </div>
+                
+                <div id="destination-section">
+                  <DestinationReviewSection 
+                    data={shipment.destination} 
+                    shipmentId={shipmentId} 
+                  />
+                </div>
+                
+                <div id="package-section">
+                  <PackageReviewSection 
+                    data={shipment.package}
+                    specialHandling={shipment.specialHandling}
+                    deliveryPreferences={shipment.deliveryPreferences}
+                    shipmentId={shipmentId}
+                  />
+                </div>
+                
+                <div id="pricing-section">
+                  <PricingReviewSection 
+                    data={shipment.pricing}
+                    shipmentId={shipmentId}
+                  />
+                </div>
+                
+                <div id="payment-section">
+                  <PaymentReviewSection 
+                    payment={shipment.payment}
+                    billing={shipment.billing}
+                    shipmentId={shipmentId}
+                  />
+                </div>
+                
+                <div id="pickup-section">
+                  <PickupReviewSection 
+                    data={shipment.pickup}
+                    shipmentId={shipmentId}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Terms and Conditions */}
+          {shipment && (
+            <div id="terms-section">
+              <TermsAndConditions
+                accepted={termsAccepted}
+                onChange={setTermsAccepted}
+                declaredValue={shipment.package.declaredValue}
+                hasHazmat={hasHazmat}
+              />
+            </div>
+          )}
+
+          {/* Submission Actions */}
+          {shipment && (
+            <SubmissionActions
+              shipmentId={shipmentId}
+              isSubmitting={isSubmitting}
+              isSaving={isSavingDraft}
+              canSubmit={areTermsAccepted(termsAccepted, hasHazmat) && validationErrors.length === 0}
+              onSaveDraft={handleSaveDraft}
+              onSubmit={handleSubmit}
+              onStartOver={handleStartOver}
+            />
+          )}
+
+          {/* Terms Notice */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <p className="text-sm text-gray-600">
+              By confirming this shipment, you agree to our{' '}
+              <a href="/terms-and-conditions" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Terms of Service</a>
+              {' '}and{' '}
+              <a href="/shipping-conditions" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Shipping Conditions</a>.
+              Please review our <a href="/cancellation-policy" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Cancellation Policy</a> for information about refunds and changes.
+            </p>
+          </div>
         </div>
 
-        {/* Terms and Conditions */}
-        {shipment && (
-          <div id="terms-section">
-            <TermsAndConditions
-              accepted={termsAccepted}
-              onChange={setTermsAccepted}
-              declaredValue={shipment.package.declaredValue}
-              hasHazmat={hasHazmat}
-            />
+        {/* Sidebar - Shipment Summary Card */}
+        <div className="lg:w-80 shrink-0 order-first lg:order-last">
+          <div className="lg:sticky lg:top-24 space-y-4">
+            {/* Shipment Summary Card */}
+            {shipment && (
+              <ShipmentSummaryCard
+                originCity={shipment.origin.city}
+                originState={shipment.origin.state}
+                destCity={shipment.destination.city}
+                destState={shipment.destination.state}
+                distance={shipment.pricing?.distance}
+                carrierName={shipment.pricing?.carrierName}
+                serviceName={shipment.pricing?.serviceName}
+                transitMin={shipment.pricing?.transitDaysMin}
+                transitMax={shipment.pricing?.transitDaysMax}
+                totalCost={shipment.pricing?.total}
+                currency={shipment.pricing?.currency}
+                pickupDate={shipment.pickup?.selectedPickup?.date}
+                pickupTimeWindow={shipment.pickup?.selectedPickup?.timeSlot?.timeWindow}
+                estimatedDelivery={calculateEstimatedDelivery()}
+              />
+            )}
           </div>
-        )}
-
-        {/* Submission Actions */}
-        {shipment && (
-          <SubmissionActions
-            shipmentId={shipmentId}
-            isSubmitting={isSubmitting}
-            isSaving={isSavingDraft}
-            canSubmit={areTermsAccepted(termsAccepted, hasHazmat) && validationErrors.length === 0}
-            onSaveDraft={handleSaveDraft}
-            onSubmit={handleSubmit}
-            onStartOver={handleStartOver}
-          />
-        )}
-
-        {/* Terms Notice */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <p className="text-sm text-gray-600">
-            By confirming this shipment, you agree to our{' '}
-            <a href="/terms-and-conditions" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Terms of Service</a>
-            {' '}and{' '}
-            <a href="/shipping-conditions" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Shipping Conditions</a>.
-            Please review our <a href="/cancellation-policy" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Cancellation Policy</a> for information about refunds and changes.
-          </p>
         </div>
       </div>
     </ShippingLayout>

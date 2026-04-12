@@ -84,17 +84,17 @@ export function StepIndicator({ shipmentId }: StepIndicatorProps) {
         </div>
       </div>
 
-      {/* Mobile: Compact progress bar */}
+      {/* Mobile: Compact progress bar with step info */}
       <div className="md:hidden">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-medium text-gray-700">
             Step {currentStep} of {steps.length}
           </span>
-          <span className="text-sm font-medium text-blue-600">
+          <span className="text-sm font-medium text-blue-600 truncate max-w-[50%]">
             {steps.find((s) => s.id === currentStep)?.label}
           </span>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1.5">
           {steps.map((step) => (
             <div
               key={step.id}

@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react'
 
 interface NavigationProps {
-  onNext?: () => void | Promise<void>
+  onNext?: () => void
   onPrevious?: () => void
   nextLabel?: string
   previousLabel?: string
@@ -66,22 +66,45 @@ export function Navigation({
     }
   }
 
+  // Short labels for mobile
+  const getMobileNextLabel = () => {
+    if (nextLabel !== 'Continue') return nextLabel
+    switch (currentStep) {
+      case 1:
+        return 'Continue'
+      case 2:
+        return 'Select'
+      case 3:
+        return 'Continue'
+      case 4:
+        return 'Schedule'
+      case 5:
+        return 'Confirm'
+      case 6:
+        return 'Finish'
+      default:
+        return 'Continue'
+    }
+  }
+
   return (
-    <div className="bg-white border-t border-gray-200 py-4 px-4 sm:px-6 lg:px-8 sticky bottom-0 z-40">
-      <div className="max-w-4xl mx-auto flex items-center justify-between">
+    <div className="bg-white border-t border-gray-200 py-3 md:py-4 px-4 sm:px-6 lg:px-8 sticky bottom-0 z-40 safe-area-inset-bottom">
+      <div className="max-w-[1200px] mx-auto flex items-center justify-between gap-4">
         {/* Previous button */}
         {showPrevious && currentStep > 1 ? (
           <button
             onClick={handlePrevious}
             disabled={isNextLoading}
             className={cn(
-              'flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg transition-colors',
+              'flex items-center gap-2 px-4 md:px-6 py-3 md:py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg transition-colors min-h-[48px] md:min-h-0',
               'hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200',
+              'active:bg-gray-100 touch-manipulation',
               isNextLoading && 'opacity-50 cursor-not-allowed'
             )}
           >
-            <ArrowLeft className="w-4 h-4" />
-            {previousLabel}
+            <ArrowLeft className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">{previousLabel}</span>
+            <span className="sm:hidden">Back</span>
           </button>
         ) : (
           <div /> /* Spacer for flex layout */
@@ -92,20 +115,23 @@ export function Navigation({
           onClick={handleNext}
           disabled={isNextDisabled || isNextLoading}
           className={cn(
-            'flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg transition-colors',
+            'flex items-center gap-2 px-4 md:px-6 py-3 md:py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg transition-colors min-h-[48px] md:min-h-0',
             'hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+            'active:bg-blue-800 touch-manipulation',
             (isNextDisabled || isNextLoading) && 'opacity-50 cursor-not-allowed'
           )}
         >
           {isNextLoading ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Processing...
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              <span className="hidden sm:inline">Processing...</span>
+              <span className="sm:hidden">...</span>
             </>
           ) : (
             <>
-              {getNextLabel()}
-              <ArrowRight className="w-4 h-4" />
+              <span className="hidden sm:inline">{getNextLabel()}</span>
+              <span className="sm:hidden">{getMobileNextLabel()}</span>
+              <ArrowRight className="w-4 h-4 shrink-0" />
             </>
           )}
         </button>

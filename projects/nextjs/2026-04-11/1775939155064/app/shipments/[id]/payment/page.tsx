@@ -556,218 +556,211 @@ export default function PaymentPage() {
         showPrevious: true,
       }}
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Payment & Billing
-          </h1>
-          <p className="text-gray-600">
-            Choose your payment method and provide billing information for your shipment.
-          </p>
-        </div>
-
-        {/* Error message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-sm text-red-600 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" />
-              {error}
-            </p>
-          </div>
-        )}
-
-        {/* Save success message */}
-        {saveMessage && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            <p className="text-sm text-green-600">{saveMessage}</p>
-          </div>
-        )}
-
-        {/* Shipment Summary Bar */}
-        {shipmentSummary && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <div className="flex flex-wrap items-center gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <Truck className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-600">
-                  {shipmentSummary.origin.city}, {shipmentSummary.origin.state} → {shipmentSummary.destination.city}, {shipmentSummary.destination.state}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-600">
-                  {shipmentSummary.package.weight} {shipmentSummary.package.weightUnit}
-                </span>
-              </div>
-              {shipmentSummary.selectedRate && (
-                <div className="flex items-center gap-2 ml-auto">
-                  <DollarSign className="h-4 w-4 text-gray-400" />
-                  <span className="font-medium text-gray-900">
-                    {shipmentSummary.selectedRate.carrierName} - {shipmentSummary.selectedRate.serviceName}
-                  </span>
-                  <span className="font-bold text-gray-900">
-                    ${shipmentSummary.selectedRate.total.toFixed(2)} {shipmentSummary.selectedRate.currency}
-                  </span>
-                </div>
-              )}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Main content */}
+        <div className="flex-1 min-w-0">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Header */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">
+                Payment & Billing
+              </h1>
+              <p className="text-gray-600 text-sm md:text-base">
+                Choose your payment method and provide billing information for your shipment.
+              </p>
             </div>
-          </div>
-        )}
 
-        {/* Tab Navigation */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="flex border-b border-gray-200">
-            <button
-              type="button"
-              onClick={() => setActiveTab('payment')}
-              className={cn(
-                "flex-1 px-6 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors",
-                activeTab === 'payment'
-                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-              )}
-            >
-              <DollarSign className="h-4 w-4" />
-              Payment Method
-              {selectedMethod && (
-                <span className="ml-1 w-2 h-2 rounded-full bg-green-500" />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('billing')}
-              className={cn(
-                "flex-1 px-6 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors",
-                activeTab === 'billing'
-                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-              )}
-            >
-              <Building2 className="h-4 w-4" />
-              Billing Information
-            </button>
-          </div>
+            {/* Error message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-sm text-red-600 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {error}
+                </p>
+              </div>
+            )}
 
-          <div className="p-6">
-            {activeTab === 'payment' ? (
-              <div className="space-y-6">
-                {/* Payment Method Selection */}
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                    Select Payment Method
-                  </h2>
-                  <PaymentMethodSelector
-                    selectedMethod={selectedMethod}
-                    onSelect={handleSelectMethod}
-                    disabled={isSaving}
-                    shipmentTotal={subtotal}
-                  />
-                  {validationErrors.method && (
-                    <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
-                      <AlertCircle className="h-4 w-4" />
-                      {validationErrors.method}
-                    </p>
+            {/* Save success message */}
+            {saveMessage && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
+                <p className="text-sm text-green-600">{saveMessage}</p>
+              </div>
+            )}
+
+            {/* Shipment Summary Bar */}
+            {shipmentSummary && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <div className="flex flex-wrap items-center gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-gray-400 shrink-0" />
+                    <span className="text-gray-600">
+                      {shipmentSummary.origin.city}, {shipmentSummary.origin.state} → {shipmentSummary.destination.city}, {shipmentSummary.destination.state}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Package className="h-4 w-4 text-gray-400 shrink-0" />
+                    <span className="text-gray-600">
+                      {shipmentSummary.package.weight} {shipmentSummary.package.weightUnit}
+                    </span>
+                  </div>
+                  {shipmentSummary.selectedRate && (
+                    <div className="flex items-center gap-2 ml-auto">
+                      <DollarSign className="h-4 w-4 text-gray-400 shrink-0" />
+                      <span className="font-medium text-gray-900">
+                        {shipmentSummary.selectedRate.carrierName} - {shipmentSummary.selectedRate.serviceName}
+                      </span>
+                      <span className="font-bold text-gray-900">
+                        ${shipmentSummary.selectedRate.total.toFixed(2)} {shipmentSummary.selectedRate.currency}
+                      </span>
+                    </div>
                   )}
                 </div>
+              </div>
+            )}
 
-                {/* Method-specific Form */}
-                {selectedMethod && (
-                  <div className="pt-6 border-t border-gray-100">
-                    <h3 className="text-md font-semibold text-gray-900 mb-4">
-                      {PAYMENT_METHOD_LABELS[selectedMethod]} Details
-                    </h3>
-                    {renderPaymentForm()}
+            {/* Tab Navigation */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="flex border-b border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('payment')}
+                  className={cn(
+                    "flex-1 px-4 md:px-6 py-3 md:py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors min-h-[48px]",
+                    activeTab === 'payment'
+                      ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  )}
+                >
+                  <DollarSign className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline">Payment Method</span>
+                  <span className="sm:hidden">Payment</span>
+                  {selectedMethod && (
+                    <span className="ml-1 w-2 h-2 rounded-full bg-green-500 shrink-0" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('billing')}
+                  className={cn(
+                    "flex-1 px-4 md:px-6 py-3 md:py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors min-h-[48px]",
+                    activeTab === 'billing'
+                      ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  )}
+                >
+                  <Building2 className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline">Billing Information</span>
+                  <span className="sm:hidden">Billing</span>
+                </button>
+              </div>
+
+              <div className="p-4 md:p-6">
+                {activeTab === 'payment' ? (
+                  <div className="space-y-6">
+                    {/* Payment Method Selection */}
+                    <div>
+                      <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
+                        Select Payment Method
+                      </h2>
+                      <PaymentMethodSelector
+                        selectedMethod={selectedMethod}
+                        onSelect={handleSelectMethod}
+                        disabled={isSaving}
+                        shipmentTotal={subtotal}
+                      />
+                      {validationErrors.method && (
+                        <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                          <AlertCircle className="h-4 w-4 shrink-0" />
+                          {validationErrors.method}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Method-specific Form */}
+                    {selectedMethod && (
+                      <div className="pt-6 border-t border-gray-100">
+                        <h3 className="text-sm md:text-base font-semibold text-gray-900 mb-4">
+                          {PAYMENT_METHOD_LABELS[selectedMethod]} Details
+                        </h3>
+                        {renderPaymentForm()}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-8">
+                    {/* Billing Address */}
+                    <BillingAddressSection
+                      control={control}
+                      errors={errors}
+                      setValue={setValue}
+                      sameAsOrigin={sameAsOrigin}
+                      onSameAsOriginChange={(value) => setValue('sameAsOrigin', value)}
+                      originData={{
+                        line1: shipmentSummary?.origin.line1,
+                        line2: shipmentSummary?.origin.line2,
+                        city: shipmentSummary?.origin.city,
+                        state: shipmentSummary?.origin.state,
+                        postal: shipmentSummary?.origin.postal,
+                        country: shipmentSummary?.origin.country,
+                        locationType: shipmentSummary?.origin.locationType,
+                      }}
+                      disabled={isSaving}
+                    />
+
+                    {/* Divider */}
+                    <div className="border-t border-gray-200" />
+
+                    {/* Billing Contact */}
+                    <BillingContactSection
+                      control={control}
+                      errors={errors}
+                      disabled={isSaving}
+                    />
+
+                    {/* Divider */}
+                    <div className="border-t border-gray-200" />
+
+                    {/* Company Info */}
+                    <CompanyInfoSection
+                      control={control}
+                      errors={errors}
+                      disabled={isSaving}
+                    />
+
+                    {/* Divider */}
+                    <div className="border-t border-gray-200" />
+
+                    {/* Invoice Preferences */}
+                    <InvoicePreferencesSection
+                      control={control}
+                      errors={errors}
+                      disabled={isSaving}
+                    />
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="space-y-8">
-                {/* Billing Address */}
-                <BillingAddressSection
-                  control={control}
-                  errors={errors}
-                  setValue={setValue}
-                  sameAsOrigin={sameAsOrigin}
-                  onSameAsOriginChange={(value) => setValue('sameAsOrigin', value)}
-                  originData={{
-                    line1: shipmentSummary?.origin.line1,
-                    line2: shipmentSummary?.origin.line2,
-                    city: shipmentSummary?.origin.city,
-                    state: shipmentSummary?.origin.state,
-                    postal: shipmentSummary?.origin.postal,
-                    country: shipmentSummary?.origin.country,
-                    locationType: shipmentSummary?.origin.locationType,
-                  }}
-                  disabled={isSaving}
-                />
+            </div>
+          </form>
+        </div>
 
-                {/* Divider */}
-                <div className="border-t border-gray-200" />
-
-                {/* Billing Contact */}
-                <BillingContactSection
-                  control={control}
-                  errors={errors}
-                  disabled={isSaving}
-                />
-
-                {/* Divider */}
-                <div className="border-t border-gray-200" />
-
-                {/* Company Info */}
-                <CompanyInfoSection
-                  control={control}
-                  errors={errors}
-                  disabled={isSaving}
-                />
-
-                {/* Divider */}
-                <div className="border-t border-gray-200" />
-
-                {/* Invoice Preferences */}
-                <InvoicePreferencesSection
-                  control={control}
-                  errors={errors}
-                  disabled={isSaving}
-                />
-              </div>
-            )}
+        {/* Cost Summary Sidebar - Responsive */}
+        <div className="lg:w-80 shrink-0">
+          <div className="lg:sticky lg:top-24">
+            <CostSummary
+              subtotal={subtotal}
+              currency={currency}
+              selectedMethod={selectedMethod}
+              shipmentDetails={{
+                origin: shipmentSummary?.origin,
+                destination: shipmentSummary?.destination,
+                package: shipmentSummary?.package,
+                carrierName: shipmentSummary?.selectedRate?.carrierName,
+                serviceName: shipmentSummary?.selectedRate?.serviceName,
+              }}
+            />
           </div>
         </div>
-
-        {/* Cost Summary Sidebar - Always visible on larger screens */}
-        <div className="lg:hidden">
-          <CostSummary
-            subtotal={subtotal}
-            currency={currency}
-            selectedMethod={selectedMethod}
-            shipmentDetails={{
-              origin: shipmentSummary?.origin,
-              destination: shipmentSummary?.destination,
-              package: shipmentSummary?.package,
-              carrierName: shipmentSummary?.selectedRate?.carrierName,
-              serviceName: shipmentSummary?.selectedRate?.serviceName,
-            }}
-          />
-        </div>
-      </form>
-
-      {/* Desktop Cost Summary - Sidebar */}
-      <div className="hidden lg:block fixed right-8 top-24 w-80 z-10">
-        <CostSummary
-          subtotal={subtotal}
-          currency={currency}
-          selectedMethod={selectedMethod}
-          shipmentDetails={{
-            origin: shipmentSummary?.origin,
-            destination: shipmentSummary?.destination,
-            package: shipmentSummary?.package,
-            carrierName: shipmentSummary?.selectedRate?.carrierName,
-            serviceName: shipmentSummary?.selectedRate?.serviceName,
-          }}
-        />
       </div>
     </ShippingLayout>
   )
