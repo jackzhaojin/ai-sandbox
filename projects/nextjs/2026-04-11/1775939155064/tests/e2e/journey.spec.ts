@@ -225,3 +225,83 @@ test('Gate 3: Complete Step 1 form submission creates shipment', async ({ page }
   const url = page.url()
   expect(url).toMatch(/\/shipments\/[a-zA-Z0-9-]+\/rates/)
 })
+
+test('Gate 4: Step 1 submission persists all data to Supabase postal_v2 schema', async ({ page }) => {
+  // Complete Step 1 form
+  await completePriorSteps(page, { through: 3 })
+  
+  await page.waitForTimeout(500)
+  
+  // Submit the form
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  
+  // Wait for navigation to rates page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/rates/, { timeout: 10000 })
+  
+  // Extract shipment ID from URL
+  const url = page.url()
+  const shipmentIdMatch = url.match(/\/shipments\/([a-zA-Z0-9-]+)\/rates/)
+  expect(shipmentIdMatch).toBeTruthy()
+  const shipmentId = shipmentIdMatch![1]
+  
+  // Verify shipment ID is a valid UUID (not mock- prefixed)
+  expect(shipmentId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+  
+  // Call API to verify packages endpoint works
+  const packagesResponse = await page.request.get(`/api/shipments/${shipmentId}/packages`)
+  expect(packagesResponse.status()).toBe(200)
+  
+  const packagesData = await packagesResponse.json()
+  expect(packagesData.shipmentId).toBe(shipmentId)
+  expect(packagesData.packages).toBeDefined()
+  expect(packagesData.packages.length).toBeGreaterThan(0)
+  
+  // Verify package data
+  const pkg = packagesData.packages[0]
+  expect(pkg.weight).toBeGreaterThan(0)
+  expect(pkg.length).toBeGreaterThan(0)
+  expect(pkg.width).toBeGreaterThan(0)
+  expect(pkg.height).toBeGreaterThan(0)
+})
+
+test('Gate 4: Save as Draft creates draft shipment without navigating', async ({ page }) => {
+  await completePriorSteps(page, { through: 1 })
+  
+  // Fill minimal origin data
+  await page.getByLabel(/Street Address/i).first().fill('123 Main St')
+  await page.getByLabel(/City/i).first().fill('New York')
+  await page.getByLabel(/ZIP Code/i).first().fill('10001')
+  await page.getByLabel(/Contact Name/i).first().fill('John Smith')
+  await page.getByLabel(/Phone Number/i).first().fill('555-123-4567')
+  await page.getByLabel(/Email Address/i).first().fill('john@acme.com')
+  await page.getByRole('button', { name: /State\/Province/i }).first().click()
+  await page.getByRole('button', { name: 'New York', exact: true }).click()
+  
+  // Fill minimal destination data
+  await page.getByLabel(/Street Address/i).nth(1).fill('456 Oak Ave')
+  await page.getByLabel(/City/i).nth(1).fill('Los Angeles')
+  await page.getByLabel(/ZIP Code/i).nth(1).fill('90001')
+  await page.getByLabel(/Contact Name/i).nth(1).fill('Jane Doe')
+  await page.getByLabel(/Phone Number/i).nth(1).fill('555-987-6543')
+  await page.getByLabel(/Email Address/i).nth(1).fill('jane@widget.com')
+  await page.getByRole('button', { name: /State\/Province/i }).nth(1).click()
+  await page.getByRole('button', { name: 'California', exact: true }).click()
+  
+  // Fill package data
+  await page.getByRole('button', { name: /Small Box/i }).click()
+  await page.getByLabel(/Length/i).fill('12')
+  await page.getByLabel(/Width/i).fill('10')
+  await page.getByLabel(/Height/i).fill('8')
+  await page.getByLabel(/Actual Weight/i).fill('5.5')
+  await page.getByLabel(/Declared Value/i).fill('100')
+  await page.getByLabel(/Contents Description/i).fill('Office supplies')
+  
+  // Click Save Draft
+  await page.getByRole('button', { name: /Save Draft/i }).click()
+  
+  // Should show success message (stays on same page)
+  await expect(page.getByText(/Draft saved successfully/i)).toBeVisible({ timeout: 10000 })
+  
+  // Should still be on the new shipment page
+  await expect(page).toHaveURL(/\/shipments\/new/)
+})

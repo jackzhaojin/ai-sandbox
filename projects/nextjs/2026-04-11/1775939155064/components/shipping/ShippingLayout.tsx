@@ -17,6 +17,7 @@ interface ShippingLayoutProps {
     showBackButton?: boolean
     backHref?: string
     onSaveDraft?: () => void
+    isSavingDraft?: boolean
   }
   navigationProps?: {
     onNext?: () => void | Promise<void>
@@ -47,6 +48,7 @@ export function ShippingLayout({
           showBackButton={headerProps.showBackButton ?? true}
           backHref={headerProps.backHref ?? '/'}
           onSaveDraft={headerProps.onSaveDraft}
+          isSavingDraft={headerProps.isSavingDraft}
           shipmentId={shipmentId}
         />
 

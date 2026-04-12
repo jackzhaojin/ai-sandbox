@@ -38,8 +38,10 @@ type ExtendedFormData = ShipmentStep1FormData & z.infer<typeof packageConfigSche
 export default function NewShipmentPage() {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [sameAsOrigin, setSameAsOrigin] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [saveMessage, setSaveMessage] = useState<string | null>(null)
 
   // Special handling state (managed separately since it's a complex nested object)
   const [specialHandlingData, setSpecialHandlingData] = useState<SpecialHandlingSectionData>({
@@ -129,15 +131,92 @@ export default function NewShipmentPage() {
     },
   })
 
-  const handleSaveDraft = () => {
+  const handleSaveDraft = async () => {
     const formData = watch()
-    console.log('Saving draft:', { ...formData, specialHandling: specialHandlingData })
-    alert('Draft saved (placeholder)')
+    setIsSavingDraft(true)
+    setSubmitError(null)
+    setSaveMessage(null)
+
+    try {
+      // Call API to create shipment as draft
+      const response = await fetch('/api/shipments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          origin: {
+            name: formData.originName,
+            company: formData.originCompany,
+            line1: formData.originLine1,
+            line2: formData.originLine2,
+            city: formData.originCity,
+            state: formData.originState,
+            postalCode: formData.originPostal,
+            country: formData.originCountry,
+            locationType: formData.originLocationType,
+            phone: formData.originPhone,
+            extension: formData.originExtension,
+            email: formData.originEmail,
+          },
+          destination: {
+            name: formData.destinationName,
+            company: formData.destinationCompany,
+            line1: formData.destinationLine1,
+            line2: formData.destinationLine2,
+            city: formData.destinationCity,
+            state: formData.destinationState,
+            postalCode: formData.destinationPostal,
+            country: formData.destinationCountry,
+            locationType: formData.destinationLocationType,
+            phone: formData.destinationPhone,
+            extension: formData.destinationExtension,
+            email: formData.destinationEmail,
+          },
+          package: {
+            type: formData.packageTypeId,
+            length: formData.length,
+            width: formData.width,
+            height: formData.height,
+            dimensionUnit: formData.dimensionUnit,
+            weight: formData.weight,
+            weightUnit: formData.weightUnit,
+            declaredValue: formData.declaredValue,
+            currency: formData.currency,
+            contentsDescription: formData.contentsDescription,
+          },
+          specialHandling: specialHandlingData.specialHandling.selectedOptions,
+          specialHandlingFee: specialHandlingData.specialHandling.totalFee,
+          deliveryPreferences: specialHandlingData.deliveryPreferences.selectedOptions,
+          deliveryFee: specialHandlingData.deliveryPreferences.totalFee,
+          hazmatDetails: specialHandlingData.hazmatDetails,
+          multiPiece: specialHandlingData.multiPiece,
+          saveAsDraft: true,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to save draft')
+      }
+
+      const result = await response.json()
+      setSaveMessage(`Draft saved successfully! Tracking: ${result.trackingNumber}`)
+      
+      // Clear message after 3 seconds
+      setTimeout(() => setSaveMessage(null), 3000)
+    } catch (error) {
+      console.error('Failed to save draft:', error)
+      setSubmitError(error instanceof Error ? error.message : 'Failed to save draft. Please try again.')
+    } finally {
+      setIsSavingDraft(false)
+    }
   }
 
   const onSubmit = async (data: ExtendedFormData) => {
     setIsSubmitting(true)
     setSubmitError(null)
+    setSaveMessage(null)
 
     try {
       // Call API to create shipment
@@ -193,7 +272,7 @@ export default function NewShipmentPage() {
           deliveryFee: specialHandlingData.deliveryPreferences.totalFee,
           hazmatDetails: specialHandlingData.hazmatDetails,
           multiPiece: specialHandlingData.multiPiece,
-          status: 'draft',
+          saveAsDraft: false,
         }),
       })
 
@@ -252,11 +331,12 @@ export default function NewShipmentPage() {
         showBackButton: true,
         backHref: '/',
         onSaveDraft: handleSaveDraft,
+        isSavingDraft,
       }}
       navigationProps={{
         onNext: handleSubmit(onSubmit),
         isNextLoading: isSubmitting,
-        isNextDisabled: isSubmitting,
+        isNextDisabled: isSubmitting || isSavingDraft,
         nextLabel: 'Continue to Rates',
         showPrevious: false,
       }}
@@ -275,6 +355,12 @@ export default function NewShipmentPage() {
           </div>
         )}
 
+        {saveMessage && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-sm text-green-600">{saveMessage}</p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit(onSubmit)}>
           <OriginSection control={control} errors={errors} setValue={setValue} />
           
@@ -290,7 +376,7 @@ export default function NewShipmentPage() {
           <PackageConfigurationSection
             value={packageConfigValue}
             onChange={handlePackageConfigChange}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isSavingDraft}
             errors={{
               packageTypeId: errors.packageTypeId?.message,
               length: errors.length?.message,
@@ -306,7 +392,7 @@ export default function NewShipmentPage() {
             value={specialHandlingData}
             onChange={handleSpecialHandlingChange}
             packageConfig={packageConfigValue}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isSavingDraft}
           />
         </form>
       </div>

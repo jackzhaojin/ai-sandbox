@@ -16,6 +16,7 @@ interface HeaderProps {
   showBackButton?: boolean
   backHref?: string
   onSaveDraft?: () => void
+  isSavingDraft?: boolean
   shipmentId?: string
 }
 
@@ -23,6 +24,7 @@ export function Header({
   showBackButton = true,
   backHref = '/',
   onSaveDraft,
+  isSavingDraft = false,
   shipmentId,
 }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -60,10 +62,20 @@ export function Header({
             {onSaveDraft && (
               <button
                 onClick={onSaveDraft}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={isSavingDraft}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Save className="w-4 h-4" />
-                Save Draft
+                {isSavingDraft ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Draft
+                  </>
+                )}
               </button>
             )}
             <Link
@@ -105,10 +117,20 @@ export function Header({
                   onSaveDraft()
                   setIsMobileMenuOpen(false)
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                disabled={isSavingDraft}
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Save className="w-4 h-4" />
-                Save Draft
+                {isSavingDraft ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Draft
+                  </>
+                )}
               </button>
             )}
             <Link
