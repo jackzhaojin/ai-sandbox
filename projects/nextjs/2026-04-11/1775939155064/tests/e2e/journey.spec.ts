@@ -611,3 +611,146 @@ test('Gate 5: Recalculate button regenerates quotes', async ({ page }) => {
   // Verify quotes are still displayed after recalculation
   await expect(page.getByText(/PEX|VC|EFL/i).first()).toBeVisible()
 })
+
+// ============================================
+// GATE 5: Step 3 - Payment & Billing Page
+// Tests for steps 18-19: Payment method selection and billing information
+// ============================================
+
+test('Gate 5: Payment page loads with 5 B2B payment methods', async ({ page }) => {
+  // Complete Step 1, pricing page, and navigate to payment
+  await completePriorSteps(page, { through: 3 })
+  
+  await page.waitForTimeout(500)
+  
+  // Submit the form to get to pricing
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  
+  // Wait for pricing page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pricing/, { timeout: 10000 })
+  await expect(page.getByRole('heading', { name: /Select Shipping Rate/i })).toBeVisible({ timeout: 10000 })
+  
+  // Wait for quotes to load and select first option
+  await expect(page.getByText(/Generating quotes/i)).not.toBeVisible({ timeout: 15000 })
+  const firstCard = page.getByRole('radio').first()
+  await expect(firstCard).toBeVisible({ timeout: 10000 })
+  await firstCard.click()
+  
+  // Continue to payment
+  const continueButton = page.getByRole('button', { name: /Select Rate & Continue/i })
+  await expect(continueButton).toBeEnabled({ timeout: 5000 })
+  await continueButton.click()
+  
+  // Wait for navigation to payment page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/payment/, { timeout: 10000 })
+  
+  // Verify payment page header
+  await expect(page.getByRole('heading', { name: /Payment & Billing/i })).toBeVisible({ timeout: 10000 })
+  
+  // Verify all 5 B2B payment methods are displayed (using role button to avoid duplicate text matches)
+  await expect(page.getByRole('button', { name: /Purchase Order/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Bill of Lading/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Third-Party/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Net Terms/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Corporate Account/i })).toBeVisible()
+  
+  // Verify tab navigation
+  await expect(page.getByRole('button', { name: /Payment Method/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Billing Information/i })).toBeVisible()
+})
+
+test('Gate 5: Payment method selection shows correct form', async ({ page }) => {
+  // Navigate to payment page
+  await completePriorSteps(page, { through: 3 })
+  
+  await page.waitForTimeout(500)
+  
+  // Submit the form to get to pricing
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  
+  // Wait for pricing page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pricing/, { timeout: 10000 })
+  await expect(page.getByText(/Generating quotes/i)).not.toBeVisible({ timeout: 15000 })
+  
+  // Select a rate
+  const firstCard = page.getByRole('radio').first()
+  await expect(firstCard).toBeVisible({ timeout: 10000 })
+  await firstCard.click()
+  
+  // Continue to payment
+  const continueButton = page.getByRole('button', { name: /Select Rate & Continue/i })
+  await expect(continueButton).toBeEnabled({ timeout: 5000 })
+  await continueButton.click()
+  
+  // Wait for payment page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/payment/, { timeout: 10000 })
+  await expect(page.getByRole('heading', { name: /Payment & Billing/i })).toBeVisible({ timeout: 10000 })
+  
+  // Select Purchase Order payment method (using role button to avoid duplicate text matches)
+  await page.getByRole('button', { name: /Purchase Order/i }).click()
+  
+  // Verify Purchase Order form appears with required fields
+  await expect(page.getByLabel(/PO Number/i)).toBeVisible()
+  await expect(page.getByLabel(/PO Amount/i)).toBeVisible()
+  await expect(page.getByLabel(/Expiration Date/i)).toBeVisible()
+  await expect(page.getByLabel(/Approval Contact/i)).toBeVisible()
+  await expect(page.getByLabel(/Department/i)).toBeVisible()
+})
+
+test('Gate 5: Billing information section renders all fields', async ({ page }) => {
+  // Navigate to payment page
+  await completePriorSteps(page, { through: 3 })
+  
+  await page.waitForTimeout(500)
+  
+  // Submit the form to get to pricing
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  
+  // Wait for pricing page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pricing/, { timeout: 10000 })
+  await expect(page.getByText(/Generating quotes/i)).not.toBeVisible({ timeout: 15000 })
+  
+  // Select a rate
+  const firstCard = page.getByRole('radio').first()
+  await expect(firstCard).toBeVisible({ timeout: 10000 })
+  await firstCard.click()
+  
+  // Continue to payment
+  const continueButton = page.getByRole('button', { name: /Select Rate & Continue/i })
+  await expect(continueButton).toBeEnabled({ timeout: 5000 })
+  await continueButton.click()
+  
+  // Wait for payment page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/payment/, { timeout: 10000 })
+  await expect(page.getByRole('heading', { name: /Payment & Billing/i })).toBeVisible({ timeout: 10000 })
+  
+  // Click on Billing Information tab
+  await page.getByRole('button', { name: /Billing Information/i }).click()
+  
+  // Verify Billing Address section
+  await expect(page.getByRole('heading', { name: /Billing Address/i })).toBeVisible()
+  await expect(page.getByLabel(/Street Address/i).first()).toBeVisible()
+  await expect(page.getByLabel(/City/i).first()).toBeVisible()
+  await expect(page.getByLabel(/ZIP Code/i).first()).toBeVisible()
+  
+  // Verify Billing Contact section
+  await expect(page.getByRole('heading', { name: /Billing Contact/i })).toBeVisible()
+  await expect(page.getByLabel(/Contact Name/i)).toBeVisible()
+  await expect(page.getByLabel(/Job Title/i)).toBeVisible()
+  await expect(page.getByLabel(/Phone Number/i)).toBeVisible()
+  await expect(page.getByLabel(/Email Address/i)).toBeVisible()
+  
+  // Verify Company Information section
+  await expect(page.getByRole('heading', { name: /Company Information/i })).toBeVisible()
+  await expect(page.getByLabel(/Legal Company Name/i)).toBeVisible()
+  await expect(page.getByLabel(/Business Type/i)).toBeVisible()
+  await expect(page.getByLabel(/Industry/i)).toBeVisible()
+  
+  // Verify Invoice Preferences section
+  await expect(page.getByRole('heading', { name: /Invoice Preferences/i })).toBeVisible()
+  // Delivery method uses radio cards with specific labels, not input labels
+  await expect(page.getByText(/Email/).first()).toBeVisible()
+  await expect(page.getByText(/Postal Mail/).first()).toBeVisible()
+  await expect(page.getByLabel(/Invoice Format/i)).toBeVisible()
+  await expect(page.getByLabel(/Invoice Frequency/i)).toBeVisible()
+})
