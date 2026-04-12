@@ -523,24 +523,50 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  * GET /api/shipments
  * 
  * Retrieves a list of shipments (paginated).
+ * Supports filtering by status and sorting.
+ * Query params:
+ * - limit: number (max 100)
+ * - offset: number
+ * - status: string (filter by status)
+ * - sort: string (e.g., 'submitted_at:desc' or 'created_at:desc')
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { searchParams } = new URL(request.url)
     const limit = Math.min(parseInt(searchParams.get('limit') || '10', 10), 100)
     const offset = parseInt(searchParams.get('offset') || '0', 10)
+    const statusFilter = searchParams.get('status')
+    const sortParam = searchParams.get('sort') || 'created_at:desc'
+
+    // Parse sort parameter (e.g., 'submitted_at:desc' -> { column: 'submitted_at', ascending: false })
+    const [sortColumn, sortDirection] = sortParam.split(':')
+    const sortAscending = sortDirection !== 'desc'
 
     const orgId = await getOrganizationId()
     
     if (!orgId) {
-      const mockList = Array.from(mockShipments.values()).slice(offset, offset + limit)
+      let mockList = Array.from(mockShipments.values())
+      
+      // Apply status filter if provided
+      if (statusFilter) {
+        mockList = mockList.filter((s: { status?: string }) => s.status === statusFilter)
+      }
+      
+      // Sort mock data
+      mockList.sort((a: { created_at?: string }, b: { created_at?: string }) => {
+        const aVal = a.created_at || ''
+        const bVal = b.created_at || ''
+        return sortAscending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
+      })
+      
+      const paginatedList = mockList.slice(offset, offset + limit)
       return NextResponse.json(
         {
-          shipments: mockList,
+          shipments: paginatedList,
           pagination: {
             limit,
             offset,
-            total: mockShipments.size,
+            total: mockList.length,
           }
         },
         {
@@ -550,12 +576,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       )
     }
 
-    const { data: shipments, error, count } = await supabaseServer
+    // Build query
+    let query = supabaseServer
       .from('shipments')
-      .select('id, tracking_number, status, created_at, sender_address_id, recipient_address_id', { count: 'exact' })
+      .select('id, tracking_number, status, created_at, submitted_at, confirmation_number, sender_address_id, recipient_address_id, carrier_id', { count: 'exact' })
       .eq('organization_id', orgId)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
+
+    // Apply status filter if provided
+    if (statusFilter) {
+      query = query.eq('status', statusFilter)
+    }
+
+    // Apply sorting
+    const orderColumn = sortColumn === 'submitted_at' ? 'submitted_at' : 'created_at'
+    query = query.order(orderColumn, { ascending: sortAscending })
+
+    // Apply pagination
+    query = query.range(offset, offset + limit - 1)
+
+    const { data: shipments, error, count } = await query
 
     if (error) {
       console.error('Error fetching shipments:', error)

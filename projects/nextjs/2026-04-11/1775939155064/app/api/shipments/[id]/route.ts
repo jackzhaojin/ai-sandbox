@@ -18,6 +18,12 @@ const supabaseServer = createClient(supabaseUrl, supabaseServiceKey, {
 interface ShipmentResponse {
   id: string
   status: string
+  confirmation_number?: string
+  tracking_number?: string
+  submitted_at?: string
+  estimated_delivery?: string
+  label_status?: string
+  tracking_available_at?: string
   origin: {
     city: string
     state: string
@@ -114,6 +120,12 @@ export async function GET(
       .select(`
         id,
         status,
+        confirmation_number,
+        tracking_number,
+        submitted_at,
+        estimated_delivery,
+        label_status,
+        tracking_available_at,
         package_type,
         weight,
         length,
@@ -413,6 +425,12 @@ export async function GET(
     const response: ShipmentResponse = {
       id: shipment.id,
       status: shipment.status,
+      confirmation_number: shipment.confirmation_number,
+      tracking_number: shipment.tracking_number,
+      submitted_at: shipment.submitted_at,
+      estimated_delivery: shipment.estimated_delivery,
+      label_status: shipment.label_status,
+      tracking_available_at: shipment.tracking_available_at,
       origin: {
         city: senderAddress?.city || 'Unknown',
         state: senderAddress?.state || 'XX',

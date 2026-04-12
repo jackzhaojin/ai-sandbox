@@ -632,8 +632,8 @@ export default function ReviewPage() {
         throw new Error(data.error || 'Failed to submit shipment')
       }
 
-      // Navigate to confirmation page with tracking number
-      router.push(`/shipments/${shipmentId}/confirm?tracking=${data.trackingNumber}`)
+      // Navigate to confirmation page
+      router.push(`/shipments/${shipmentId}/confirmation`)
     } catch (err) {
       console.error('Submission error:', err)
       setError(err instanceof Error ? err.message : 'Failed to submit shipment')
