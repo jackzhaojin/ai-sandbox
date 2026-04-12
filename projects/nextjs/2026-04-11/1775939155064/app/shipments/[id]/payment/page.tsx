@@ -34,7 +34,7 @@ import {
   paymentMethodSelectionSchema,
   SUPPORTED_COUNTRIES,
 } from '@/lib/validation'
-import { DollarSign, Truck, Package, Building2, User, FileText, CheckCircle } from 'lucide-react'
+import { DollarSign, Truck, Package, Building2, User, FileText, CheckCircle, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { z } from 'zod'
 import { ErrorAlert } from '@/components/ui/ErrorAlert'

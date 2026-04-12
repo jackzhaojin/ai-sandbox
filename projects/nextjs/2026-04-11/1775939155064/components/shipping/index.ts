@@ -26,7 +26,6 @@ export {
 // Re-export types
 export type { PackageConfigurationData } from "./PackageConfigurationSection"
 export type { 
-  SpecialHandlingSectionData,
   SpecialHandlingData,
   SpecialHandlingOption,
 } from "./SpecialHandlingSelector"

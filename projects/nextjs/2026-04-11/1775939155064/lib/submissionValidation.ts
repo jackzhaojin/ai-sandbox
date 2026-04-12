@@ -288,7 +288,7 @@ export function createValidationContext(
     shipment: {
       id: (data.id as string) || '',
       origin: {
-        line1: (data.origin?.line1 as string) || '',
+        line1: ((data.origin as Record<string, string>)?.line1 as string) || '',
         city: (data.origin?.city as string) || '',
         state: (data.origin?.state as string) || '',
         postal: (data.origin?.postal as string) || '',

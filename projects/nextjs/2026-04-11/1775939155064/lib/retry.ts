@@ -293,5 +293,5 @@ export function withRetryWrapper<T extends (...args: unknown[]) => Promise<unkno
   fn: T,
   options: RetryOptions = {}
 ): (...args: Parameters<T>) => Promise<RetryResult<Awaited<ReturnType<T>>>> {
-  return (...args: Parameters<T>) => withRetry(() => fn(...args), options)
+  return (...args: Parameters<T>) => withRetry(async () => fn(...args) as Awaited<ReturnType<T>>, options)
 }

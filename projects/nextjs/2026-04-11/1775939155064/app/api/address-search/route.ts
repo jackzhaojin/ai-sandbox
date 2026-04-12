@@ -23,7 +23,7 @@ interface AddressSuggestion {
  * Mock Address Database
  * Common US addresses with variety of location types
  */
-const MOCK_ADDRESS_DB: AddressSuggestion[] = [
+const MOCK_ADDRESS_DB = [
   // Commercial addresses
   {
     id: 'addr-1',

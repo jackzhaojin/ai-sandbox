@@ -394,8 +394,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           return {
             shipment_id: shipment.id,
             handling_type: handlingType,
-            fee: body.specialHandlingFee && body.specialHandling.length > 0 
-              ? (body.specialHandlingFee / body.specialHandling.length) 
+            fee: body.specialHandlingFee && body.specialHandling?.length > 0 
+              ? (body.specialHandlingFee / body.specialHandling!.length) 
               : 0,
             instructions: `Selected: ${option}`,
           }
@@ -593,22 +593,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Apply status filter if provided
       if (statusFilter) {
         const statuses = statusFilter.split(',')
-        mockList = mockList.filter((s: { status?: string }) => statuses.includes(s.status || ''))
+        mockList = mockList.filter((s) => statuses.includes((s as { status?: string }).status || ''))
       }
       
       // Apply search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
-        mockList = mockList.filter((s: { trackingNumber?: string; contents?: string }) => 
-          s.trackingNumber?.toLowerCase().includes(query) ||
-          s.contents?.toLowerCase().includes(query)
-        )
+        mockList = mockList.filter((s) => {
+          const item = s as { trackingNumber?: string; contents?: string }
+          return item.trackingNumber?.toLowerCase().includes(query) ||
+            item.contents?.toLowerCase().includes(query)
+        })
       }
       
       // Sort mock data
-      mockList.sort((a: { created_at?: string }, b: { created_at?: string }) => {
-        const aVal = a.created_at || ''
-        const bVal = b.created_at || ''
+      mockList.sort((a, b) => {
+        const aVal = (a as { created_at?: string }).created_at || ''
+        const bVal = (b as { created_at?: string }).created_at || ''
         return sortAscending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
       })
       
