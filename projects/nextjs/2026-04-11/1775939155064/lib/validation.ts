@@ -590,3 +590,259 @@ export const shipmentStep1WithSpecialHandlingSchema = z.intersection(
 )
 
 export type ShipmentStep1WithSpecialHandlingFormData = z.infer<typeof shipmentStep1WithSpecialHandlingSchema>
+
+// ==========================================
+// Payment Method Types
+// ==========================================
+
+export const PAYMENT_METHODS = [
+  "purchase_order",
+  "bill_of_lading", 
+  "third_party",
+  "net_terms",
+  "corporate_account",
+] as const
+
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  purchase_order: "Purchase Order",
+  bill_of_lading: "Bill of Lading",
+  third_party: "Third-Party Billing",
+  net_terms: "Net Terms",
+  corporate_account: "Corporate Account",
+}
+
+export const PAYMENT_METHOD_FEES: Record<PaymentMethod, number> = {
+  purchase_order: 0,
+  bill_of_lading: 0,
+  third_party: 2.5,
+  net_terms: 1.5,
+  corporate_account: 0,
+}
+
+// ==========================================
+// Purchase Order Validation
+// ==========================================
+
+export const purchaseOrderSchema = z.object({
+  poNumber: z
+    .string()
+    .min(1, "PO number is required")
+    .min(3, "PO number must be at least 3 characters")
+    .max(50, "PO number must not exceed 50 characters"),
+  poAmount: z
+    .number()
+    .min(0.01, "PO amount must be greater than 0"),
+  expirationDate: z
+    .string()
+    .min(1, "Expiration date is required")
+    .refine((date) => {
+      const parsed = new Date(date)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      return parsed >= today
+    }, "Expiration date must be today or in the future"),
+  approvalContact: z
+    .string()
+    .min(1, "Approval contact is required")
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must not exceed 100 characters"),
+  department: z
+    .string()
+    .min(1, "Department is required")
+    .min(2, "Department must be at least 2 characters")
+    .max(100, "Department must not exceed 100 characters"),
+}).superRefine((data, ctx) => {
+  // Additional validation: PO amount should be >= shipment total
+  // This is validated at the form level with context
+})
+
+export type PurchaseOrderFormData = z.infer<typeof purchaseOrderSchema>
+
+// ==========================================
+// Bill of Lading Validation
+// ==========================================
+
+export const billOfLadingSchema = z.object({
+  bolNumber: z
+    .string()
+    .min(1, "BOL number is required")
+    .regex(/^BOL-\d{4}-\d{6}$/i, "BOL number must be in format BOL-YYYY-XXXXXX"),
+  bolDate: z
+    .string()
+    .min(1, "BOL date is required")
+    .refine((date) => {
+      const parsed = new Date(date)
+      const today = new Date()
+      today.setHours(23, 59, 59, 999)
+      return parsed <= today
+    }, "BOL date cannot be in the future"),
+  shipperReference: z
+    .string()
+    .max(50, "Shipper reference must not exceed 50 characters")
+    .optional(),
+  freightTerms: z
+    .enum(["prepaid", "collect", "third_party"], {
+      errorMap: () => ({ message: "Freight terms are required" }),
+    }),
+})
+
+export type BillOfLadingFormData = z.infer<typeof billOfLadingSchema>
+
+// ==========================================
+// Third Party Billing Validation
+// ==========================================
+
+export const thirdPartyBillingSchema = z.object({
+  accountNumber: z
+    .string()
+    .min(1, "Account number is required")
+    .min(5, "Account number must be at least 5 characters")
+    .max(50, "Account number must not exceed 50 characters"),
+  companyName: z
+    .string()
+    .min(1, "Company name is required")
+    .min(2, "Company name must be at least 2 characters")
+    .max(100, "Company name must not exceed 100 characters"),
+  contactName: z
+    .string()
+    .min(1, "Contact name is required")
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must not exceed 100 characters"),
+  contactPhone: z
+    .string()
+    .min(1, "Contact phone is required")
+    .regex(/^\+?[\d\s\-\(\)]{10,}$/, "Invalid phone number format"),
+  contactEmail: z
+    .string()
+    .min(1, "Contact email is required")
+    .email("Invalid email address"),
+  authorizationCode: z
+    .string()
+    .max(50, "Authorization code must not exceed 50 characters")
+    .optional(),
+})
+
+export type ThirdPartyBillingFormData = z.infer<typeof thirdPartyBillingSchema>
+
+// ==========================================
+// Net Terms Validation
+// ==========================================
+
+export const NET_TERMS_OPTIONS = [15, 30, 45, 60] as const
+export type NetTermOption = (typeof NET_TERMS_OPTIONS)[number]
+
+export const tradeReferenceSchema = z.object({
+  companyName: z.string().min(1, "Company name is required").min(2, "Must be at least 2 characters"),
+  contactName: z.string().min(1, "Contact name is required").min(2, "Must be at least 2 characters"),
+  phone: z.string().min(1, "Phone is required").regex(/^\+?[\d\s\-\(\)]{10,}$/, "Invalid phone format"),
+  email: z.string().min(1, "Email is required").email("Invalid email"),
+  relationship: z.string().min(1, "Relationship is required"),
+})
+
+export type TradeReferenceFormData = z.infer<typeof tradeReferenceSchema>
+
+export const netTermsSchema = z.object({
+  paymentPeriod: z
+    .number()
+    .refine((val) => NET_TERMS_OPTIONS.includes(val as NetTermOption), {
+      message: "Payment period must be 15, 30, 45, or 60 days",
+    }),
+  creditApplicationFile: z
+    .instanceof(File)
+    .optional()
+    .refine((file) => !file || file.size <= 10 * 1024 * 1024, "File must be 10MB or smaller")
+    .refine(
+      (file) => !file || ["application/pdf", "image/jpeg", "image/png"].includes(file.type),
+      "File must be PDF, JPEG, or PNG"
+    ),
+  creditApplicationUrl: z.string().optional(),
+  tradeReferences: z
+    .array(tradeReferenceSchema)
+    .min(3, "At least 3 trade references are required"),
+  annualRevenue: z
+    .number()
+    .min(1, "Annual revenue is required")
+    .min(0, "Annual revenue must be positive"),
+})
+
+export type NetTermsFormData = z.infer<typeof netTermsSchema>
+
+// ==========================================
+// Corporate Account Validation
+// ==========================================
+
+export const corporateAccountSchema = z.object({
+  accountNumber: z
+    .string()
+    .min(1, "Account number is required")
+    .min(5, "Account number must be at least 5 characters")
+    .max(50, "Account number must not exceed 50 characters"),
+  pin: z
+    .string()
+    .min(1, "PIN is required")
+    .regex(/^\d{4,6}$/, "PIN must be 4-6 digits"),
+})
+
+export type CorporateAccountFormData = z.infer<typeof corporateAccountSchema>
+
+// ==========================================
+// Payment Method Selection Schema
+// ==========================================
+
+export const paymentMethodSelectionSchema = z.object({
+  method: z.enum(PAYMENT_METHODS, {
+    errorMap: () => ({ message: "Please select a payment method" }),
+  }),
+  purchaseOrder: purchaseOrderSchema.optional(),
+  billOfLading: billOfLadingSchema.optional(),
+  thirdParty: thirdPartyBillingSchema.optional(),
+  netTerms: netTermsSchema.optional(),
+  corporateAccount: corporateAccountSchema.optional(),
+}).superRefine((data, ctx) => {
+  // Validate method-specific data based on selected method
+  if (data.method === "purchase_order") {
+    if (!data.purchaseOrder) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Purchase order details are required",
+        path: ["purchaseOrder"],
+      })
+    }
+  } else if (data.method === "bill_of_lading") {
+    if (!data.billOfLading) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Bill of lading details are required",
+        path: ["billOfLading"],
+      })
+    }
+  } else if (data.method === "third_party") {
+    if (!data.thirdParty) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Third-party billing details are required",
+        path: ["thirdParty"],
+      })
+    }
+  } else if (data.method === "net_terms") {
+    if (!data.netTerms) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Net terms details are required",
+        path: ["netTerms"],
+      })
+    }
+  } else if (data.method === "corporate_account") {
+    if (!data.corporateAccount) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Corporate account details are required",
+        path: ["corporateAccount"],
+      })
+    }
+  }
+})
+
+export type PaymentMethodSelectionData = z.infer<typeof paymentMethodSelectionSchema>
