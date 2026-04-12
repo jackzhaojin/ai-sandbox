@@ -28,6 +28,35 @@
       font-size: 14px;
     }
   }
+
+  /* ==============================================================
+     ACCESSIBILITY: Focus Indicators
+     Ensure visible focus ring on all interactive elements
+     ============================================================== */
+  :focus-visible {
+    @apply outline-none ring-2 ring-blue-500 ring-offset-2;
+  }
+
+  /* Skip link styling */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 
+           focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:shadow-lg
+           focus:font-medium focus:text-sm;
+  }
+
+  /* Focus styles for specific elements */
+  a:focus-visible,
+  button:focus-visible,
+  [tabindex]:not([tabindex="-1"]):focus-visible {
+    @apply ring-2 ring-blue-500 ring-offset-2 outline-none;
+  }
+
+  /* Ensure sufficient contrast for form elements */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    @apply ring-2 ring-blue-500 ring-offset-2 border-blue-500;
+  }
 }
 
 @layer components {
@@ -101,6 +130,52 @@
   .show-mobile {
     @apply block md:hidden;
   }
+
+  /* ==============================================================
+     ACCESSIBILITY: Form Error Styles
+     ============================================================== */
+  .form-error {
+    @apply text-sm text-red-600 flex items-center gap-1 mt-1;
+  }
+
+  /* Error state for inputs */
+  .input-error {
+    @apply border-red-500 focus-visible:ring-red-500 focus-visible:border-red-500;
+  }
+
+  /* ==============================================================
+     ACCESSIBILITY: High Contrast Support
+     ============================================================== */
+  @media (prefers-contrast: high) {
+    .card-mobile {
+      @apply border-gray-900;
+    }
+
+    input, textarea, select {
+      @apply border-gray-900;
+    }
+
+    button {
+      @apply border-2;
+    }
+
+    :focus-visible {
+      @apply ring-4 ring-black ring-offset-2;
+    }
+  }
+
+  /* ==============================================================
+     ACCESSIBILITY: Reduced Motion Support
+     ============================================================== */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
 @layer utilities {
@@ -147,5 +222,70 @@
 
   .touch-pan-y {
     touch-action: pan-y;
+  }
+
+  /* ==============================================================
+     ACCESSIBILITY: Screen Reader Utilities
+     ============================================================== */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .sr-only-focusable:not(:focus) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  /* Not visually hidden when focused */
+  .sr-only-focusable:focus {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: inherit;
+    margin: inherit;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  /* ==============================================================
+     ACCESSIBILITY: Color Contrast Utilities
+     Ensures WCAG 2.1 AA compliance (4.5:1 for text)
+     ============================================================== */
+  .text-contrast-high {
+    @apply text-gray-900;
+  }
+
+  .text-contrast-medium {
+    @apply text-gray-700;
+  }
+
+  .text-contrast-low {
+    @apply text-gray-500;
+  }
+
+  /* Error text with sufficient contrast */
+  .text-error-contrast {
+    @apply text-red-700;
+  }
+
+  /* Success text with sufficient contrast */
+  .text-success-contrast {
+    @apply text-green-700;
   }
 }

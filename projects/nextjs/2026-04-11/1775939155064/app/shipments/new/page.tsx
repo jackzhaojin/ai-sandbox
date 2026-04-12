@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useId } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -17,7 +17,8 @@ import {
 } from '@/components/shipping/SpecialHandlingSection'
 import { shipmentStep1Schema, type ShipmentStep1FormData } from '@/lib/validation'
 import { z } from 'zod'
-import { Loader2 } from 'lucide-react'
+import { Loader2, AlertCircle } from 'lucide-react'
+import { useLiveRegion } from '@/lib/accessibility'
 
 // Package configuration schema
 const packageConfigSchema = z.object({
@@ -41,6 +42,8 @@ export default function NewShipmentPage() {
   const searchParams = useSearchParams()
   const editId = searchParams.get('edit')
   const cloneId = searchParams.get('clone')
+  const { announce } = useLiveRegion()
+  const pageId = useId()
   
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSavingDraft, setIsSavingDraft] = useState(false)
@@ -137,6 +140,20 @@ export default function NewShipmentPage() {
     },
   })
 
+  // Announce validation errors to screen readers
+  useEffect(() => {
+    const errorEntries = Object.entries(errors)
+    if (errorEntries.length > 0) {
+      const errorMessages = errorEntries
+        .map(([field, error]) => {
+          const fieldName = field.replace(/([A-Z])/g, ' $1').toLowerCase()
+          return `${fieldName}: ${error?.message}`
+        })
+        .join('. ')
+      announce(`Form validation failed. ${errorMessages}`, 'assertive')
+    }
+  }, [errors, announce])
+
   // Load draft or clone data
   const loadDraftData = useCallback(async (id: string, isClone: boolean) => {
     setIsLoadingDraft(true)
@@ -199,17 +216,21 @@ export default function NewShipmentPage() {
       
       if (isClone) {
         setSaveMessage('Shipment data cloned successfully! You can now modify and create a new shipment.')
+        announce('Shipment data cloned successfully. You can now modify and create a new shipment.', 'polite')
       } else {
         setSaveMessage('Draft loaded successfully!')
+        announce('Draft loaded successfully.', 'polite')
       }
       setTimeout(() => setSaveMessage(null), 3000)
     } catch (err) {
       console.error('Error loading draft:', err)
-      setSubmitError(err instanceof Error ? err.message : 'Failed to load shipment data')
+      const errorMsg = err instanceof Error ? err.message : 'Failed to load shipment data'
+      setSubmitError(errorMsg)
+      announce(`Error loading shipment: ${errorMsg}`, 'assertive')
     } finally {
       setIsLoadingDraft(false)
     }
-  }, [setValue])
+  }, [setValue, announce])
 
   // Load draft or clone data on mount
   useEffect(() => {
@@ -291,12 +312,15 @@ export default function NewShipmentPage() {
 
       const result = await response.json()
       setSaveMessage(`Draft saved successfully! Tracking: ${result.trackingNumber}`)
+      announce(`Draft saved successfully. Tracking number: ${result.trackingNumber}`, 'polite')
       
       // Clear message after 3 seconds
       setTimeout(() => setSaveMessage(null), 3000)
     } catch (error) {
       console.error('Failed to save draft:', error)
-      setSubmitError(error instanceof Error ? error.message : 'Failed to save draft. Please try again.')
+      const errorMsg = error instanceof Error ? error.message : 'Failed to save draft. Please try again.'
+      setSubmitError(errorMsg)
+      announce(`Error saving draft: ${errorMsg}`, 'assertive')
     } finally {
       setIsSavingDraft(false)
     }
@@ -372,11 +396,15 @@ export default function NewShipmentPage() {
 
       const result = await response.json()
       
+      announce('Shipment created successfully. Redirecting to rates page.', 'polite')
+      
       // Navigate to pricing page with the created shipment ID
       router.push(`/shipments/${result.id}/pricing`)
     } catch (error) {
       console.error('Failed to create shipment:', error)
-      setSubmitError(error instanceof Error ? error.message : 'Failed to create shipment. Please try again.')
+      const errorMsg = error instanceof Error ? error.message : 'Failed to create shipment. Please try again.'
+      setSubmitError(errorMsg)
+      announce(`Error creating shipment: ${errorMsg}`, 'assertive')
     } finally {
       setIsSubmitting(false)
     }
@@ -429,8 +457,13 @@ export default function NewShipmentPage() {
           showPrevious: false,
         }}
       >
-        <div className="flex flex-col items-center justify-center py-16">
-          <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
+        <div 
+          className="flex flex-col items-center justify-center py-16"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" aria-hidden="true" />
           <p className="text-gray-600">Loading shipment data...</p>
         </div>
       </ShippingLayout>
@@ -468,19 +501,55 @@ export default function NewShipmentPage() {
           </p>
         </div>
 
+        {/* Error Alert */}
         {submitError && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600">{submitError}</p>
+          <div 
+            className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg"
+            role="alert"
+            aria-live="assertive"
+          >
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <div>
+                <h2 className="text-sm font-medium text-red-800">Error</h2>
+                <p className="text-sm text-red-600 mt-1">{submitError}</p>
+              </div>
+            </div>
           </div>
         )}
 
+        {/* Success Message */}
         {saveMessage && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-sm text-green-600">{saveMessage}</p>
+          <div 
+            className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg"
+            role="status"
+            aria-live="polite"
+          >
+            <p className="text-sm text-green-700">{saveMessage}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)}>
+        {/* Form Error Summary */}
+        {Object.keys(errors).length > 0 && (
+          <div 
+            className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg"
+            role="alert"
+            aria-live="assertive"
+          >
+            <h2 className="text-sm font-medium text-red-800 mb-2">
+              Please correct the following errors:
+            </h2>
+            <ul className="list-disc list-inside text-sm text-red-600 space-y-1">
+              {Object.entries(errors).map(([field, error]) => (
+                <li key={field}>
+                  {field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}: {error?.message}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <OriginSection control={control} errors={errors} setValue={setValue} />
           
           <DestinationSection

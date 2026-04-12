@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
-import { Box, AlertCircle } from "lucide-react"
+import { useState, useEffect, useCallback, useRef, useId } from "react"
+import { Box, AlertCircle, Info } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { PresetSelector, type PresetConfig } from "./PresetSelector"
 import { PackageTypeSelector, packageTypes, type PackageType } from "./PackageTypeSelector"
 import { DimensionsInput, type DimensionUnit } from "./DimensionsInput"
 import { WeightInput, type WeightUnit } from "./WeightInput"
 import { DeclaredValueInput, type CurrencyCode } from "./DeclaredValueInput"
+import { useLiveRegion } from "@/lib/accessibility"
 
 export interface PackageConfigurationData {
   presetId?: string
@@ -71,6 +72,10 @@ export function PackageConfigurationSection({
   disabled,
   errors,
 }: PackageConfigurationSectionProps) {
+  const { announce } = useLiveRegion()
+  const sectionId = useId()
+  const errorSummaryId = `${sectionId}-errors`
+  
   // Initialize with defaults or provided values
   const [data, setData] = useState<PackageConfigurationData>({
     presetId: value?.presetId,
@@ -129,6 +134,18 @@ export function PackageConfigurationSection({
     }
   }, [data, onChange])
 
+  // Announce errors to screen readers
+  useEffect(() => {
+    const errorCount = Object.values(errors || {}).filter(Boolean).length
+    if (errorCount > 0) {
+      const errorMessages = Object.entries(errors || {})
+        .filter(([, error]) => error)
+        .map(([field, error]) => `${field}: ${error}`)
+        .join('. ')
+      announce(`Form has ${errorCount} errors. ${errorMessages}`, "assertive")
+    }
+  }, [errors, announce])
+
   const updateData = useCallback((updates: Partial<PackageConfigurationData>) => {
     setData((prev) => ({ ...prev, ...updates }))
   }, [])
@@ -168,11 +185,14 @@ export function PackageConfigurationSection({
       weight: newWeight,
       declaredValue: preset.declaredValue,
     })
+    
+    announce(`Preset selected: ${preset.name}. Dimensions and weight updated.`, "polite")
   }
 
   // Handle package type selection
   const handlePackageTypeChange = (packageType: PackageType) => {
     updateData({ packageTypeId: packageType.id })
+    announce(`Package type selected: ${packageType.name}`, "polite")
   }
 
   // Handle dimension changes
@@ -206,22 +226,45 @@ export function PackageConfigurationSection({
 
   // Convert weight to lbs for comparison
   const weightInLbs = data.weightUnit === "lbs" ? data.weight : kgToLbs(data.weight)
+  
+  // Calculate error count for summary
+  const errorCount = Object.values(errors || {}).filter(Boolean).length
 
   return (
-    <div className="border-b border-gray-200 pb-6 mb-6">
-      <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-        <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold">
+    <section 
+      className="border-b border-gray-200 pb-6 mb-6"
+      aria-labelledby={`${sectionId}-heading`}
+      aria-describedby={errorCount > 0 ? errorSummaryId : undefined}
+    >
+      <h2 
+        id={`${sectionId}-heading`}
+        className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"
+      >
+        <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold" aria-hidden="true">
           2
         </span>
-        <Box className="h-5 w-5 text-blue-600" />
+        <Box className="h-5 w-5 text-blue-600" aria-hidden="true" />
         Package Configuration
       </h2>
+
+      {/* Error Summary for Screen Readers */}
+      {errorCount > 0 && (
+        <div 
+          id={errorSummaryId}
+          role="alert"
+          aria-live="assertive"
+          className="sr-only"
+        >
+          Package configuration has {errorCount} errors. Please review the form.
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* Preset Selector */}
         <PresetSelector
           onSelect={handlePresetSelect}
           selectedId={data.presetId}
+          aria-label="Select a package preset"
         />
 
         {/* Package Type Selector */}
@@ -230,13 +273,9 @@ export function PackageConfigurationSection({
             value={data.packageTypeId}
             onChange={handlePackageTypeChange}
             disabled={disabled}
+            error={errors?.packageTypeId}
+            aria-label="Select package type"
           />
-          {errors?.packageTypeId && (
-            <p className="text-xs text-red-600 flex items-center gap-1 mt-2">
-              <AlertCircle className="h-3 w-3" />
-              {errors.packageTypeId}
-            </p>
-          )}
         </div>
 
         {/* Dimensions and Weight Row */}
@@ -287,11 +326,15 @@ export function PackageConfigurationSection({
         {/* Contents Description */}
         <div className="pt-4 border-t border-gray-100">
           <div className="space-y-1.5">
-            <label htmlFor="contents-description" className="text-sm font-medium text-gray-700">
-              Contents Description
+            <label htmlFor={`${sectionId}-contents`} className="text-sm font-medium text-gray-700">
+              Contents Description <span className="text-red-600" aria-hidden="true">*</span>
+              <span className="sr-only">(required)</span>
             </label>
+            <p id={`${sectionId}-contents-help`} className="text-sm text-gray-500">
+              Describe what&apos;s inside the package for customs and insurance purposes.
+            </p>
             <textarea
-              id="contents-description"
+              id={`${sectionId}-contents`}
               rows={3}
               placeholder="Describe what's inside the package (e.g., 'Office supplies and documents')"
               value={data.contentsDescription}
@@ -301,17 +344,20 @@ export function PackageConfigurationSection({
                 "flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
                 errors?.contentsDescription && "border-red-500 focus-visible:ring-red-500"
               )}
+              aria-invalid={!!errors?.contentsDescription}
+              aria-describedby={`${sectionId}-contents-help ${errors?.contentsDescription ? `${sectionId}-contents-error` : ''}`}
+              aria-required="true"
             />
             {errors?.contentsDescription && (
-              <p className="text-xs text-red-600 flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
+              <p id={`${sectionId}-contents-error`} className="text-xs text-red-600 flex items-center gap-1" role="alert">
+                <AlertCircle className="h-3 w-3" aria-hidden="true" />
                 {errors.contentsDescription}
               </p>
             )}
           </div>
         </div>
       </div>
-    </div>
+    </section>
   )
 }
 
