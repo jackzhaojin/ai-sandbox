@@ -3667,3 +3667,269 @@ test('Gate 11 Checkpoint 11: Complete end-to-end journey with accessibility and 
   console.log(`   - Error handling: verified`)
   console.log(`   - Data persistence: verified`)
 })
+
+
+// ============================================
+// STEP 45: Complete 6-Step End-to-End Journey Verification
+// Comprehensive test of the entire B2B Postal Checkout flow
+// ============================================
+
+test('Step 45: Complete 6-step journey from new shipment to confirmation', async ({ page }) => {
+  console.log('🚀 Starting complete 6-step journey test...')
+  
+  // ===== STEP 1: Create New Shipment =====
+  console.log('📦 Step 1: Filling shipment details...')
+  await page.goto('/')
+  await expect(page).toHaveTitle(/B2B Postal Checkout/)
+  await page.getByRole('link', { name: /Create New Shipment/i }).click()
+  await expect(page).toHaveURL(/\/shipments\/new/)
+  await expect(page.getByRole('heading', { name: /Create New Shipment/i })).toBeVisible()
+  
+  // Fill origin address
+  await page.getByLabel(/Street Address/i).first().fill('123 Commerce St')
+  await page.getByLabel(/City/i).first().fill('Austin')
+  await page.getByLabel(/ZIP Code/i).first().fill('78701')
+  await page.getByLabel(/Contact Name/i).first().fill('Alice Sender')
+  await page.getByLabel(/Company Name/i).first().fill('Sender Corp')
+  await page.getByLabel(/Phone Number/i).first().fill('512-555-0100')
+  await page.getByLabel(/Email Address/i).first().fill('alice@sender.com')
+  await page.getByRole('combobox', { name: /State\/Province/i }).first().click()
+  await page.getByRole('option', { name: 'Texas' }).click()
+  
+  // Fill destination address
+  await page.getByLabel(/Street Address/i).nth(1).fill('456 Delivery Ave')
+  await page.getByLabel(/City/i).nth(1).fill('Dallas')
+  await page.getByLabel(/ZIP Code/i).nth(1).fill('75201')
+  await page.getByLabel(/Contact Name/i).nth(1).fill('Bob Recipient')
+  await page.getByLabel(/Company Name/i).nth(1).fill('Recipient Inc')
+  await page.getByLabel(/Phone Number/i).nth(1).fill('214-555-0200')
+  await page.getByLabel(/Email Address/i).nth(1).fill('bob@recipient.com')
+  await page.getByRole('combobox', { name: /State\/Province/i }).nth(1).click()
+  await page.getByRole('option', { name: 'Texas' }).click()
+  
+  // Fill package configuration
+  await page.getByRole('button', { name: /Medium Box/i }).click()
+  await page.getByLabel(/Length/i).fill('14')
+  await page.getByLabel(/Width/i).fill('12')
+  await page.getByLabel(/Height/i).fill('10')
+  await page.getByLabel(/Actual Weight/i).fill('8.5')
+  await page.getByLabel(/Declared Value/i).fill('250')
+  await page.getByLabel(/Contents Description/i).fill('Electronics and accessories')
+  
+  // Submit Step 1
+  await page.waitForTimeout(500)
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  
+  // ===== STEP 2: Select Shipping Rate =====
+  console.log('💰 Step 2: Selecting shipping rate...')
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pricing/, { timeout: 10000 })
+  await expect(page.getByRole('heading', { name: /Select Shipping Rate/i })).toBeVisible({ timeout: 10000 })
+  
+  // Wait for quotes to load
+  await expect(page.getByText(/Generating quotes/i)).not.toBeVisible({ timeout: 15000 })
+  await expect(page.getByText(/PEX|VC|EFL/i).first()).toBeVisible({ timeout: 10000 })
+  
+  // Extract shipment ID
+  const pricingUrl = page.url()
+  const shipmentIdMatch = pricingUrl.match(/\/shipments\/([a-zA-Z0-9-]+)\/pricing/)
+  expect(shipmentIdMatch).toBeTruthy()
+  const shipmentId = shipmentIdMatch![1]
+  console.log(`   Shipment ID: ${shipmentId}`)
+  
+  // Verify shipment was created with valid UUID
+  expect(shipmentId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+  
+  // Select first available rate
+  const firstCard = page.getByRole('radio').first()
+  await expect(firstCard).toBeVisible({ timeout: 10000 })
+  await firstCard.click()
+  await expect(firstCard).toHaveAttribute('aria-checked', 'true')
+  
+  // Continue to payment
+  const continueToPayment = page.getByRole('button', { name: /Select Rate & Continue/i })
+  await expect(continueToPayment).toBeEnabled({ timeout: 5000 })
+  await continueToPayment.click()
+  
+  // ===== STEP 3: Payment & Billing =====
+  console.log('💳 Step 3: Setting up payment...')
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/payment/, { timeout: 10000 })
+  await expect(page.getByRole('heading', { name: /Payment & Billing/i })).toBeVisible({ timeout: 10000 })
+  
+  // Verify all 5 B2B payment methods are available
+  await expect(page.getByRole('button', { name: /Purchase Order/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Bill of Lading/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Third-Party/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Net Terms/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Corporate Account/i })).toBeVisible()
+  
+  // Select Purchase Order
+  await page.getByRole('button', { name: /Purchase Order/i }).click()
+  await expect(page.getByLabel(/PO Number/i)).toBeVisible()
+  
+  // Fill PO details
+  await page.getByLabel(/PO Number/i).fill('PO-2024-E2E-001')
+  await page.getByLabel(/PO Amount/i).fill('5000')
+  const futureDate = new Date()
+  futureDate.setMonth(futureDate.getMonth() + 6)
+  await page.getByLabel(/Expiration Date/i).fill(futureDate.toISOString().split('T')[0])
+  await page.getByLabel(/Approval Contact/i).fill('Charlie Approver')
+  await page.getByLabel(/Department/i).fill('Procurement')
+  
+  // Switch to Billing tab
+  await page.getByRole('button', { name: /Billing Information/i }).click()
+  
+  // Fill billing address
+  await page.getByLabel(/Street Address/i).first().fill('789 Billing Blvd')
+  await page.getByLabel(/City/i).first().fill('Houston')
+  await page.getByLabel(/ZIP Code/i).first().fill('77001')
+  await page.getByRole('combobox', { name: /State\/Province/i }).first().click()
+  await page.getByRole('option', { name: 'Texas' }).click()
+  
+  // Fill billing contact
+  const contactSection = page.locator('div:has-text("Billing Contact")').first()
+  await contactSection.getByLabel(/Contact Name/i).fill('David Billing')
+  await contactSection.getByLabel(/Job Title/i).fill('Finance Director')
+  await contactSection.getByLabel(/Phone Number/i).fill('713-555-0300')
+  await contactSection.getByLabel(/Email Address/i).fill('billing@sender.com')
+  
+  // Fill company info
+  await page.getByLabel(/Legal Company Name/i).fill('Sender Corporation LLC')
+  
+  // Continue to pickup
+  await page.getByRole('button', { name: /Continue to Pickup/i }).click()
+  
+  // ===== STEP 4: Schedule Pickup =====
+  console.log('📅 Step 4: Scheduling pickup...')
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pickup/, { timeout: 15000 })
+  await expect(page.getByRole('heading', { name: /Schedule Pickup/i })).toBeVisible({ timeout: 10000 })
+  
+  // Select date from calendar
+  await page.waitForTimeout(1000)
+  const calendarButtons = page.locator('div.grid-cols-7 button:not([disabled])')
+  const dateCount = await calendarButtons.count()
+  expect(dateCount).toBeGreaterThan(0)
+  await calendarButtons.nth(5).click()
+  
+  // Select time slot
+  await expect(page.getByText(/Select a Time Window/i).first()).toBeVisible({ timeout: 10000 })
+  const availableSlot = page.locator('button').filter({ hasText: /Available/ }).first()
+  await availableSlot.click()
+  
+  // Select ready time
+  await expect(page.getByText(/Package Ready Time/i)).toBeVisible({ timeout: 5000 })
+  await page.getByRole('combobox').selectOption({ index: 2 })
+  
+  // Select location type
+  const groundLevelRadio = page.getByRole('radio', { name: /Ground Level/i })
+  await groundLevelRadio.scrollIntoViewIfNeeded()
+  await groundLevelRadio.click({ force: true })
+  
+  // Select loading assistance
+  const equipmentHeading = page.getByRole('heading', { name: /Equipment & Loading/i }).first()
+  await equipmentHeading.click()
+  await page.waitForTimeout(500)
+  
+  const customerLoadRadio = page.getByRole('radio', { name: /Customer Will Load/i })
+  await customerLoadRadio.scrollIntoViewIfNeeded()
+  await customerLoadRadio.click({ force: true })
+  
+  // Fill contact information
+  const contactHeading = page.getByRole('heading', { name: /Contact Information/i }).first()
+  await contactHeading.click()
+  await page.waitForTimeout(500)
+  
+  await page.getByPlaceholder(/e\.g\., John Smith/i).scrollIntoViewIfNeeded()
+  await page.getByPlaceholder(/e\.g\., John Smith/i).fill('Eve Pickup')
+  await page.getByPlaceholder(/e\.g\., Shipping Manager/i).fill('Warehouse Supervisor')
+  await page.getByPlaceholder(/\(555\) 123-4567/i).fill('512-555-0400')
+  await page.getByPlaceholder(/john\.smith@company\.com/i).fill('pickup@sender.com')
+  
+  await page.getByPlaceholder(/e\.g\., Jane Doe/i).scrollIntoViewIfNeeded()
+  await page.getByPlaceholder(/e\.g\., Jane Doe/i).fill('Frank Backup')
+  await page.getByPlaceholder(/\(555\) 456-7890/i).fill('512-555-0500')
+  
+  // Continue to review
+  await page.getByRole('button', { name: /Continue to Review/i }).click()
+  
+  // ===== STEP 5: Review Shipment =====
+  console.log('👁️  Step 5: Reviewing shipment...')
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/review/, { timeout: 15000 })
+  await expect(page.getByRole('heading', { name: /Review Shipment/i })).toBeVisible({ timeout: 10000 })
+  
+  // Verify all 6 review sections are displayed
+  await expect(page.getByRole('heading', { name: /Origin/i }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Destination/i }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Package/i }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Pricing & Rates/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Payment/i }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Pickup Schedule/i })).toBeVisible()
+  
+  // Verify Edit buttons are present
+  const editButtons = page.getByRole('link', { name: /Edit/i })
+  expect(await editButtons.count()).toBeGreaterThanOrEqual(6)
+  
+  // Verify Terms & Conditions section
+  await expect(page.getByRole('heading', { name: /Terms & Conditions/i })).toBeVisible()
+  
+  // Verify Confirm Shipment button is disabled until terms are accepted
+  const confirmButton = page.getByRole('button', { name: /Confirm Shipment/i })
+  await expect(confirmButton).toBeDisabled()
+  
+  // Accept all terms
+  await page.locator('#declaredValueAccurate').check({ force: true })
+  await page.locator('#insuranceUnderstood').check({ force: true })
+  await page.locator('#contentsCompliant').check({ force: true })
+  await page.locator('#carrierAuthorized').check({ force: true })
+  
+  // Button should now be enabled
+  await expect(confirmButton).toBeEnabled()
+  
+  // Submit shipment
+  await confirmButton.click()
+  
+  // ===== STEP 6: Confirmation =====
+  console.log('✅ Step 6: Confirmation...')
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/confirmation/, { timeout: 15000 })
+  
+  // Verify confirmation page loaded
+  await expect(page.getByText(/Shipment Confirmed/i)).toBeVisible({ timeout: 10000 })
+  await expect(page.getByText(/Confirmation Number/i)).toBeVisible()
+  
+  // Verify QR code is displayed
+  await expect(page.getByText(/Scan to track|QR Code/i)).toBeVisible()
+  
+  // Verify action buttons
+  await expect(page.getByRole('button', { name: /Add Insurance/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Change Address/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Hold at Location/i })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Schedule Another/i })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Repeat This Shipment/i })).toBeVisible()
+  
+  // ===== VERIFICATION: Database persistence =====
+  console.log('🔍 Verifying data persistence...')
+  const shipmentResponse = await page.request.get(`/api/shipments/${shipmentId}`)
+  expect(shipmentResponse.status()).toBe(200)
+  
+  const shipmentData = await shipmentResponse.json()
+  expect(shipmentData.id).toBe(shipmentId)
+  expect(shipmentData.status).toBe('confirmed')
+  expect(shipmentData.confirmation_number).toBeDefined()
+  expect(shipmentData.confirmation_number).toMatch(/^SHK-\d{4}-\d{6}$/)
+  
+  // Verify origin data
+  expect(shipmentData.origin).toBeDefined()
+  expect(shipmentData.origin.city).toBe('Austin')
+  
+  // Verify destination data
+  expect(shipmentData.destination).toBeDefined()
+  expect(shipmentData.destination.city).toBe('Dallas')
+  
+  console.log('')
+  console.log('🎉 STEP 45 COMPLETE: Full 6-step journey verified!')
+  console.log(`   Shipment ID: ${shipmentId}`)
+  console.log(`   Confirmation: ${shipmentData.confirmation_number}`)
+  console.log(`   Origin: Austin, TX → Destination: Dallas, TX`)
+  console.log(`   Payment Method: Purchase Order`)
+  console.log(`   All data persisted to Supabase postal_v2 schema`)
+  console.log('')
+})
