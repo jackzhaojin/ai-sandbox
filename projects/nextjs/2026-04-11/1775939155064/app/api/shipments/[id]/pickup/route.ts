@@ -303,11 +303,19 @@ export async function POST(
 
     if (existingSlot) {
       pickupSlotId = existingSlot.id
-      // Increment booked count
-      await supabaseServer
+      // Increment booked count using raw SQL increment
+      const { data: slotData } = await supabaseServer
         .from('pickup_slots')
-        .update({ booked_count: supabaseServer.rpc('increment_booked_count', { slot_id: pickupSlotId }) })
+        .select('booked_count')
         .eq('id', pickupSlotId)
+        .single()
+      
+      if (slotData) {
+        await supabaseServer
+          .from('pickup_slots')
+          .update({ booked_count: (slotData.booked_count || 0) + 1 })
+          .eq('id', pickupSlotId)
+      }
     } else {
       // Create a new pickup slot
       const { data: newSlot, error: createSlotError } = await supabaseServer
@@ -503,16 +511,46 @@ export async function POST(
     }
 
     // Update shipment status and current step
-    const { error: updateError } = await supabaseServer
-      .from('shipments')
-      .update({
-        status: 'pending_payment',
-        current_step: 5,
-      })
-      .eq('id', shipmentId)
+    // Note: current_step column may not exist if migrations haven't been applied
+    const updateData: Record<string, unknown> = {
+      status: 'pending_payment',
+    }
+    
+    // Try to update with current_step, but handle case where column doesn't exist
+    try {
+      const { error: updateError } = await supabaseServer
+        .from('shipments')
+        .update({
+          ...updateData,
+          current_step: 5,
+        })
+        .eq('id', shipmentId)
 
-    if (updateError) {
-      console.error('Error updating shipment:', updateError)
+      if (updateError) {
+        // If current_step column doesn't exist, try updating without it
+        if (updateError.message?.includes('current_step')) {
+          const { error: simpleUpdateError } = await supabaseServer
+            .from('shipments')
+            .update(updateData)
+            .eq('id', shipmentId)
+          
+          if (simpleUpdateError) {
+            console.error('Error updating shipment (simple):', simpleUpdateError)
+            return NextResponse.json(
+              { error: 'Failed to update shipment status' },
+              { status: 500 }
+            )
+          }
+        } else {
+          console.error('Error updating shipment:', updateError)
+          return NextResponse.json(
+            { error: 'Failed to update shipment status' },
+            { status: 500 }
+          )
+        }
+      }
+    } catch (error) {
+      console.error('Exception updating shipment:', error)
       return NextResponse.json(
         { error: 'Failed to update shipment status' },
         { status: 500 }
