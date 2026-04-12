@@ -283,8 +283,8 @@ export default function NewShipmentPage() {
 
       const result = await response.json()
       
-      // Navigate to rates page with the created shipment ID
-      router.push(`/shipments/${result.id}/rates`)
+      // Navigate to pricing page with the created shipment ID
+      router.push(`/shipments/${result.id}/pricing`)
     } catch (error) {
       console.error('Failed to create shipment:', error)
       setSubmitError(error instanceof Error ? error.message : 'Failed to create shipment. Please try again.')

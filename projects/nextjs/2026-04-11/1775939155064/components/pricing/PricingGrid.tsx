@@ -137,6 +137,12 @@ export function PricingGrid({
   // Generate unique quote ID
   const getQuoteId = (quote: QuoteResult) =>
     `${quote.carrier.code}-${quote.serviceType.code}`
+  
+  // Check if quote has a DB id (for API-fetched quotes)
+  const getQuoteDBId = (quote: QuoteResult) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (quote as any).id || getQuoteId(quote)
+  }
 
   // Handle sort change
   const handleSortChange = (newSort: SortOption) => {

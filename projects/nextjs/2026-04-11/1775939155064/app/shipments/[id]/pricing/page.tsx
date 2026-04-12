@@ -8,7 +8,7 @@ import {
   ShipmentSummaryBar,
   type QuoteResult,
 } from "@/components/pricing"
-import { Loader2, RefreshCw } from "lucide-react"
+import { Loader2, RefreshCw, ArrowLeft } from "lucide-react"
 
 interface ShipmentDetails {
   id: string
@@ -69,14 +69,14 @@ interface QuoteFromAPI {
   }
 }
 
-export default function RatesPage() {
+export default function PricingPage() {
   const params = useParams()
   const router = useRouter()
   const shipmentId = params.id as string
 
   const [quotes, setQuotes] = useState<QuoteResult[]>([])
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
-  const [quoteIdMap, setQuoteIdMap] = useState<Record<string, string>>({})
+  const [selectedQuoteDBId, setSelectedQuoteDBId] = useState<string | null>(null)
   const [shipmentDetails, setShipmentDetails] = useState<ShipmentDetails | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -89,10 +89,14 @@ export default function RatesPage() {
       const response = await fetch(`/api/shipments/${shipmentId}/packages`)
       
       if (!response.ok) {
+        // If API doesn't exist, we'll use mock data
         return null
       }
 
       const data = await response.json()
+      
+      // Transform API response to ShipmentDetails format
+      // For now, use the package data but we'll need to get addresses from somewhere else
       const pkg = data.packages?.[0]
       
       return {
@@ -107,6 +111,7 @@ export default function RatesPage() {
         specialHandling: [],
       } as ShipmentDetails
     } catch {
+      // API might not exist yet
       return null
     }
   }, [shipmentId])
@@ -121,49 +126,57 @@ export default function RatesPage() {
         throw new Error(data.error || "Failed to fetch quotes")
       }
 
-      const transformedQuotes: QuoteResult[] = data.quotes.map((q: QuoteFromAPI) => ({
-        carrier: {
-          id: q.carrier_id,
-          code: q.carriers?.code || "pex",
-          name: q.carriers?.name || "Carrier",
-          displayName: q.carriers?.display_name || "Carrier",
-        },
-        serviceType: {
-          id: q.service_type_id,
-          code: q.service_types?.code || "ground",
-          name: q.service_types?.name || "Ground",
-          category: q.service_types?.category || "ground",
-        },
-        transitDays: {
-          min: q.service_types?.transit_days_min || 1,
-          max: q.service_types?.transit_days_max || 5,
-        },
-        pricing: {
-          distance: 500,
-          zone: 3,
-          billableWeight: 5.5,
-          actualWeight: 5.5,
-          dimWeight: 4.2,
-          baseRate: q.base_rate,
-          fuelSurcharge: q.fee_breakdown?.fuel_surcharge || 0,
-          fuelSurchargePercent: q.calculation_basis?.fuel_surcharge_percent || 0.15,
-          insurance: q.fee_breakdown?.insurance || 0,
-          insuranceRate: q.calculation_basis?.insurance_rate || 0.004,
-          specialHandlingFees: q.fee_breakdown?.special_handling_details || [],
-          specialHandlingTotal: q.fee_breakdown?.special_handling || 0,
-          deliveryConfirmationFees: q.fee_breakdown?.delivery_confirmation_details || [],
-          deliveryConfirmationTotal: q.fee_breakdown?.delivery_confirmation || 0,
-          tax: q.fee_breakdown?.tax || 0,
-          taxRate: q.calculation_basis?.tax_rate || 0.085,
-          total: q.total_cost,
-          currency: "USD",
-        },
-        carbonFootprint: {
-          kg: q.calculation_basis?.carbon_footprint_kg || 0.5,
-          calculation: "Standard calculation",
-        },
-        expiresAt: q.estimated_delivery || new Date(Date.now() + 3600000).toISOString(),
-      }))
+      // Transform API response to QuoteResult format
+      const transformedQuotes: QuoteResult[] = data.quotes.map((q: QuoteFromAPI) => {
+        // Check if this quote is selected
+        if (q.is_selected) {
+          setSelectedQuoteDBId(q.id)
+        }
+
+        return {
+          carrier: {
+            id: q.carrier_id,
+            code: q.carriers?.code || "pex",
+            name: q.carriers?.name || "Carrier",
+            displayName: q.carriers?.display_name || "Carrier",
+          },
+          serviceType: {
+            id: q.service_type_id,
+            code: q.service_types?.code || "ground",
+            name: q.service_types?.name || "Ground",
+            category: q.service_types?.category || "ground",
+          },
+          transitDays: {
+            min: q.service_types?.transit_days_min || 1,
+            max: q.service_types?.transit_days_max || 5,
+          },
+          pricing: {
+            distance: 500,
+            zone: 3,
+            billableWeight: 5.5,
+            actualWeight: 5.5,
+            dimWeight: 4.2,
+            baseRate: q.base_rate,
+            fuelSurcharge: q.fee_breakdown?.fuel_surcharge || 0,
+            fuelSurchargePercent: q.calculation_basis?.fuel_surcharge_percent || 0.15,
+            insurance: q.fee_breakdown?.insurance || 0,
+            insuranceRate: q.calculation_basis?.insurance_rate || 0.004,
+            specialHandlingFees: q.fee_breakdown?.special_handling_details || [],
+            specialHandlingTotal: q.fee_breakdown?.special_handling || 0,
+            deliveryConfirmationFees: q.fee_breakdown?.delivery_confirmation_details || [],
+            deliveryConfirmationTotal: q.fee_breakdown?.delivery_confirmation || 0,
+            tax: q.fee_breakdown?.tax || 0,
+            taxRate: q.calculation_basis?.tax_rate || 0.085,
+            total: q.total_cost,
+            currency: "USD",
+          },
+          carbonFootprint: {
+            kg: q.calculation_basis?.carbon_footprint_kg || 0.5,
+            calculation: "Standard calculation",
+          },
+          expiresAt: q.estimated_delivery || new Date(Date.now() + 3600000).toISOString(),
+        }
+      })
 
       setQuotes(transformedQuotes)
       
@@ -198,8 +211,10 @@ export default function RatesPage() {
         throw new Error(data.error || "Failed to generate quotes")
       }
 
+      // Use generated quotes directly
       setQuotes(data.quotes as QuoteResult[])
 
+      // Store shipment details from response
       if (data.shipmentDetails) {
         setShipmentDetails(data.shipmentDetails as ShipmentDetails)
       }
@@ -214,18 +229,22 @@ export default function RatesPage() {
     }
   }, [shipmentId])
 
-  // Initial load
+  // Initial load - fetch quotes and shipment details
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true)
       setError(null)
 
       try {
+        // First try to fetch existing quotes
         const { hasQuotes } = await fetchQuotes()
+
+        // If no quotes exist, generate them
         if (!hasQuotes) {
           await generateQuotes()
         }
 
+        // Fetch shipment details
         const details = await fetchShipmentDetails()
         if (details) {
           setShipmentDetails(details)
@@ -240,12 +259,15 @@ export default function RatesPage() {
     loadData()
   }, [fetchQuotes, generateQuotes, fetchShipmentDetails])
 
-  // Handle quote selection
+  // Store mapping of frontend quote IDs to DB quote IDs
+  const [quoteIdMap, setQuoteIdMap] = useState<Record<string, string>>({})
+
+  // Handle quote selection (UI only - just track the selection)
   const handleSelectQuote = (quoteId: string) => {
     setSelectedQuoteId(quoteId)
   }
 
-  // Handle continue to payment
+  // Handle continue to payment - persist selection to database
   const handleContinue = async () => {
     if (!selectedQuoteId) return
 
@@ -255,7 +277,7 @@ export default function RatesPage() {
     try {
       let quoteDBId: string | null = null
       
-      // Check if we already have the DB ID from the quoteIdMap
+      // First, check if we already have the DB ID from the quoteIdMap
       if (quoteIdMap[selectedQuoteId]) {
         quoteDBId = quoteIdMap[selectedQuoteId]
       } else {
@@ -266,6 +288,7 @@ export default function RatesPage() {
             const data = await response.json()
             const quotesFromDB: QuoteFromAPI[] = data.quotes || []
             
+            // Build a map and find the selected quote
             const newIdMap: Record<string, string> = {}
             quotesFromDB.forEach((q: QuoteFromAPI) => {
               const frontendId = `${q.carriers?.code || 'unknown'}-${q.service_types?.code || 'unknown'}`
@@ -293,29 +316,33 @@ export default function RatesPage() {
 
         if (!selectResponse.ok) {
           const selectData = await selectResponse.json()
-          console.warn("Select API failed:", selectData.error)
+          throw new Error(selectData.error || "Failed to select quote")
         }
       }
 
-      // Navigate to payment page
+      // Navigate to payment page (even if select API failed, continue the flow)
       router.push(`/shipments/${shipmentId}/payment`)
     } catch (err) {
       console.error("Error selecting quote:", err)
-      // Continue to payment even if selection fails
-      router.push(`/shipments/${shipmentId}/payment`)
+      // Show error but still navigate to allow flow to continue
+      setError(err instanceof Error ? err.message : "Failed to select quote")
+      setTimeout(() => {
+        router.push(`/shipments/${shipmentId}/payment`)
+      }, 2000)
     } finally {
       setIsSelecting(false)
     }
   }
 
-  // Handle recalculate
+  // Handle recalculate - regenerate quotes
   const handleRecalculate = async () => {
     setError(null)
     await generateQuotes()
   }
 
-  // Handle back button
+  // Handle back button - go back to Step 1
   const handleBack = () => {
+    // Navigate back to step 1 with shipment ID for editing
     router.push(`/shipments/new?edit=${shipmentId}`)
   }
 
@@ -411,6 +438,7 @@ export default function RatesPage() {
             </div>
           </div>
         ) : (
+          /* Pricing grid */
           <PricingGrid
             quotes={quotes}
             selectedQuoteId={selectedQuoteId}
