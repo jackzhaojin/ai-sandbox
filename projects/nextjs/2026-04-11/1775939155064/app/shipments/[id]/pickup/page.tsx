@@ -19,7 +19,7 @@ import {
   NotificationPreferencesForm,
   PickupGuidelinesSidebar,
 } from '@/components/pickup'
-import { Truck, Package, MapPin, Calendar, Clock, AlertCircle, Loader2, Building2, Shield, PackageCheck, HandHelping, MessageSquare, User, Bell, Users } from 'lucide-react'
+import { Truck, Package, MapPin, Calendar, Clock, AlertCircle, Loader2, Building2, Shield, PackageCheck, HandHelping, MessageSquare, User, Bell, Users, CheckCircle } from 'lucide-react'
 import type { DateAvailability, TimeSlot, SelectedPickup } from '@/types/pickup'
 import type { PickupLocationType, AccessRequirement, PickupEquipment, LoadingAssistanceType } from '@/types/pickup'
 import type { PrimaryContact, BackupContact, AuthorizedPerson, SpecialAuthorizationDetails, NotificationPreferences } from '@/types/pickup'
@@ -139,7 +139,9 @@ export default function PickupPage() {
   
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [saveMessage, setSaveMessage] = useState<string | null>(null)
 
   // Fetch shipment details and availability
   const fetchData = useCallback(async () => {
@@ -153,6 +155,18 @@ export default function PickupPage() {
         throw new Error('Failed to fetch shipment details')
       }
       const shipmentData = await shipmentRes.json()
+
+      // Step enforcement: if current_step < 4, redirect to appropriate step
+      if (shipmentData.current_step && shipmentData.current_step < 4) {
+        if (shipmentData.current_step === 1) {
+          router.push(`/shipments/new?edit=${shipmentId}`)
+        } else if (shipmentData.current_step === 2) {
+          router.push(`/shipments/${shipmentId}/pricing`)
+        } else if (shipmentData.current_step === 3) {
+          router.push(`/shipments/${shipmentId}/payment`)
+        }
+        return
+      }
 
       setShipmentSummary({
         id: shipmentData.id,
@@ -215,7 +229,7 @@ export default function PickupPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [shipmentId])
+  }, [shipmentId, router])
 
   useEffect(() => {
     fetchData()
@@ -373,6 +387,36 @@ export default function PickupPage() {
     router.push(`/shipments/${shipmentId}/payment`)
   }
 
+  // Handle save as draft
+  const handleSaveDraft = async () => {
+    setIsSavingDraft(true)
+    setError(null)
+    setSaveMessage(null)
+
+    try {
+      const response = await fetch(`/api/shipments/${shipmentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'draft',
+          lastSavedAt: new Date().toISOString(),
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save draft')
+      }
+
+      setSaveMessage('Draft saved successfully!')
+      setTimeout(() => setSaveMessage(null), 3000)
+    } catch (err) {
+      console.error('Error saving draft:', err)
+      setError(err instanceof Error ? err.message : 'Failed to save draft')
+    } finally {
+      setIsSavingDraft(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <ShippingLayout
@@ -399,13 +443,15 @@ export default function PickupPage() {
       headerProps={{
         showBackButton: true,
         backHref: `/shipments/${shipmentId}/payment`,
+        onSaveDraft: handleSaveDraft,
+        isSavingDraft,
       }}
       navigationProps={{
         onNext: handleContinue,
         onPrevious: handleBack,
         nextLabel: isSaving ? 'Saving...' : 'Continue to Review',
         previousLabel: 'Back to Payment',
-        isNextDisabled: !isFormValid() || isSaving,
+        isNextDisabled: !isFormValid() || isSaving || isSavingDraft,
         isNextLoading: isSaving,
         showPrevious: true,
       }}
@@ -428,6 +474,14 @@ export default function PickupPage() {
               <AlertCircle className="h-4 w-4" />
               {error}
             </p>
+          </div>
+        )}
+
+        {/* Save success message */}
+        {saveMessage && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <p className="text-sm text-green-600">{saveMessage}</p>
           </div>
         )}
 

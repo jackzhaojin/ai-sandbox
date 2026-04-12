@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ShippingLayout } from '@/components/shipping/ShippingLayout'
@@ -17,6 +17,7 @@ import {
 } from '@/components/shipping/SpecialHandlingSection'
 import { shipmentStep1Schema, type ShipmentStep1FormData } from '@/lib/validation'
 import { z } from 'zod'
+import { Loader2 } from 'lucide-react'
 
 // Package configuration schema
 const packageConfigSchema = z.object({
@@ -37,8 +38,13 @@ type ExtendedFormData = ShipmentStep1FormData & z.infer<typeof packageConfigSche
 
 export default function NewShipmentPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const editId = searchParams.get('edit')
+  const cloneId = searchParams.get('clone')
+  
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const [isLoadingDraft, setIsLoadingDraft] = useState(false)
   const [sameAsOrigin, setSameAsOrigin] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
@@ -130,6 +136,89 @@ export default function NewShipmentPage() {
       contentsDescription: '',
     },
   })
+
+  // Load draft or clone data
+  const loadDraftData = useCallback(async (id: string, isClone: boolean) => {
+    setIsLoadingDraft(true)
+    try {
+      const response = await fetch(`/api/shipments/${id}`)
+      if (!response.ok) {
+        throw new Error('Failed to load shipment data')
+      }
+
+      const data = await response.json()
+      
+      // Populate origin fields
+      setValue('originName', data.sender_contact_name || '')
+      setValue('originCompany', data.sender_company || '')
+      setValue('originLine1', data.origin?.line1 || '')
+      setValue('originLine2', data.origin?.line2 || '')
+      setValue('originCity', data.origin?.city || '')
+      setValue('originState', data.origin?.state || '')
+      setValue('originPostal', data.origin?.postal || data.origin?.postalCode || '')
+      setValue('originCountry', data.origin?.country || 'US')
+      setValue('originLocationType', data.origin?.locationType || 'commercial')
+      setValue('originPhone', data.sender_contact_phone || '')
+      setValue('originEmail', data.sender_contact_email || '')
+      
+      // Populate destination fields
+      setValue('destinationName', data.recipient_contact_name || '')
+      setValue('destinationCompany', data.recipient_company || '')
+      setValue('destinationLine1', data.destination?.line1 || '')
+      setValue('destinationLine2', data.destination?.line2 || '')
+      setValue('destinationCity', data.destination?.city || '')
+      setValue('destinationState', data.destination?.state || '')
+      setValue('destinationPostal', data.destination?.postal || data.destination?.postalCode || '')
+      setValue('destinationCountry', data.destination?.country || 'US')
+      setValue('destinationLocationType', data.destination?.locationType || 'commercial')
+      setValue('destinationPhone', data.recipient_contact_phone || '')
+      setValue('destinationEmail', data.recipient_contact_email || '')
+      
+      // Populate package fields
+      setValue('packageTypeId', data.package_type || 'custom')
+      setValue('length', data.length || 0)
+      setValue('width', data.width || 0)
+      setValue('height', data.height || 0)
+      setValue('dimensionUnit', 'in')
+      setValue('weight', data.weight || 0)
+      setValue('weightUnit', 'lbs')
+      setValue('declaredValue', data.declared_value || 0)
+      setValue('currency', data.currency || 'USD')
+      setValue('contentsDescription', data.contents_description || '')
+      
+      // Populate special handling
+      if (data.specialHandling && data.specialHandling.length > 0) {
+        setSpecialHandlingData(prev => ({
+          ...prev,
+          specialHandling: {
+            selectedOptions: data.specialHandling.map((h: { handling_type: string }) => h.handling_type),
+            totalFee: data.specialHandling.reduce((sum: number, h: { fee: number }) => sum + (h.fee || 0), 0),
+          }
+        }))
+      }
+      
+      if (isClone) {
+        setSaveMessage('Shipment data cloned successfully! You can now modify and create a new shipment.')
+      } else {
+        setSaveMessage('Draft loaded successfully!')
+      }
+      setTimeout(() => setSaveMessage(null), 3000)
+    } catch (err) {
+      console.error('Error loading draft:', err)
+      setSubmitError(err instanceof Error ? err.message : 'Failed to load shipment data')
+    } finally {
+      setIsLoadingDraft(false)
+    }
+  }, [setValue])
+
+  // Load draft or clone data on mount
+  useEffect(() => {
+    if (editId) {
+      loadDraftData(editId, false)
+    } else if (cloneId) {
+      loadDraftData(cloneId, true)
+    }
+  }, [editId, cloneId, loadDraftData])
 
   const handleSaveDraft = async () => {
     const formData = watch()
@@ -324,6 +413,30 @@ export default function NewShipmentPage() {
     setSpecialHandlingData(data)
   }
 
+  // Show loading state while loading draft data
+  if (isLoadingDraft) {
+    return (
+      <ShippingLayout
+        step={1}
+        headerProps={{
+          showBackButton: true,
+          backHref: '/',
+        }}
+        navigationProps={{
+          nextLabel: 'Loading...',
+          isNextDisabled: true,
+          isNextLoading: true,
+          showPrevious: false,
+        }}
+      >
+        <div className="flex flex-col items-center justify-center py-16">
+          <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
+          <p className="text-gray-600">Loading shipment data...</p>
+        </div>
+      </ShippingLayout>
+    )
+  }
+
   return (
     <ShippingLayout
       step={1}
@@ -336,16 +449,22 @@ export default function NewShipmentPage() {
       navigationProps={{
         onNext: handleSubmit(onSubmit),
         isNextLoading: isSubmitting,
-        isNextDisabled: isSubmitting || isSavingDraft,
+        isNextDisabled: isSubmitting || isSavingDraft || isLoadingDraft,
         nextLabel: 'Continue to Rates',
         showPrevious: false,
       }}
     >
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Create New Shipment</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {cloneId ? 'Clone Shipment' : editId ? 'Edit Shipment' : 'Create New Shipment'}
+          </h1>
           <p className="text-gray-600 mt-1">
-            Enter the shipment details below. All fields marked with * are required.
+            {cloneId 
+              ? 'Review the cloned shipment details and make any changes before creating a new shipment.'
+              : editId 
+                ? 'Edit your shipment details below. All fields marked with * are required.'
+                : 'Enter the shipment details below. All fields marked with * are required.'}
           </p>
         </div>
 

@@ -8,7 +8,7 @@ import {
   ShipmentSummaryBar,
   type QuoteResult,
 } from "@/components/pricing"
-import { Loader2, RefreshCw, ArrowLeft } from "lucide-react"
+import { Loader2, RefreshCw, ArrowLeft, CheckCircle } from "lucide-react"
 
 interface ShipmentDetails {
   id: string
@@ -81,12 +81,15 @@ export default function PricingPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isSelecting, setIsSelecting] = useState(false)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [saveMessage, setSaveMessage] = useState<string | null>(null)
+  const [currentStep, setCurrentStep] = useState<number>(1)
 
   // Fetch shipment details from API
   const fetchShipmentDetails = useCallback(async () => {
     try {
-      const response = await fetch(`/api/shipments/${shipmentId}/packages`)
+      const response = await fetch(`/api/shipments/${shipmentId}`)
       
       if (!response.ok) {
         // If API doesn't exist, we'll use mock data
@@ -95,26 +98,40 @@ export default function PricingPage() {
 
       const data = await response.json()
       
-      // Transform API response to ShipmentDetails format
-      // For now, use the package data but we'll need to get addresses from somewhere else
-      const pkg = data.packages?.[0]
+      // Store current step for enforcement
+      setCurrentStep(data.current_step || 1)
       
+      // Step enforcement: if current_step < 2, redirect to details page
+      if (data.current_step && data.current_step < 2) {
+        router.push(`/shipments/new?edit=${shipmentId}`)
+        return null
+      }
+      
+      // Transform API response to ShipmentDetails format
       return {
         id: shipmentId,
-        origin: { city: "Austin", state: "TX", postalCode: "78701" },
-        destination: { city: "Dallas", state: "TX", postalCode: "75201" },
+        origin: { 
+          city: data.origin?.city || "Austin", 
+          state: data.origin?.state || "TX", 
+          postalCode: data.origin?.postal || "78701" 
+        },
+        destination: { 
+          city: data.destination?.city || "Dallas", 
+          state: data.destination?.state || "TX", 
+          postalCode: data.destination?.postal || "75201" 
+        },
         package: {
-          type: pkg?.package_type || "box",
-          weight: pkg?.weight || 5.5,
+          type: data.package_type || "box",
+          weight: data.weight || 5.5,
           weightUnit: "lbs",
         },
-        specialHandling: [],
+        specialHandling: data.specialHandling?.map((h: { handling_type: string }) => h.handling_type) || [],
       } as ShipmentDetails
     } catch {
       // API might not exist yet
       return null
     }
-  }, [shipmentId])
+  }, [shipmentId, router])
 
   // Fetch quotes for the shipment from API
   const fetchQuotes = useCallback(async () => {
@@ -346,6 +363,37 @@ export default function PricingPage() {
     router.push(`/shipments/new?edit=${shipmentId}`)
   }
 
+  // Handle save as draft
+  const handleSaveDraft = async () => {
+    setIsSavingDraft(true)
+    setError(null)
+    setSaveMessage(null)
+
+    try {
+      const response = await fetch(`/api/shipments/${shipmentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'draft',
+          lastSavedAt: new Date().toISOString(),
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save draft')
+      }
+
+      setSaveMessage('Draft saved successfully!')
+      // Clear message after 3 seconds
+      setTimeout(() => setSaveMessage(null), 3000)
+    } catch (err) {
+      console.error('Error saving draft:', err)
+      setError(err instanceof Error ? err.message : 'Failed to save draft')
+    } finally {
+      setIsSavingDraft(false)
+    }
+  }
+
   // Build shipment summary data
   const shipmentSummary = shipmentDetails || {
     origin: { city: "Austin", state: "TX", postalCode: "78701" },
@@ -361,13 +409,15 @@ export default function PricingPage() {
       headerProps={{
         showBackButton: true,
         backHref: `/shipments/new?edit=${shipmentId}`,
+        onSaveDraft: handleSaveDraft,
+        isSavingDraft,
       }}
       navigationProps={{
         onNext: handleContinue,
         onPrevious: handleBack,
         nextLabel: isSelecting ? "Selecting..." : "Select Rate & Continue",
         previousLabel: "Back",
-        isNextDisabled: !selectedQuoteId || isLoading || isGenerating || isSelecting,
+        isNextDisabled: !selectedQuoteId || isLoading || isGenerating || isSelecting || isSavingDraft,
         isNextLoading: isGenerating || isSelecting,
         showPrevious: true,
       }}
@@ -389,7 +439,7 @@ export default function PricingPage() {
             {/* Recalculate Button */}
             <button
               onClick={handleRecalculate}
-              disabled={isGenerating}
+              disabled={isGenerating || isSavingDraft}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <RefreshCw className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
@@ -408,6 +458,14 @@ export default function PricingPage() {
             >
               Try again
             </button>
+          </div>
+        )}
+
+        {/* Save success message */}
+        {saveMessage && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <p className="text-sm text-green-600">{saveMessage}</p>
           </div>
         )}
 

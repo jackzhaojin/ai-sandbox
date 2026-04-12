@@ -29,7 +29,7 @@ import type {
   ValidationError,
 } from '@/components/review'
 import { validateSubmission, areTermsAccepted } from '@/lib/submissionValidation'
-import { Loader2, AlertCircle } from 'lucide-react'
+import { Loader2, AlertCircle, CheckCircle } from 'lucide-react'
 
 interface ShipmentDetails {
   id: string
@@ -343,6 +343,7 @@ export default function ReviewPage() {
   const [showValidationErrors, setShowValidationErrors] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const [saveMessage, setSaveMessage] = useState<string | null>(null)
 
   // Fetch shipment details from API
   const fetchShipmentDetails = useCallback(async () => {
@@ -357,6 +358,21 @@ export default function ReviewPage() {
       }
 
       const data = await response.json()
+      
+      // Step enforcement: if current_step < 5, redirect to appropriate step
+      if (data.current_step && data.current_step < 5) {
+        if (data.current_step === 1) {
+          router.push(`/shipments/new?edit=${shipmentId}`)
+        } else if (data.current_step === 2) {
+          router.push(`/shipments/${shipmentId}/pricing`)
+        } else if (data.current_step === 3) {
+          router.push(`/shipments/${shipmentId}/payment`)
+        } else if (data.current_step === 4) {
+          router.push(`/shipments/${shipmentId}/pickup`)
+        }
+        return
+      }
+      
       const transformedData = transformShipmentData(data)
       setShipment(transformedData)
     } catch (err) {
@@ -649,6 +665,7 @@ export default function ReviewPage() {
   // Handle save as draft
   const handleSaveDraft = async () => {
     setIsSavingDraft(true)
+    setSaveMessage(null)
     try {
       const response = await fetch(`/api/shipments/${shipmentId}`, {
         method: 'PATCH',
@@ -665,10 +682,11 @@ export default function ReviewPage() {
       }
 
       // Show success message
-      alert('Draft saved successfully')
+      setSaveMessage('Draft saved successfully!')
+      setTimeout(() => setSaveMessage(null), 3000)
     } catch (err) {
       console.error('Error saving draft:', err)
-      alert('Failed to save draft. Please try again.')
+      setError(err instanceof Error ? err.message : 'Failed to save draft')
     } finally {
       setIsSavingDraft(false)
     }
@@ -767,7 +785,15 @@ export default function ReviewPage() {
           </div>
         )}
 
-        {/* Validation Errors */}
+        {/* Save success message */}
+        {saveMessage && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <p className="text-sm text-green-600">{saveMessage}</p>
+          </div>
+        )}
+
+        {/* Validation Errors --}}
         {showValidationErrors && validationErrors.length > 0 && (
           <ValidationErrors
             errors={validationErrors}

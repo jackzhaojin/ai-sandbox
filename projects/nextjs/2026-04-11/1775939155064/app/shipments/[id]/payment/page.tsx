@@ -34,7 +34,7 @@ import {
   paymentMethodSelectionSchema,
   SUPPORTED_COUNTRIES,
 } from '@/lib/validation'
-import { Loader2, AlertCircle, DollarSign, Truck, Package, Building2, User, FileText } from 'lucide-react'
+import { Loader2, AlertCircle, DollarSign, Truck, Package, Building2, User, FileText, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { z } from 'zod'
 
@@ -143,7 +143,9 @@ export default function PaymentPage() {
   const [shipmentSummary, setShipmentSummary] = useState<ShipmentSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [saveMessage, setSaveMessage] = useState<string | null>(null)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
   const [activeTab, setActiveTab] = useState<'payment' | 'billing'>('payment')
 
@@ -219,6 +221,16 @@ export default function PaymentPage() {
 
       const data = await response.json()
       
+      // Step enforcement: if current_step < 3, redirect to appropriate step
+      if (data.current_step && data.current_step < 3) {
+        if (data.current_step === 1) {
+          router.push(`/shipments/new?edit=${shipmentId}`)
+        } else if (data.current_step === 2) {
+          router.push(`/shipments/${shipmentId}/pricing`)
+        }
+        return
+      }
+      
       setShipmentSummary({
         id: data.id,
         origin: data.origin || { city: 'Unknown', state: 'XX' },
@@ -251,7 +263,7 @@ export default function PaymentPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [shipmentId])
+  }, [shipmentId, router])
 
   useEffect(() => {
     fetchShipmentDetails()
@@ -418,6 +430,36 @@ export default function PaymentPage() {
     router.push(`/shipments/${shipmentId}/pricing`)
   }
 
+  // Handle save as draft
+  const handleSaveDraft = async () => {
+    setIsSavingDraft(true)
+    setError(null)
+    setSaveMessage(null)
+
+    try {
+      const response = await fetch(`/api/shipments/${shipmentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'draft',
+          lastSavedAt: new Date().toISOString(),
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save draft')
+      }
+
+      setSaveMessage('Draft saved successfully!')
+      setTimeout(() => setSaveMessage(null), 3000)
+    } catch (err) {
+      console.error('Error saving draft:', err)
+      setError(err instanceof Error ? err.message : 'Failed to save draft')
+    } finally {
+      setIsSavingDraft(false)
+    }
+  }
+
   // Render the appropriate form based on selected method
   const renderPaymentForm = () => {
     if (!selectedMethod) return null
@@ -501,13 +543,15 @@ export default function PaymentPage() {
       headerProps={{
         showBackButton: true,
         backHref: `/shipments/${shipmentId}/pricing`,
+        onSaveDraft: handleSaveDraft,
+        isSavingDraft,
       }}
       navigationProps={{
         onNext: handleSubmit(onSubmit),
         onPrevious: handleBack,
         nextLabel: isSaving ? 'Saving...' : 'Continue to Pickup',
         previousLabel: 'Back to Rates',
-        isNextDisabled: !selectedMethod || isSaving,
+        isNextDisabled: !selectedMethod || isSaving || isSavingDraft,
         isNextLoading: isSaving,
         showPrevious: true,
       }}
@@ -530,6 +574,14 @@ export default function PaymentPage() {
               <AlertCircle className="h-4 w-4" />
               {error}
             </p>
+          </div>
+        )}
+
+        {/* Save success message */}
+        {saveMessage && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <p className="text-sm text-green-600">{saveMessage}</p>
           </div>
         )}
 
