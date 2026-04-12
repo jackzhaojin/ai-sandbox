@@ -76,6 +76,28 @@ interface ShipmentCreateInput {
   saveAsDraft?: boolean
 }
 
+// Valid shipment statuses for validation
+const VALID_STATUSES = [
+  'draft',
+  'pending_payment',
+  'paid',
+  'label_generated',
+  'picked_up',
+  'in_transit',
+  'delivered',
+  'cancelled'
+]
+
+// Valid sort columns
+const VALID_SORT_COLUMNS = [
+  'created_at',
+  'submitted_at',
+  'updated_at',
+  'status',
+  'tracking_number',
+  'total_cost'
+]
+
 // Try to find or use an existing organization
 async function getOrganizationId(): Promise<string | null> {
   const { data: orgs, error } = await supabaseServer
@@ -522,25 +544,46 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 /**
  * GET /api/shipments
  * 
- * Retrieves a list of shipments (paginated).
- * Supports filtering by status and sorting.
+ * Retrieves a list of shipments with filtering, pagination, and sorting.
+ * 
  * Query params:
- * - limit: number (max 100)
- * - offset: number
- * - status: string (filter by status)
- * - sort: string (e.g., 'submitted_at:desc' or 'created_at:desc')
+ * - limit: number (max 100, default 10)
+ * - offset: number (default 0)
+ * - status: string or string[] (filter by status, comma-separated for multiple)
+ * - status_not: string (exclude this status)
+ * - created_after: ISO date string
+ * - created_before: ISO date string
+ * - search: string (search in tracking_number, contents_description)
+ * - sort: string (e.g., 'created_at:desc', 'submitted_at:asc')
+ * - carrier_id: string (filter by carrier)
+ * - has_tracking: boolean (filter by tracking number presence)
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { searchParams } = new URL(request.url)
+    
+    // Pagination params
     const limit = Math.min(parseInt(searchParams.get('limit') || '10', 10), 100)
     const offset = parseInt(searchParams.get('offset') || '0', 10)
+    
+    // Filter params
     const statusFilter = searchParams.get('status')
+    const statusNot = searchParams.get('status_not')
+    const createdAfter = searchParams.get('created_after')
+    const createdBefore = searchParams.get('created_before')
+    const searchQuery = searchParams.get('search')
+    const carrierId = searchParams.get('carrier_id')
+    const hasTracking = searchParams.get('has_tracking')
+    const minCost = searchParams.get('min_cost')
+    const maxCost = searchParams.get('max_cost')
+    
+    // Sort param
     const sortParam = searchParams.get('sort') || 'created_at:desc'
-
-    // Parse sort parameter (e.g., 'submitted_at:desc' -> { column: 'submitted_at', ascending: false })
     const [sortColumn, sortDirection] = sortParam.split(':')
     const sortAscending = sortDirection !== 'desc'
+
+    // Validate sort column
+    const orderColumn = VALID_SORT_COLUMNS.includes(sortColumn) ? sortColumn : 'created_at'
 
     const orgId = await getOrganizationId()
     
@@ -549,7 +592,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       
       // Apply status filter if provided
       if (statusFilter) {
-        mockList = mockList.filter((s: { status?: string }) => s.status === statusFilter)
+        const statuses = statusFilter.split(',')
+        mockList = mockList.filter((s: { status?: string }) => statuses.includes(s.status || ''))
+      }
+      
+      // Apply search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase()
+        mockList = mockList.filter((s: { trackingNumber?: string; contents?: string }) => 
+          s.trackingNumber?.toLowerCase().includes(query) ||
+          s.contents?.toLowerCase().includes(query)
+        )
       }
       
       // Sort mock data
@@ -567,6 +620,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             limit,
             offset,
             total: mockList.length,
+            hasMore: offset + limit < mockList.length
           }
         },
         {
@@ -576,19 +630,93 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       )
     }
 
-    // Build query
+    // Build query with joins for addresses
     let query = supabaseServer
       .from('shipments')
-      .select('id, tracking_number, status, created_at, submitted_at, confirmation_number, sender_address_id, recipient_address_id, carrier_id', { count: 'exact' })
+      .select(`
+        id, 
+        tracking_number, 
+        status, 
+        created_at, 
+        submitted_at,
+        updated_at,
+        confirmation_number, 
+        sender_address_id, 
+        recipient_address_id, 
+        carrier_id,
+        service_type_id,
+        total_cost,
+        weight,
+        package_type,
+        contents_description,
+        sender_contact_name,
+        recipient_contact_name
+      `, { count: 'exact' })
       .eq('organization_id', orgId)
 
-    // Apply status filter if provided
+    // Apply status filter(s)
     if (statusFilter) {
-      query = query.eq('status', statusFilter)
+      const statuses = statusFilter.split(',').filter(s => VALID_STATUSES.includes(s))
+      if (statuses.length === 1) {
+        query = query.eq('status', statuses[0])
+      } else if (statuses.length > 1) {
+        query = query.in('status', statuses)
+      }
+    }
+
+    // Apply status exclusion
+    if (statusNot && VALID_STATUSES.includes(statusNot)) {
+      query = query.neq('status', statusNot)
+    }
+
+    // Apply date filters
+    if (createdAfter) {
+      const date = new Date(createdAfter)
+      if (!isNaN(date.getTime())) {
+        query = query.gte('created_at', date.toISOString())
+      }
+    }
+
+    if (createdBefore) {
+      const date = new Date(createdBefore)
+      if (!isNaN(date.getTime())) {
+        query = query.lte('created_at', date.toISOString())
+      }
+    }
+
+    // Apply carrier filter
+    if (carrierId) {
+      query = query.eq('carrier_id', carrierId)
+    }
+
+    // Apply tracking number filter
+    if (hasTracking === 'true') {
+      query = query.not('tracking_number', 'is', null)
+    } else if (hasTracking === 'false') {
+      query = query.is('tracking_number', null)
+    }
+
+    // Apply cost range filters
+    if (minCost) {
+      const min = parseFloat(minCost)
+      if (!isNaN(min)) {
+        query = query.gte('total_cost', min)
+      }
+    }
+
+    if (maxCost) {
+      const max = parseFloat(maxCost)
+      if (!isNaN(max)) {
+        query = query.lte('total_cost', max)
+      }
+    }
+
+    // Apply search filter (tracking number or contents)
+    if (searchQuery) {
+      query = query.or(`tracking_number.ilike.%${searchQuery}%,contents_description.ilike.%${searchQuery}%`)
     }
 
     // Apply sorting
-    const orderColumn = sortColumn === 'submitted_at' ? 'submitted_at' : 'created_at'
     query = query.order(orderColumn, { ascending: sortAscending })
 
     // Apply pagination
@@ -599,18 +727,43 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (error) {
       console.error('Error fetching shipments:', error)
       return NextResponse.json(
-        { error: 'Failed to fetch shipments' },
+        { error: 'Failed to fetch shipments', details: error.message },
         { status: 500 }
       )
     }
 
+    // Fetch address details for shipments
+    const shipmentsWithAddresses = await Promise.all(
+      (shipments || []).map(async (shipment) => {
+        const [senderResult, recipientResult] = await Promise.all([
+          supabaseServer
+            .from('addresses')
+            .select('city, state, country')
+            .eq('id', shipment.sender_address_id)
+            .single(),
+          supabaseServer
+            .from('addresses')
+            .select('city, state, country')
+            .eq('id', shipment.recipient_address_id)
+            .single()
+        ])
+
+        return {
+          ...shipment,
+          origin: senderResult.data || { city: 'Unknown', state: 'XX', country: 'US' },
+          destination: recipientResult.data || { city: 'Unknown', state: 'XX', country: 'US' }
+        }
+      })
+    )
+
     return NextResponse.json(
       {
-        shipments,
+        shipments: shipmentsWithAddresses,
         pagination: {
           limit,
           offset,
           total: count || 0,
+          hasMore: offset + limit < (count || 0)
         }
       },
       {
