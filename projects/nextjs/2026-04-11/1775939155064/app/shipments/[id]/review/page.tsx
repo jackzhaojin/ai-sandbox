@@ -11,6 +11,9 @@ import {
   PricingReviewSection,
   PaymentReviewSection,
   PickupReviewSection,
+  TermsAndConditions,
+  ValidationErrors,
+  SubmissionActions,
 } from '@/components/review'
 import type { 
   OriginData, 
@@ -22,7 +25,10 @@ import type {
   PickupData,
   SpecialHandlingItem,
   DeliveryPreferenceItem,
+  TermsAcceptance,
+  ValidationError,
 } from '@/components/review'
+import { validateSubmission, areTermsAccepted } from '@/lib/submissionValidation'
 import { Loader2, AlertCircle } from 'lucide-react'
 
 interface ShipmentDetails {
@@ -275,6 +281,21 @@ export default function ReviewPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Terms and conditions state
+  const [termsAccepted, setTermsAccepted] = useState<TermsAcceptance>({
+    declaredValueAccurate: false,
+    insuranceUnderstood: false,
+    contentsCompliant: false,
+    carrierAuthorized: false,
+    hazmatCertification: false,
+  })
+
+  // Validation state
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([])
+  const [showValidationErrors, setShowValidationErrors] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
+
   // Fetch shipment details from API
   const fetchShipmentDetails = useCallback(async () => {
     setIsLoading(true)
@@ -472,14 +493,123 @@ export default function ReviewPage() {
     fetchShipmentDetails()
   }, [fetchShipmentDetails])
 
+  // Check if hazmat is selected
+  const hasHazmat = shipment?.specialHandling?.some(item => 
+    item.id === 'hazmat' || item.name?.toLowerCase().includes('hazmat')
+  ) ?? false
+
   // Handle continue to confirmation
-  const handleContinue = () => {
-    router.push(`/shipments/${shipmentId}/confirm`)
+  const handleContinue = async () => {
+    if (!shipment) return
+
+    // Validate submission
+    const validationResult = validateSubmission({
+      shipment: {
+        id: shipmentId,
+        origin: {
+          line1: shipment.origin.line1,
+          city: shipment.origin.city,
+          state: shipment.origin.state,
+          postal: shipment.origin.postal,
+        },
+        destination: {
+          line1: shipment.destination.line1,
+          city: shipment.destination.city,
+          state: shipment.destination.state,
+          postal: shipment.destination.postal,
+        },
+        package: {
+          type: shipment.package.type,
+          weight: shipment.package.weight,
+          declaredValue: shipment.package.declaredValue,
+        },
+        specialHandling: shipment.specialHandling.map(item => item.id),
+        selectedRate: {
+          id: shipment.pricing?.carrierName, // Using carrier name as ID for now
+          carrierName: shipment.pricing?.carrierName,
+          total: shipment.pricing?.total,
+        },
+        payment: {
+          method: shipment.payment?.method,
+          poExpirationDate: shipment.payment?.poExpirationDate,
+        },
+        pickup: {
+          selectedPickup: {
+            date: shipment.pickup?.selectedPickup?.date,
+            timeSlot: {
+              timeWindow: shipment.pickup?.selectedPickup?.timeSlot?.timeWindow,
+            },
+          },
+        },
+      },
+      termsAccepted,
+    })
+
+    if (!validationResult.success) {
+      setValidationErrors(validationResult.errors)
+      setShowValidationErrors(true)
+      // Scroll to top to show errors
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+
+    // All validations passed - proceed to submission
+    setIsSubmitting(true)
+    try {
+      // TODO: Call submission endpoint (Step 33)
+      // For now, just navigate to confirmation
+      router.push(`/shipments/${shipmentId}/confirm`)
+    } catch (err) {
+      console.error('Submission error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to submit shipment')
+      setIsSubmitting(false)
+    }
   }
 
   // Handle back to pickup
   const handleBack = () => {
     router.push(`/shipments/${shipmentId}/pickup`)
+  }
+
+  // Handle save as draft
+  const handleSaveDraft = async () => {
+    setIsSavingDraft(true)
+    try {
+      const response = await fetch(`/api/shipments/${shipmentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'draft',
+          terms_accepted: termsAccepted,
+          last_saved_at: new Date().toISOString(),
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save draft')
+      }
+
+      // Show success message
+      alert('Draft saved successfully')
+    } catch (err) {
+      console.error('Error saving draft:', err)
+      alert('Failed to save draft. Please try again.')
+    } finally {
+      setIsSavingDraft(false)
+    }
+  }
+
+  // Handle start over - delete shipment and redirect
+  const handleStartOver = async () => {
+    const response = await fetch(`/api/shipments/${shipmentId}`, {
+      method: 'DELETE',
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to delete shipment')
+    }
+
+    router.push('/shipments/new')
   }
 
   // Calculate estimated delivery date based on pickup date and transit time
@@ -534,9 +664,10 @@ export default function ReviewPage() {
       navigationProps={{
         onNext: handleContinue,
         onPrevious: handleBack,
-        nextLabel: 'Confirm Shipment',
+        nextLabel: isSubmitting ? 'Submitting...' : 'Confirm Shipment',
         previousLabel: 'Back to Pickup',
-        isNextDisabled: false,
+        isNextDisabled: isSubmitting || !areTermsAccepted(termsAccepted, hasHazmat),
+        isNextLoading: isSubmitting,
         showPrevious: true,
       }}
     >
@@ -559,6 +690,17 @@ export default function ReviewPage() {
               {error}
             </p>
           </div>
+        )}
+
+        {/* Validation Errors */}
+        {showValidationErrors && validationErrors.length > 0 && (
+          <ValidationErrors
+            errors={validationErrors}
+            onErrorClick={(error) => {
+              // Additional handling if needed
+              console.log('Clicked error:', error)
+            }}
+          />
         )}
 
         {/* Shipment Summary Card */}
@@ -585,50 +727,87 @@ export default function ReviewPage() {
         <div className="space-y-4">
           {shipment && (
             <>
-              <OriginReviewSection 
-                data={shipment.origin} 
-                shipmentId={shipmentId} 
-              />
+              <div id="origin-section">
+                <OriginReviewSection 
+                  data={shipment.origin} 
+                  shipmentId={shipmentId} 
+                />
+              </div>
               
-              <DestinationReviewSection 
-                data={shipment.destination} 
-                shipmentId={shipmentId} 
-              />
+              <div id="destination-section">
+                <DestinationReviewSection 
+                  data={shipment.destination} 
+                  shipmentId={shipmentId} 
+                />
+              </div>
               
-              <PackageReviewSection 
-                data={shipment.package}
-                specialHandling={shipment.specialHandling}
-                deliveryPreferences={shipment.deliveryPreferences}
-                shipmentId={shipmentId}
-              />
+              <div id="package-section">
+                <PackageReviewSection 
+                  data={shipment.package}
+                  specialHandling={shipment.specialHandling}
+                  deliveryPreferences={shipment.deliveryPreferences}
+                  shipmentId={shipmentId}
+                />
+              </div>
               
-              <PricingReviewSection 
-                data={shipment.pricing}
-                shipmentId={shipmentId}
-              />
+              <div id="pricing-section">
+                <PricingReviewSection 
+                  data={shipment.pricing}
+                  shipmentId={shipmentId}
+                />
+              </div>
               
-              <PaymentReviewSection 
-                payment={shipment.payment}
-                billing={shipment.billing}
-                shipmentId={shipmentId}
-              />
+              <div id="payment-section">
+                <PaymentReviewSection 
+                  payment={shipment.payment}
+                  billing={shipment.billing}
+                  shipmentId={shipmentId}
+                />
+              </div>
               
-              <PickupReviewSection 
-                data={shipment.pickup}
-                shipmentId={shipmentId}
-              />
+              <div id="pickup-section">
+                <PickupReviewSection 
+                  data={shipment.pickup}
+                  shipmentId={shipmentId}
+                />
+              </div>
             </>
           )}
         </div>
+
+        {/* Terms and Conditions */}
+        {shipment && (
+          <div id="terms-section">
+            <TermsAndConditions
+              accepted={termsAccepted}
+              onChange={setTermsAccepted}
+              declaredValue={shipment.package.declaredValue}
+              hasHazmat={hasHazmat}
+            />
+          </div>
+        )}
+
+        {/* Submission Actions */}
+        {shipment && (
+          <SubmissionActions
+            shipmentId={shipmentId}
+            isSubmitting={isSubmitting}
+            isSaving={isSavingDraft}
+            canSubmit={areTermsAccepted(termsAccepted, hasHazmat) && validationErrors.length === 0}
+            onSaveDraft={handleSaveDraft}
+            onSubmit={handleContinue}
+            onStartOver={handleStartOver}
+          />
+        )}
 
         {/* Terms Notice */}
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <p className="text-sm text-gray-600">
             By confirming this shipment, you agree to our{' '}
-            <a href="#" className="text-blue-600 hover:underline">Terms of Service</a>
+            <a href="/terms-and-conditions" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Terms of Service</a>
             {' '}and{' '}
-            <a href="#" className="text-blue-600 hover:underline">Shipping Conditions</a>.
-            Please review our <a href="#" className="text-blue-600 hover:underline">Cancellation Policy</a> for information about refunds and changes.
+            <a href="/shipping-conditions" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Shipping Conditions</a>.
+            Please review our <a href="/cancellation-policy" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Cancellation Policy</a> for information about refunds and changes.
           </p>
         </div>
       </div>
