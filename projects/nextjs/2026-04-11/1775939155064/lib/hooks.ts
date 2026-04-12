@@ -22,11 +22,15 @@ export function useDebounce<T>(value: T, delay: number): T {
 // Address autocomplete hook
 interface AddressSuggestion {
   id: string
-  address: string
+  street: string
+  suite?: string
   city: string
   state: string
-  postalCode: string
+  zip: string
   country: string
+  is_residential: boolean
+  location_type: 'residential' | 'commercial' | 'mixed_use'
+  confidence: number
 }
 
 interface UseAddressAutocompleteOptions {

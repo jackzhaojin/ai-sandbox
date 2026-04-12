@@ -36,11 +36,15 @@ interface AddressInputProps {
 
 interface AddressSuggestion {
   id: string
-  address: string
+  street: string
+  suite?: string
   city: string
   state: string
-  postalCode: string
+  zip: string
   country: string
+  is_residential: boolean
+  location_type: 'residential' | 'commercial' | 'mixed_use'
+  confidence: number
 }
 
 export function AddressInput({ prefix, control, errors, setValue }: AddressInputProps) {
@@ -89,18 +93,31 @@ export function AddressInput({ prefix, control, errors, setValue }: AddressInput
   // Handle suggestion selection
   const handleSuggestionSelect = useCallback(
     (suggestion: AddressSuggestion, onChange: (value: string) => void) => {
-      onChange(suggestion.address)
+      // Set street address (combine street + suite if present)
+      const fullAddress = suggestion.suite 
+        ? `${suggestion.street}, ${suggestion.suite}` 
+        : suggestion.street
+      onChange(fullAddress)
+      setValue(`${prefix}Line1`, suggestion.street)
+      if (suggestion.suite) {
+        setValue(`${prefix}Line2`, suggestion.suite)
+      }
       setValue(`${prefix}City`, suggestion.city)
       setValue(`${prefix}State`, suggestion.state)
-      setValue(`${prefix}Postal`, suggestion.postalCode)
+      setValue(`${prefix}Postal`, suggestion.zip)
       if (suggestion.country) {
         const countryCode = suggestion.country.toUpperCase() as CountryCode
         if (SUPPORTED_COUNTRIES.includes(countryCode)) {
           setValue(`${prefix}Country`, countryCode)
         }
       }
+      // Set location type based on suggestion
+      if (suggestion.location_type) {
+        const locationType = suggestion.location_type === 'residential' ? 'residential' : 'commercial'
+        setValue(`${prefix}LocationType`, locationType)
+      }
       setShowSuggestions(false)
-      setAddressQuery(suggestion.address)
+      setAddressQuery(fullAddress)
     },
     [prefix, setValue]
   )
@@ -152,9 +169,16 @@ export function AddressInput({ prefix, control, errors, setValue }: AddressInput
                       handleSuggestionSelect(suggestion, field.onChange)
                     }
                   >
-                    <div className="font-medium">{suggestion.address}</div>
+                    <div className="font-medium">
+                      {suggestion.street}
+                      {suggestion.suite && <span className="text-gray-600">, {suggestion.suite}</span>}
+                      <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                        {suggestion.location_type === 'residential' ? 'Res' : 'Comm'}
+                      </span>
+                    </div>
                     <div className="text-gray-500 text-xs">
-                      {suggestion.city}, {suggestion.state} {suggestion.postalCode}
+                      {suggestion.city}, {suggestion.state} {suggestion.zip}
+                      <span className="ml-2 text-gray-400">({Math.round(suggestion.confidence * 100)}% match)</span>
                     </div>
                   </button>
                 ))}
