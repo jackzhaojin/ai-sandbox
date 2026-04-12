@@ -846,3 +846,342 @@ export const paymentMethodSelectionSchema = z.object({
 })
 
 export type PaymentMethodSelectionData = z.infer<typeof paymentMethodSelectionSchema>
+
+
+// ==========================================
+// Billing Information Validation
+// ==========================================
+
+// Invoice delivery methods
+export const INVOICE_DELIVERY_METHODS = [
+  "email",
+  "mail",
+  "edi",
+  "portal",
+] as const
+export type InvoiceDeliveryMethod = (typeof INVOICE_DELIVERY_METHODS)[number]
+
+export const INVOICE_DELIVERY_METHOD_LABELS: Record<InvoiceDeliveryMethod, string> = {
+  email: "Email",
+  mail: "Postal Mail",
+  edi: "EDI (Electronic Data Interchange)",
+  portal: "Customer Portal",
+}
+
+// Invoice formats
+export const INVOICE_FORMATS = [
+  "standard",
+  "itemized",
+  "summary",
+  "custom",
+] as const
+export type InvoiceFormat = (typeof INVOICE_FORMATS)[number]
+
+export const INVOICE_FORMAT_LABELS: Record<InvoiceFormat, string> = {
+  standard: "Standard",
+  itemized: "Itemized",
+  summary: "Summary",
+  custom: "Custom",
+}
+
+// Invoice frequencies
+export const INVOICE_FREQUENCIES = [
+  "per_shipment",
+  "weekly",
+  "monthly",
+] as const
+export type InvoiceFrequency = (typeof INVOICE_FREQUENCIES)[number]
+
+export const INVOICE_FREQUENCY_LABELS: Record<InvoiceFrequency, string> = {
+  per_shipment: "Per Shipment",
+  weekly: "Weekly",
+  monthly: "Monthly",
+}
+
+// Business types
+export const BUSINESS_TYPES = [
+  "corporation",
+  "llc",
+  "partnership",
+  "sole_proprietorship",
+  "nonprofit",
+  "government",
+  "cooperative",
+  "trust",
+  "other",
+] as const
+export type BusinessType = (typeof BUSINESS_TYPES)[number]
+
+export const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
+  corporation: "Corporation (C-Corp, S-Corp)",
+  llc: "Limited Liability Company (LLC)",
+  partnership: "Partnership (LP, LLP)",
+  sole_proprietorship: "Sole Proprietorship",
+  nonprofit: "Non-Profit Organization",
+  government: "Government Entity",
+  cooperative: "Cooperative",
+  trust: "Trust/Estate",
+  other: "Other",
+}
+
+// Shipping volume ranges
+export const SHIPPING_VOLUME_RANGES = [
+  "1-100",
+  "101-500",
+  "501-1000",
+  "1001-5000",
+  "5001-10000",
+  "10001-50000",
+  "50001+",
+] as const
+export type ShippingVolumeRange = (typeof SHIPPING_VOLUME_RANGES)[number]
+
+// Billing address schema (reuses base address fields with billing prefix)
+export const billingAddressSchema = z.object({
+  billingLine1: z
+    .string()
+    .min(1, "Street address is required")
+    .min(5, "Street address must be at least 5 characters")
+    .max(100, "Street address must not exceed 100 characters"),
+  billingLine2: z
+    .string()
+    .max(50, "Suite/Apt must not exceed 50 characters")
+    .optional(),
+  billingCity: z
+    .string()
+    .min(1, "City is required")
+    .min(2, "City must be at least 2 characters")
+    .max(50, "City must not exceed 50 characters"),
+  billingState: z.string().min(1, "State/Province is required"),
+  billingPostal: z.string().min(1, "ZIP/Postal code is required"),
+  billingCountry: z.enum(SUPPORTED_COUNTRIES, {
+    errorMap: () => ({ message: "Country must be US, CA, or MX" }),
+  }),
+  billingLocationType: z.enum(LOCATION_TYPES, {
+    errorMap: () => ({ message: "Location type is required" }),
+  }),
+  sameAsOrigin: z.boolean().optional(),
+})
+
+// Billing contact schema
+export const billingContactSchema = z.object({
+  billingContactName: z
+    .string()
+    .min(1, "Contact name is required")
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must not exceed 100 characters"),
+  billingContactTitle: z
+    .string()
+    .min(1, "Job title is required")
+    .min(2, "Title must be at least 2 characters")
+    .max(100, "Title must not exceed 100 characters"),
+  billingContactPhone: z
+    .string()
+    .min(1, "Phone number is required")
+    .regex(/^\+?[\d\s\-\(\)]{10,}$/, "Invalid phone number format"),
+  billingContactEmail: z
+    .string()
+    .min(1, "Email is required")
+    .email("Invalid email address"),
+  billingContactDepartment: z
+    .string()
+    .max(100, "Department must not exceed 100 characters")
+    .optional(),
+  billingGLCode: z
+    .string()
+    .max(50, "GL code must not exceed 50 characters")
+    .optional(),
+  billingTaxId: z
+    .string()
+    .max(50, "Tax ID must not exceed 50 characters")
+    .optional()
+    .refine((val) => {
+      if (!val) return true
+      // EIN format: XX-XXXXXXX or XXXXXXXXX
+      return /^\d{2}-?\d{7}$/.test(val) || /^\d{9}$/.test(val)
+    }, "Tax ID must be a valid EIN format (XX-XXXXXXX or XXXXXXXXX)"),
+})
+
+// Company info schema
+export const companyInfoSchema = z.object({
+  companyLegalName: z
+    .string()
+    .min(1, "Legal company name is required")
+    .min(2, "Name must be at least 2 characters")
+    .max(200, "Name must not exceed 200 characters"),
+  companyDBA: z
+    .string()
+    .max(200, "DBA must not exceed 200 characters")
+    .optional(),
+  companyBusinessType: z.enum(BUSINESS_TYPES, {
+    errorMap: () => ({ message: "Business type is required" }),
+  }),
+  companyIndustry: z
+    .string()
+    .min(1, "Industry is required"),
+  companyShippingVolume: z
+    .enum(SHIPPING_VOLUME_RANGES)
+    .optional(),
+})
+
+// Invoice preferences schema
+export const invoicePreferencesSchema = z.object({
+  invoiceDeliveryMethod: z.enum(INVOICE_DELIVERY_METHODS, {
+    errorMap: () => ({ message: "Delivery method is required" }),
+  }),
+  invoiceFormat: z.enum(INVOICE_FORMATS, {
+    errorMap: () => ({ message: "Invoice format is required" }),
+  }),
+  invoiceFrequency: z.enum(INVOICE_FREQUENCIES, {
+    errorMap: () => ({ message: "Invoice frequency is required" }),
+  }),
+})
+
+// Combined billing information schema
+export const billingInformationSchema = z
+  .object({
+    // Payment method (already defined separately)
+    paymentMethod: z.enum(PAYMENT_METHODS),
+    paymentMethodData: paymentMethodSelectionSchema.optional(),
+  })
+  .merge(billingAddressSchema)
+  .merge(billingContactSchema)
+  .merge(companyInfoSchema)
+  .merge(invoicePreferencesSchema)
+  .superRefine((data, ctx) => {
+    // Validate billing postal code based on country
+    if (data.billingCountry && data.billingPostal) {
+      const pattern = ZIP_PATTERNS[data.billingCountry]
+      if (pattern && !pattern.test(data.billingPostal)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: ZIP_ERROR_MESSAGES[data.billingCountry],
+          path: ["billingPostal"],
+        })
+      }
+    }
+
+    // If not same as origin, require all billing address fields
+    if (!data.sameAsOrigin) {
+      if (!data.billingLine1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Street address is required",
+          path: ["billingLine1"],
+        })
+      }
+      if (!data.billingCity) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "City is required",
+          path: ["billingCity"],
+        })
+      }
+      if (!data.billingState) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "State is required",
+          path: ["billingState"],
+        })
+      }
+      if (!data.billingPostal) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Postal code is required",
+          path: ["billingPostal"],
+        })
+      }
+    }
+  })
+
+// Export types
+export type BillingAddressData = z.infer<typeof billingAddressSchema>
+export type BillingContactData = z.infer<typeof billingContactSchema>
+export type CompanyInfoData = z.infer<typeof companyInfoSchema>
+export type InvoicePreferencesData = z.infer<typeof invoicePreferencesSchema>
+export type BillingInformationData = z.infer<typeof billingInformationSchema>
+
+// Industries list (40+ options) - for validation reference
+export const INDUSTRIES_LIST = [
+  "aerospace",
+  "agriculture",
+  "apparel",
+  "automotive",
+  "biotechnology",
+  "chemicals",
+  "construction",
+  "consulting",
+  "consumer_goods",
+  "ecommerce",
+  "education",
+  "electronics",
+  "energy",
+  "entertainment",
+  "financial",
+  "food_beverage",
+  "healthcare",
+  "hospitality",
+  "insurance",
+  "legal",
+  "logistics",
+  "manufacturing",
+  "mining",
+  "nonprofit",
+  "publishing",
+  "real_estate",
+  "renewable_energy",
+  "research",
+  "sports",
+  "technology",
+  "telecommunications",
+  "textiles",
+  "transportation",
+  "utilities",
+  "wholesale",
+  "wine_spirits",
+  "wood_paper",
+  "other",
+] as const
+
+export type Industry = (typeof INDUSTRIES_LIST)[number]
+
+export const INDUSTRY_LABELS: Record<Industry, string> = {
+  aerospace: "Aerospace & Defense",
+  agriculture: "Agriculture & Farming",
+  apparel: "Apparel & Fashion",
+  automotive: "Automotive",
+  biotechnology: "Biotechnology",
+  chemicals: "Chemicals",
+  construction: "Construction",
+  consulting: "Consulting & Professional Services",
+  consumer_goods: "Consumer Goods",
+  ecommerce: "E-commerce & Retail",
+  education: "Education",
+  electronics: "Electronics & Technology",
+  energy: "Energy & Utilities",
+  entertainment: "Entertainment & Media",
+  financial: "Financial Services",
+  food_beverage: "Food & Beverage",
+  healthcare: "Healthcare & Pharmaceuticals",
+  hospitality: "Hospitality & Tourism",
+  insurance: "Insurance",
+  legal: "Legal Services",
+  logistics: "Logistics & Transportation",
+  manufacturing: "Manufacturing",
+  mining: "Mining & Metals",
+  nonprofit: "Non-Profit",
+  publishing: "Publishing & Printing",
+  real_estate: "Real Estate",
+  renewable_energy: "Renewable Energy",
+  research: "Research & Development",
+  sports: "Sports & Recreation",
+  technology: "Technology & Software",
+  telecommunications: "Telecommunications",
+  textiles: "Textiles",
+  transportation: "Transportation & Warehousing",
+  utilities: "Utilities",
+  wholesale: "Wholesale & Distribution",
+  wine_spirits: "Wine & Spirits",
+  wood_paper: "Wood, Paper & Forestry",
+  other: "Other",
+}

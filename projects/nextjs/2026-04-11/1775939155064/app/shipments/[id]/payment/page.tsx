@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { ShippingLayout } from '@/components/shipping/ShippingLayout'
 import {
   PaymentMethodSelector,
@@ -12,6 +14,13 @@ import {
   CorporateAccountForm,
 } from '@/components/payment'
 import {
+  BillingAddressSection,
+  BillingContactSection,
+  CompanyInfoSection,
+  InvoicePreferencesSection,
+  CostSummary,
+} from '@/components/billing'
+import {
   type PaymentMethod,
   type PaymentMethodSelectionData,
   type PurchaseOrderFormData,
@@ -19,18 +28,68 @@ import {
   type ThirdPartyBillingFormData,
   type NetTermsFormData,
   type CorporateAccountFormData,
+  billingInformationSchema,
   PAYMENT_METHOD_FEES,
   PAYMENT_METHOD_LABELS,
   paymentMethodSelectionSchema,
+  SUPPORTED_COUNTRIES,
 } from '@/lib/validation'
-import { Loader2, AlertCircle, DollarSign, Truck, Package } from 'lucide-react'
+import { Loader2, AlertCircle, DollarSign, Truck, Package, Building2, User, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { z } from 'zod'
+
+// Extended form type that includes billing information
+ type BillingFormData = {
+  // Payment method
+  method: PaymentMethod
+  purchaseOrder?: Partial<PurchaseOrderFormData>
+  billOfLading?: Partial<BillOfLadingFormData>
+  thirdParty?: Partial<ThirdPartyBillingFormData>
+  netTerms?: Partial<NetTermsFormData>
+  corporateAccount?: Partial<CorporateAccountFormData>
+  
+  // Billing address
+  billingLine1: string
+  billingLine2?: string
+  billingCity: string
+  billingState: string
+  billingPostal: string
+  billingCountry: string
+  billingLocationType: string
+  sameAsOrigin: boolean
+  
+  // Billing contact
+  billingContactName: string
+  billingContactTitle: string
+  billingContactPhone: string
+  billingContactEmail: string
+  billingContactDepartment?: string
+  billingGLCode?: string
+  billingTaxId?: string
+  
+  // Company info
+  companyLegalName: string
+  companyDBA?: string
+  companyBusinessType: string
+  companyIndustry: string
+  companyShippingVolume?: string
+  
+  // Invoice preferences
+  invoiceDeliveryMethod: string
+  invoiceFormat: string
+  invoiceFrequency: string
+}
 
 interface ShipmentSummary {
   id: string
   origin: {
     city: string
     state: string
+    line1?: string
+    line2?: string
+    postal?: string
+    country?: string
+    locationType?: string
   }
   destination: {
     city: string
@@ -48,17 +107,45 @@ interface ShipmentSummary {
   }
 }
 
+// Schema for the extended form
+const extendedPaymentSchema = z.object({
+  method: z.enum(["purchase_order", "bill_of_lading", "third_party", "net_terms", "corporate_account"]),
+  billingLine1: z.string().min(1, "Street address is required"),
+  billingLine2: z.string().optional(),
+  billingCity: z.string().min(1, "City is required"),
+  billingState: z.string().min(1, "State is required"),
+  billingPostal: z.string().min(1, "Postal code is required"),
+  billingCountry: z.enum(["US", "CA", "MX"]),
+  billingLocationType: z.enum(["commercial", "residential"]),
+  sameAsOrigin: z.boolean(),
+  billingContactName: z.string().min(1, "Contact name is required"),
+  billingContactTitle: z.string().min(1, "Job title is required"),
+  billingContactPhone: z.string().min(1, "Phone is required"),
+  billingContactEmail: z.string().email("Invalid email"),
+  billingContactDepartment: z.string().optional(),
+  billingGLCode: z.string().optional(),
+  billingTaxId: z.string().optional(),
+  companyLegalName: z.string().min(1, "Company name is required"),
+  companyDBA: z.string().optional(),
+  companyBusinessType: z.string().min(1, "Business type is required"),
+  companyIndustry: z.string().min(1, "Industry is required"),
+  companyShippingVolume: z.string().optional(),
+  invoiceDeliveryMethod: z.string().min(1, "Delivery method is required"),
+  invoiceFormat: z.string().min(1, "Invoice format is required"),
+  invoiceFrequency: z.string().min(1, "Invoice frequency is required"),
+})
+
 export default function PaymentPage() {
   const params = useParams()
   const router = useRouter()
   const shipmentId = params.id as string
 
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null)
   const [shipmentSummary, setShipmentSummary] = useState<ShipmentSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+  const [activeTab, setActiveTab] = useState<'payment' | 'billing'>('payment')
 
   // Form data states for each payment method
   const [purchaseOrderData, setPurchaseOrderData] = useState<Partial<PurchaseOrderFormData>>({})
@@ -66,6 +153,60 @@ export default function PaymentPage() {
   const [thirdPartyData, setThirdPartyData] = useState<Partial<ThirdPartyBillingFormData>>({})
   const [netTermsData, setNetTermsData] = useState<Partial<NetTermsFormData>>({})
   const [corporateAccountData, setCorporateAccountData] = useState<Partial<CorporateAccountFormData>>({})
+
+  // React Hook Form for billing information
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<BillingFormData>({
+    resolver: async (data) => {
+      const result = await extendedPaymentSchema.safeParseAsync(data)
+      
+      if (!result.success) {
+        const formErrors: Record<string, { message: string; type: string }> = {}
+        result.error.errors.forEach((err) => {
+          const path = err.path.join('.')
+          formErrors[path] = { message: err.message, type: err.code }
+        })
+        return { values: {}, errors: formErrors }
+      }
+      
+      return { values: result.data, errors: {} }
+    },
+    mode: 'onBlur',
+    defaultValues: {
+      method: undefined as unknown as PaymentMethod,
+      billingCountry: 'US',
+      billingLocationType: 'commercial',
+      sameAsOrigin: false,
+      billingLine1: '',
+      billingLine2: '',
+      billingCity: '',
+      billingState: '',
+      billingPostal: '',
+      billingContactName: '',
+      billingContactTitle: '',
+      billingContactPhone: '',
+      billingContactEmail: '',
+      billingContactDepartment: '',
+      billingGLCode: '',
+      billingTaxId: '',
+      companyLegalName: '',
+      companyDBA: '',
+      companyBusinessType: '',
+      companyIndustry: '',
+      companyShippingVolume: '',
+      invoiceDeliveryMethod: '',
+      invoiceFormat: '',
+      invoiceFrequency: '',
+    },
+  })
+
+  const selectedMethod = watch('method')
+  const sameAsOrigin = watch('sameAsOrigin')
 
   // Fetch shipment details including selected rate
   const fetchShipmentDetails = useCallback(async () => {
@@ -89,7 +230,14 @@ export default function PaymentPage() {
       // Use fallback data for development
       setShipmentSummary({
         id: shipmentId,
-        origin: { city: 'Austin', state: 'TX' },
+        origin: { 
+          city: 'Austin',
+          state: 'TX',
+          line1: '123 Main St',
+          postal: '78701',
+          country: 'US',
+          locationType: 'commercial',
+        },
         destination: { city: 'Dallas', state: 'TX' },
         package: { weight: 5.5, weightUnit: 'lbs' },
         selectedRate: {
@@ -117,30 +265,25 @@ export default function PaymentPage() {
 
   // Handle payment method selection
   const handleSelectMethod = (method: PaymentMethod) => {
-    setSelectedMethod(method)
+    setValue('method', method)
     setValidationErrors({})
     setError(null)
   }
 
-  // Validate form data based on selected method
+  // Validate form data
   const validateFormData = (): boolean => {
     const errors: Record<string, string> = {}
 
     if (!selectedMethod) {
       errors.method = 'Please select a payment method'
-      setValidationErrors(errors)
-      return false
     }
-
-    // Method-specific validation would go here
-    // The individual form components handle their own validation
 
     setValidationErrors(errors)
     return Object.keys(errors).length === 0
   }
 
   // Handle continue to next step
-  const handleContinue = async () => {
+  const onSubmit = async (data: BillingFormData) => {
     if (!validateFormData()) {
       return
     }
@@ -151,10 +294,10 @@ export default function PaymentPage() {
     try {
       // Prepare payment data based on selected method
       const paymentData: Partial<PaymentMethodSelectionData> = {
-        method: selectedMethod!,
+        method: data.method,
       }
 
-      switch (selectedMethod) {
+      switch (data.method) {
         case 'purchase_order':
           paymentData.purchaseOrder = purchaseOrderData as PurchaseOrderFormData
           break
@@ -172,7 +315,7 @@ export default function PaymentPage() {
           break
       }
 
-      // Validate with Zod schema
+      // Validate payment method data with Zod schema
       const validationResult = paymentMethodSelectionSchema.safeParse(paymentData)
       if (!validationResult.success) {
         const zodErrors: Record<string, string> = {}
@@ -184,11 +327,49 @@ export default function PaymentPage() {
         throw new Error('Please correct the validation errors')
       }
 
+      // Combine payment and billing data for API
+      const fullPaymentData = {
+        ...paymentData,
+        billing: {
+          address: {
+            line1: data.billingLine1,
+            line2: data.billingLine2,
+            city: data.billingCity,
+            state: data.billingState,
+            postal: data.billingPostal,
+            country: data.billingCountry,
+            locationType: data.billingLocationType,
+            sameAsOrigin: data.sameAsOrigin,
+          },
+          contact: {
+            name: data.billingContactName,
+            title: data.billingContactTitle,
+            phone: data.billingContactPhone,
+            email: data.billingContactEmail,
+            department: data.billingContactDepartment,
+            glCode: data.billingGLCode,
+            taxId: data.billingTaxId,
+          },
+          company: {
+            legalName: data.companyLegalName,
+            dba: data.companyDBA,
+            businessType: data.companyBusinessType,
+            industry: data.companyIndustry,
+            shippingVolume: data.companyShippingVolume,
+          },
+          invoicePreferences: {
+            deliveryMethod: data.invoiceDeliveryMethod,
+            format: data.invoiceFormat,
+            frequency: data.invoiceFrequency,
+          },
+        },
+      }
+
       // Save payment method to API
       const response = await fetch(`/api/shipments/${shipmentId}/payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(paymentData),
+        body: JSON.stringify(fullPaymentData),
       })
 
       if (!response.ok) {
@@ -295,7 +476,7 @@ export default function PaymentPage() {
         backHref: `/shipments/${shipmentId}/pricing`,
       }}
       navigationProps={{
-        onNext: handleContinue,
+        onNext: handleSubmit(onSubmit),
         onPrevious: handleBack,
         nextLabel: isSaving ? 'Saving...' : 'Continue to Pickup',
         previousLabel: 'Back to Rates',
@@ -304,14 +485,14 @@ export default function PaymentPage() {
         showPrevious: true,
       }}
     >
-      <div className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Payment Method
+            Payment & Billing
           </h1>
           <p className="text-gray-600">
-            Choose from our 5 B2B payment options. Select the method that works best for your organization.
+            Choose your payment method and provide billing information for your shipment.
           </p>
         </div>
 
@@ -356,63 +537,158 @@ export default function PaymentPage() {
           </div>
         )}
 
-        {/* Payment Method Selection */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Select Payment Method
-          </h2>
-          <PaymentMethodSelector
-            selectedMethod={selectedMethod}
-            onSelect={handleSelectMethod}
-            disabled={isSaving}
-            shipmentTotal={subtotal}
-          />
-          {validationErrors.method && (
-            <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
-              <AlertCircle className="h-4 w-4" />
-              {validationErrors.method}
-            </p>
-          )}
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="flex border-b border-gray-200">
+            <button
+              type="button"
+              onClick={() => setActiveTab('payment')}
+              className={cn(
+                "flex-1 px-6 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors",
+                activeTab === 'payment'
+                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              )}
+            >
+              <DollarSign className="h-4 w-4" />
+              Payment Method
+              {selectedMethod && (
+                <span className="ml-1 w-2 h-2 rounded-full bg-green-500" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('billing')}
+              className={cn(
+                "flex-1 px-6 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors",
+                activeTab === 'billing'
+                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              )}
+            >
+              <Building2 className="h-4 w-4" />
+              Billing Information
+            </button>
+          </div>
+
+          <div className="p-6">
+            {activeTab === 'payment' ? (
+              <div className="space-y-6">
+                {/* Payment Method Selection */}
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                    Select Payment Method
+                  </h2>
+                  <PaymentMethodSelector
+                    selectedMethod={selectedMethod}
+                    onSelect={handleSelectMethod}
+                    disabled={isSaving}
+                    shipmentTotal={subtotal}
+                  />
+                  {validationErrors.method && (
+                    <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                      <AlertCircle className="h-4 w-4" />
+                      {validationErrors.method}
+                    </p>
+                  )}
+                </div>
+
+                {/* Method-specific Form */}
+                {selectedMethod && (
+                  <div className="pt-6 border-t border-gray-100">
+                    <h3 className="text-md font-semibold text-gray-900 mb-4">
+                      {PAYMENT_METHOD_LABELS[selectedMethod]} Details
+                    </h3>
+                    {renderPaymentForm()}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {/* Billing Address */}
+                <BillingAddressSection
+                  control={control}
+                  errors={errors}
+                  setValue={setValue}
+                  sameAsOrigin={sameAsOrigin}
+                  onSameAsOriginChange={(value) => setValue('sameAsOrigin', value)}
+                  originData={{
+                    line1: shipmentSummary?.origin.line1,
+                    line2: shipmentSummary?.origin.line2,
+                    city: shipmentSummary?.origin.city,
+                    state: shipmentSummary?.origin.state,
+                    postal: shipmentSummary?.origin.postal,
+                    country: shipmentSummary?.origin.country,
+                    locationType: shipmentSummary?.origin.locationType,
+                  }}
+                  disabled={isSaving}
+                />
+
+                {/* Divider */}
+                <div className="border-t border-gray-200" />
+
+                {/* Billing Contact */}
+                <BillingContactSection
+                  control={control}
+                  errors={errors}
+                  disabled={isSaving}
+                />
+
+                {/* Divider */}
+                <div className="border-t border-gray-200" />
+
+                {/* Company Info */}
+                <CompanyInfoSection
+                  control={control}
+                  errors={errors}
+                  disabled={isSaving}
+                />
+
+                {/* Divider */}
+                <div className="border-t border-gray-200" />
+
+                {/* Invoice Preferences */}
+                <InvoicePreferencesSection
+                  control={control}
+                  errors={errors}
+                  disabled={isSaving}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Method-specific Form */}
-        {selectedMethod && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              {PAYMENT_METHOD_LABELS[selectedMethod]} Details
-            </h2>
-            {renderPaymentForm()}
-          </div>
-        )}
+        {/* Cost Summary Sidebar - Always visible on larger screens */}
+        <div className="lg:hidden">
+          <CostSummary
+            subtotal={subtotal}
+            currency={currency}
+            selectedMethod={selectedMethod}
+            shipmentDetails={{
+              origin: shipmentSummary?.origin,
+              destination: shipmentSummary?.destination,
+              package: shipmentSummary?.package,
+              carrierName: shipmentSummary?.selectedRate?.carrierName,
+              serviceName: shipmentSummary?.selectedRate?.serviceName,
+            }}
+          />
+        </div>
+      </form>
 
-        {/* Order Summary */}
-        {selectedMethod && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Subtotal</span>
-                <span className="font-medium">${subtotal.toFixed(2)} {currency}</span>
-              </div>
-              {feePercent > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">
-                    Processing Fee ({feePercent}%)
-                  </span>
-                  <span className="font-medium text-orange-600">+${feeAmount.toFixed(2)} {currency}</span>
-                </div>
-              )}
-              <div className="border-t border-gray-200 pt-2 mt-2">
-                <div className="flex justify-between">
-                  <span className="font-semibold text-gray-900">Total</span>
-                  <span className="font-bold text-xl text-gray-900">
-                    ${total.toFixed(2)} {currency}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      {/* Desktop Cost Summary - Sidebar */}
+      <div className="hidden lg:block fixed right-8 top-24 w-80 z-10">
+        <CostSummary
+          subtotal={subtotal}
+          currency={currency}
+          selectedMethod={selectedMethod}
+          shipmentDetails={{
+            origin: shipmentSummary?.origin,
+            destination: shipmentSummary?.destination,
+            package: shipmentSummary?.package,
+            carrierName: shipmentSummary?.selectedRate?.carrierName,
+            serviceName: shipmentSummary?.selectedRate?.serviceName,
+          }}
+        />
       </div>
     </ShippingLayout>
   )
