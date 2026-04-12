@@ -7,7 +7,29 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { ShippingLayout } from '@/components/shipping/ShippingLayout'
 import { OriginSection } from '@/components/shipping/OriginSection'
 import { DestinationSection } from '@/components/shipping/DestinationSection'
+import { 
+  PackageConfigurationSection, 
+  type PackageConfigurationData 
+} from '@/components/shipping/PackageConfigurationSection'
 import { shipmentStep1Schema, type ShipmentStep1FormData } from '@/lib/validation'
+import { z } from 'zod'
+
+// Package configuration schema
+const packageConfigSchema = z.object({
+  packageTypeId: z.string().min(1, 'Package type is required'),
+  length: z.number().positive('Length must be greater than 0'),
+  width: z.number().positive('Width must be greater than 0'),
+  height: z.number().positive('Height must be greater than 0'),
+  dimensionUnit: z.enum(['in', 'cm']),
+  weight: z.number().positive('Weight must be greater than 0'),
+  weightUnit: z.enum(['lbs', 'kg']),
+  declaredValue: z.number().min(1, 'Declared value is required'),
+  currency: z.enum(['USD', 'CAD', 'MXN']),
+  contentsDescription: z.string().min(1, 'Contents description is required').min(3, 'Description must be at least 3 characters'),
+})
+
+// Combined type for the full form
+type ExtendedFormData = ShipmentStep1FormData & z.infer<typeof packageConfigSchema>
 
 export default function NewShipmentPage() {
   const router = useRouter()
@@ -21,14 +43,39 @@ export default function NewShipmentPage() {
     watch,
     setValue,
     formState: { errors },
-  } = useForm<ShipmentStep1FormData>({
-    resolver: zodResolver(shipmentStep1Schema),
+  } = useForm<ExtendedFormData>({
+    resolver: async (data) => {
+      // Validate address schema
+      const addressResult = await shipmentStep1Schema.safeParseAsync(data)
+      // Validate package schema
+      const packageResult = await packageConfigSchema.safeParseAsync(data)
+      
+      const allErrors: Record<string, { message: string; type: string }> = {}
+      
+      if (!addressResult.success) {
+        addressResult.error.errors.forEach((err) => {
+          const path = err.path.join('.')
+          allErrors[path] = { message: err.message, type: err.code }
+        })
+      }
+      
+      if (!packageResult.success) {
+        packageResult.error.errors.forEach((err) => {
+          const path = err.path.join('.')
+          allErrors[path] = { message: err.message, type: err.code }
+        })
+      }
+      
+      return {
+        values: addressResult.success && packageResult.success ? data : {},
+        errors: allErrors,
+      }
+    },
     mode: 'onBlur',
     defaultValues: {
+      // Origin defaults
       originCountry: 'US',
       originLocationType: 'commercial',
-      destinationCountry: 'US',
-      destinationLocationType: 'commercial',
       originName: '',
       originCompany: '',
       originLine1: '',
@@ -39,6 +86,9 @@ export default function NewShipmentPage() {
       originPhone: '',
       originExtension: '',
       originEmail: '',
+      // Destination defaults
+      destinationCountry: 'US',
+      destinationLocationType: 'commercial',
       destinationName: '',
       destinationCompany: '',
       destinationLine1: '',
@@ -49,6 +99,17 @@ export default function NewShipmentPage() {
       destinationPhone: '',
       destinationExtension: '',
       destinationEmail: '',
+      // Package defaults
+      packageTypeId: '',
+      length: 0,
+      width: 0,
+      height: 0,
+      dimensionUnit: 'in',
+      weight: 0,
+      weightUnit: 'lbs',
+      declaredValue: 0,
+      currency: 'USD',
+      contentsDescription: '',
     },
   })
 
@@ -58,7 +119,7 @@ export default function NewShipmentPage() {
     alert('Draft saved (placeholder)')
   }
 
-  const onSubmit = async (data: ShipmentStep1FormData) => {
+  const onSubmit = async (data: ExtendedFormData) => {
     setIsSubmitting(true)
     setSubmitError(null)
 
@@ -98,6 +159,18 @@ export default function NewShipmentPage() {
             extension: data.destinationExtension,
             email: data.destinationEmail,
           },
+          package: {
+            type: data.packageTypeId,
+            length: data.length,
+            width: data.width,
+            height: data.height,
+            dimensionUnit: data.dimensionUnit,
+            weight: data.weight,
+            weightUnit: data.weightUnit,
+            declaredValue: data.declaredValue,
+            currency: data.currency,
+            contentsDescription: data.contentsDescription,
+          },
           status: 'draft',
         }),
       })
@@ -117,6 +190,33 @@ export default function NewShipmentPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // Get current package config values for the section
+  const packageConfigValue: PackageConfigurationData = {
+    packageTypeId: watch('packageTypeId') || '',
+    length: watch('length') || 0,
+    width: watch('width') || 0,
+    height: watch('height') || 0,
+    dimensionUnit: watch('dimensionUnit') || 'in',
+    weight: watch('weight') || 0,
+    weightUnit: watch('weightUnit') || 'lbs',
+    declaredValue: watch('declaredValue') || 0,
+    currency: watch('currency') || 'USD',
+    contentsDescription: watch('contentsDescription') || '',
+  }
+
+  const handlePackageConfigChange = (data: PackageConfigurationData) => {
+    setValue('packageTypeId', data.packageTypeId, { shouldValidate: false })
+    setValue('length', data.length, { shouldValidate: false })
+    setValue('width', data.width, { shouldValidate: false })
+    setValue('height', data.height, { shouldValidate: false })
+    setValue('dimensionUnit', data.dimensionUnit, { shouldValidate: false })
+    setValue('weight', data.weight, { shouldValidate: false })
+    setValue('weightUnit', data.weightUnit, { shouldValidate: false })
+    setValue('declaredValue', data.declaredValue, { shouldValidate: false })
+    setValue('currency', data.currency, { shouldValidate: false })
+    setValue('contentsDescription', data.contentsDescription, { shouldValidate: false })
   }
 
   return (
@@ -139,7 +239,7 @@ export default function NewShipmentPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Create New Shipment</h1>
           <p className="text-gray-600 mt-1">
-            Enter the origin and destination addresses. All fields marked with * are required.
+            Enter the shipment details below. All fields marked with * are required.
           </p>
         </div>
 
@@ -159,6 +259,21 @@ export default function NewShipmentPage() {
             setValue={setValue}
             sameAsOrigin={sameAsOrigin}
             onSameAsOriginChange={setSameAsOrigin}
+          />
+
+          <PackageConfigurationSection
+            value={packageConfigValue}
+            onChange={handlePackageConfigChange}
+            disabled={isSubmitting}
+            errors={{
+              packageTypeId: errors.packageTypeId?.message,
+              length: errors.length?.message,
+              width: errors.width?.message,
+              height: errors.height?.message,
+              weight: errors.weight?.message,
+              declaredValue: errors.declaredValue?.message,
+              contentsDescription: errors.contentsDescription?.message,
+            }}
           />
         </form>
       </div>

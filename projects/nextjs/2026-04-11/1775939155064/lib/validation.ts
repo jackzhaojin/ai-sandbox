@@ -320,3 +320,140 @@ export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
   commercial: "Commercial/Business",
   residential: "Residential/Home",
 }
+
+// Package configuration types
+export const PACKAGE_TYPES = [
+  "envelope",
+  "small-box",
+  "medium-box",
+  "large-box",
+  "extra-large",
+  "pallet",
+  "custom",
+] as const
+export type PackageTypeId = (typeof PACKAGE_TYPES)[number]
+
+export const DIMENSION_UNITS = ["in", "cm"] as const
+export type DimensionUnit = (typeof DIMENSION_UNITS)[number]
+
+export const WEIGHT_UNITS = ["lbs", "kg"] as const
+export type WeightUnit = (typeof WEIGHT_UNITS)[number]
+
+export const CURRENCY_CODES = ["USD", "CAD", "MXN"] as const
+export type CurrencyCode = (typeof CURRENCY_CODES)[number]
+
+// Package type limits (in cm and kg - same as form-config)
+export const PACKAGE_TYPE_LIMITS: Record<
+  PackageTypeId,
+  { maxWeight: number; maxLength: number; maxWidth: number; maxHeight: number }
+> = {
+  envelope: { maxWeight: 0.5, maxLength: 38, maxWidth: 30, maxHeight: 2 },
+  "small-box": { maxWeight: 5, maxLength: 30, maxWidth: 25, maxHeight: 20 },
+  "medium-box": { maxWeight: 15, maxLength: 45, maxWidth: 35, maxHeight: 30 },
+  "large-box": { maxWeight: 25, maxLength: 60, maxWidth: 50, maxHeight: 40 },
+  "extra-large": { maxWeight: 35, maxLength: 80, maxWidth: 60, maxHeight: 50 },
+  pallet: { maxWeight: 500, maxLength: 120, maxWidth: 100, maxHeight: 150 },
+  custom: { maxWeight: 1000, maxLength: 200, maxWidth: 150, maxHeight: 150 },
+}
+
+// Package configuration schema
+export const packageConfigSchema = z.object({
+  packageTypeId: z.enum(PACKAGE_TYPES, {
+    errorMap: () => ({ message: "Package type is required" }),
+  }),
+  length: z.number().positive("Length must be greater than 0"),
+  width: z.number().positive("Width must be greater than 0"),
+  height: z.number().positive("Height must be greater than 0"),
+  dimensionUnit: z.enum(DIMENSION_UNITS),
+  weight: z.number().positive("Weight must be greater than 0"),
+  weightUnit: z.enum(WEIGHT_UNITS),
+  declaredValue: z.number().min(1, "Declared value must be at least $1"),
+  currency: z.enum(CURRENCY_CODES),
+  contentsDescription: z
+    .string()
+    .min(1, "Contents description is required")
+    .min(3, "Description must be at least 3 characters")
+    .max(500, "Description must not exceed 500 characters"),
+})
+
+// Extended schema with cross-field validation for package limits
+export const packageConfigSchemaWithLimits = packageConfigSchema.superRefine((data, ctx) => {
+  const limits = PACKAGE_TYPE_LIMITS[data.packageTypeId]
+  if (!limits) return
+
+  // Convert dimensions to cm for validation if in inches
+  let lengthInCm = data.length
+  let widthInCm = data.width
+  let heightInCm = data.height
+
+  if (data.dimensionUnit === "in") {
+    lengthInCm = data.length * 2.54
+    widthInCm = data.width * 2.54
+    heightInCm = data.height * 2.54
+  }
+
+  // Validate dimensions against limits
+  if (lengthInCm > limits.maxLength) {
+    const maxDisplay =
+      data.dimensionUnit === "in" ? Math.round((limits.maxLength / 2.54) * 10) / 10 : limits.maxLength
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Length exceeds maximum of ${maxDisplay} ${data.dimensionUnit} for this package type`,
+      path: ["length"],
+    })
+  }
+
+  if (widthInCm > limits.maxWidth) {
+    const maxDisplay =
+      data.dimensionUnit === "in" ? Math.round((limits.maxWidth / 2.54) * 10) / 10 : limits.maxWidth
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Width exceeds maximum of ${maxDisplay} ${data.dimensionUnit} for this package type`,
+      path: ["width"],
+    })
+  }
+
+  if (heightInCm > limits.maxHeight) {
+    const maxDisplay =
+      data.dimensionUnit === "in" ? Math.round((limits.maxHeight / 2.54) * 10) / 10 : limits.maxHeight
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Height exceeds maximum of ${maxDisplay} ${data.dimensionUnit} for this package type`,
+      path: ["height"],
+    })
+  }
+
+  // Convert weight to kg for validation if in lbs
+  let weightInKg = data.weight
+  if (data.weightUnit === "lbs") {
+    weightInKg = data.weight / 2.20462
+  }
+
+  if (weightInKg > limits.maxWeight) {
+    const maxDisplay =
+      data.weightUnit === "lbs" ? Math.round(limits.maxWeight * 2.20462 * 10) / 10 : limits.maxWeight
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Weight exceeds maximum of ${maxDisplay} ${data.weightUnit} for this package type`,
+      path: ["weight"],
+    })
+  }
+
+  // Validate declared value max ($100k USD equivalent)
+  const exchangeRates: Record<CurrencyCode, number> = {
+    USD: 1,
+    CAD: 1.35,
+    MXN: 17.5,
+  }
+  const valueInUSD = data.declaredValue / exchangeRates[data.currency]
+  if (valueInUSD > 100000) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Declared value cannot exceed $100,000 USD equivalent",
+      path: ["declaredValue"],
+    })
+  }
+})
+
+export type PackageConfigFormData = z.infer<typeof packageConfigSchema>
+export type PackageConfigFormDataWithLimits = z.infer<typeof packageConfigSchemaWithLimits>
