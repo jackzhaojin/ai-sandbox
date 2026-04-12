@@ -58,10 +58,10 @@ function transformShipmentData(apiData: unknown): ShipmentDetails {
     state: (data.origin?.state as string) || 'XX',
     postal: (data.origin?.postal as string) || (data.origin?.postalCode as string) || '',
     country: (data.origin?.country as string) || 'US',
-    locationType: (data.origin?.locationType as string) || 'commercial',
+    locationType: (data.origin?.locationType as string) || (data.origin?.address_type as string) || 'commercial',
     phone: (data.sender_contact_phone as string) || '',
     email: (data.sender_contact_email as string) || '',
-    pickupInstructions: (data.pickup_instructions as string) || undefined,
+    pickupInstructions: (data.pickup?.instructions as string) || undefined,
   }
 
   // Extract destination data from recipient address
@@ -74,7 +74,7 @@ function transformShipmentData(apiData: unknown): ShipmentDetails {
     state: (data.destination?.state as string) || 'XX',
     postal: (data.destination?.postal as string) || (data.destination?.postalCode as string) || '',
     country: (data.destination?.country as string) || 'US',
-    locationType: (data.destination?.locationType as string) || 'commercial',
+    locationType: (data.destination?.locationType as string) || (data.destination?.address_type as string) || 'commercial',
     phone: (data.recipient_contact_phone as string) || '',
     email: (data.recipient_contact_email as string) || '',
   }
@@ -94,182 +94,230 @@ function transformShipmentData(apiData: unknown): ShipmentDetails {
   }
 
   // Build pricing data from selected rate
+  const selectedRate = data.selectedRate as Record<string, unknown> | undefined
   const pricing: PricingData = {
-    carrierName: (data.selectedRate?.carrierName as string) || 'Not selected',
-    serviceName: (data.selectedRate?.serviceName as string) || '',
-    transitDaysMin: (data.selectedRate?.transitDaysMin as number) || 1,
-    transitDaysMax: (data.selectedRate?.transitDaysMax as number) || 5,
-    distance: (data.selectedRate?.distance as number) || undefined,
-    billableWeight: (data.selectedRate?.billableWeight as number) || undefined,
-    dimWeight: (data.selectedRate?.dimWeight as number) || undefined,
-    baseRate: parseFloat(data.base_rate as string) || (data.selectedRate?.total as number) || 0,
-    fuelSurcharge: (data.selectedRate?.fuelSurcharge as number) || 0,
-    fuelSurchargePercent: (data.selectedRate?.fuelSurchargePercent as number) || 0.15,
-    insurance: (data.selectedRate?.insurance as number) || 0,
-    insuranceRate: (data.selectedRate?.insuranceRate as number) || 0.004,
-    specialHandlingFees: (data.selectedRate?.specialHandlingFees as SpecialHandlingItem[]) || [],
-    specialHandlingTotal: (data.selectedRate?.specialHandlingTotal as number) || 0,
-    deliveryConfirmationFees: (data.selectedRate?.deliveryConfirmationFees as DeliveryPreferenceItem[]) || [],
-    deliveryConfirmationTotal: (data.selectedRate?.deliveryConfirmationTotal as number) || 0,
-    handlingFees: (data.selectedRate?.handlingFees as number) || undefined,
-    deliveryFees: (data.selectedRate?.deliveryFees as number) || undefined,
-    tax: (data.selectedRate?.tax as number) || 0,
-    taxRate: (data.selectedRate?.taxRate as number) || 0.085,
-    total: (data.selectedRate?.total as number) || parseFloat(data.total_cost as string) || 0,
-    currency: (data.selectedRate?.currency as string) || (data.currency as string) || 'USD',
+    carrierName: (selectedRate?.carrierName as string) || 'Not selected',
+    serviceName: (selectedRate?.serviceName as string) || '',
+    transitDaysMin: (selectedRate?.transitDaysMin as number) || 1,
+    transitDaysMax: (selectedRate?.transitDaysMax as number) || 5,
+    distance: (selectedRate?.distance as number) || undefined,
+    billableWeight: (selectedRate?.billableWeight as number) || undefined,
+    dimWeight: (selectedRate?.dimWeight as number) || undefined,
+    baseRate: parseFloat(selectedRate?.baseRate as string) || parseFloat(data.base_rate as string) || 0,
+    fuelSurcharge: parseFloat(selectedRate?.fuelSurcharge as string) || parseFloat(data.fuel_surcharge as string) || 0,
+    fuelSurchargePercent: (selectedRate?.fuelSurchargePercent as number) || 0.15,
+    insurance: parseFloat(selectedRate?.insurance as string) || parseFloat(data.insurance_cost as string) || 0,
+    insuranceRate: (selectedRate?.insuranceRate as number) || 0.004,
+    specialHandlingFees: (selectedRate?.specialHandlingFees as SpecialHandlingItem[]) || [],
+    specialHandlingTotal: (selectedRate?.specialHandlingTotal as number) || 0,
+    deliveryConfirmationFees: (selectedRate?.deliveryConfirmationFees as DeliveryPreferenceItem[]) || [],
+    deliveryConfirmationTotal: (selectedRate?.deliveryConfirmationTotal as number) || 0,
+    handlingFees: (selectedRate?.handlingFees as number) || undefined,
+    deliveryFees: (selectedRate?.deliveryFees as number) || undefined,
+    tax: (selectedRate?.tax as number) || 0,
+    taxRate: (selectedRate?.taxRate as number) || 0.085,
+    total: parseFloat(selectedRate?.total as string) || parseFloat(data.total_cost as string) || 0,
+    currency: (selectedRate?.currency as string) || (data.currency as string) || 'USD',
   }
 
-  // Build payment data
+  // Build payment data from payment info
+  const paymentInfo = data.payment as Record<string, unknown> | undefined
+  const methodDetails = paymentInfo?.methodDetails as Record<string, unknown> | undefined
+  
   const payment: PaymentMethodData = {
-    method: (data.payment?.method as string) || '',
-    methodLabel: (data.payment?.methodLabel as string) || '',
-    poNumber: (data.payment?.poNumber as string) || undefined,
-    poAmount: (data.payment?.poAmount as number) || undefined,
-    poExpirationDate: (data.payment?.poExpirationDate as string) || undefined,
-    poApprovalContact: (data.payment?.poApprovalContact as string) || undefined,
-    poDepartment: (data.payment?.poDepartment as string) || undefined,
-    bolNumber: (data.payment?.bolNumber as string) || undefined,
-    bolDate: (data.payment?.bolDate as string) || undefined,
-    bolShipperReference: (data.payment?.bolShipperReference as string) || undefined,
-    bolFreightTerms: (data.payment?.bolFreightTerms as string) || undefined,
-    tpAccountNumber: (data.payment?.tpAccountNumber as string) || undefined,
-    tpCompanyName: (data.payment?.tpCompanyName as string) || undefined,
-    tpContactName: (data.payment?.tpContactName as string) || undefined,
-    tpContactPhone: (data.payment?.tpContactPhone as string) || undefined,
-    tpContactEmail: (data.payment?.tpContactEmail as string) || undefined,
-    tpAuthorizationCode: (data.payment?.tpAuthorizationCode as string) || undefined,
-    netTermDays: (data.payment?.netTermDays as number) || undefined,
-    netTermAnnualRevenue: (data.payment?.netTermAnnualRevenue as number) || undefined,
-    corpAccountNumber: (data.payment?.corpAccountNumber as string) || undefined,
+    method: (paymentInfo?.method as string) || '',
+    methodLabel: getPaymentMethodLabel(paymentInfo?.method as string),
+    // Purchase Order fields
+    poNumber: (methodDetails?.po_number as string) || undefined,
+    poAmount: parseFloat(methodDetails?.po_amount as string) || undefined,
+    poExpirationDate: (methodDetails?.expiration_date as string) || undefined,
+    poApprovalContact: (methodDetails?.approval_contact as string) || undefined,
+    poDepartment: (methodDetails?.department as string) || undefined,
+    // Bill of Lading fields
+    bolNumber: (methodDetails?.bol_number as string) || undefined,
+    bolDate: (methodDetails?.bol_date as string) || undefined,
+    bolShipperReference: (methodDetails?.shipper_reference as string) || undefined,
+    bolFreightTerms: (methodDetails?.freight_terms as string) || undefined,
+    // Third Party fields
+    tpAccountNumber: (methodDetails?.account_number as string) || undefined,
+    tpCompanyName: (methodDetails?.company_name as string) || undefined,
+    tpContactName: (methodDetails?.contact_name as string) || undefined,
+    tpContactPhone: (methodDetails?.contact_phone as string) || undefined,
+    tpContactEmail: (methodDetails?.contact_email as string) || undefined,
+    tpAuthorizationCode: (methodDetails?.authorization_code as string) || undefined,
+    // Net Terms fields
+    netTermDays: (methodDetails?.term_days as number) || undefined,
+    netTermAnnualRevenue: (methodDetails?.annual_revenue as number) || undefined,
+    // Corporate Account fields
+    corpAccountNumber: (methodDetails?.account_number as string) || undefined,
   }
 
-  // Build billing data
+  // Build billing data (simplified - in production would come from billing API)
   const billing: BillingData = {
     address: {
-      line1: (data.billing?.address?.line1 as string) || '',
-      line2: (data.billing?.address?.line2 as string) || undefined,
-      city: (data.billing?.address?.city as string) || '',
-      state: (data.billing?.address?.state as string) || '',
-      postal: (data.billing?.address?.postal as string) || '',
-      country: (data.billing?.address?.country as string) || 'US',
+      line1: (data.billing?.address?.line1 as string) || (data.origin?.line1 as string) || '',
+      line2: (data.billing?.address?.line2 as string) || (data.origin?.line2 as string) || undefined,
+      city: (data.billing?.address?.city as string) || (data.origin?.city as string) || '',
+      state: (data.billing?.address?.state as string) || (data.origin?.state as string) || '',
+      postal: (data.billing?.address?.postal as string) || (data.origin?.postal as string) || '',
+      country: (data.billing?.address?.country as string) || (data.origin?.country as string) || 'US',
       locationType: (data.billing?.address?.locationType as string) || 'commercial',
-      sameAsOrigin: (data.billing?.address?.sameAsOrigin as boolean) || false,
+      sameAsOrigin: (data.billing?.address?.sameAsOrigin as boolean) || true,
     },
     contact: {
-      name: (data.billing?.contact?.name as string) || '',
+      name: (data.billing?.contact?.name as string) || (data.sender_contact_name as string) || '',
       title: (data.billing?.contact?.title as string) || '',
-      phone: (data.billing?.contact?.phone as string) || '',
-      email: (data.billing?.contact?.email as string) || '',
-      department: (data.billing?.contact?.department as string) || undefined,
-      glCode: (data.billing?.contact?.glCode as string) || undefined,
-      taxId: (data.billing?.contact?.taxId as string) || undefined,
+      phone: (data.billing?.contact?.phone as string) || (data.sender_contact_phone as string) || '',
+      email: (data.billing?.contact?.email as string) || (data.sender_contact_email as string) || '',
     },
     company: {
-      legalName: (data.billing?.company?.legalName as string) || '',
-      dba: (data.billing?.company?.dba as string) || undefined,
+      legalName: (data.billing?.company?.legalName as string) || (data.sender_company as string) || '',
       businessType: (data.billing?.company?.businessType as string) || '',
       industry: (data.billing?.company?.industry as string) || '',
-      shippingVolume: (data.billing?.company?.shippingVolume as string) || undefined,
     },
     invoicePreferences: {
-      deliveryMethod: (data.billing?.invoicePreferences?.deliveryMethod as string) || '',
-      format: (data.billing?.invoicePreferences?.format as string) || '',
-      frequency: (data.billing?.invoicePreferences?.frequency as string) || '',
+      deliveryMethod: (data.billing?.invoicePreferences?.deliveryMethod as string) || 'email',
+      format: (data.billing?.invoicePreferences?.format as string) || 'standard',
+      frequency: (data.billing?.invoicePreferences?.frequency as string) || 'per_shipment',
     },
   }
 
-  // Build pickup data
+  // Build pickup data from pickup details
+  const pickupData = data.pickup as Record<string, unknown> | undefined
+  const pickupSlot = pickupData?.slot as Record<string, unknown> | undefined
+  const pickupContacts = (pickupData?.contacts as Record<string, unknown>[]) || []
+  
+  const primaryContact = pickupContacts.find((c: Record<string, unknown>) => c.is_primary === true) || pickupContacts[0]
+  const backupContact = pickupContacts.find((c: Record<string, unknown>) => c.is_primary === false) || pickupContacts[1]
+
   const pickup: PickupData = {
     selectedPickup: {
-      date: (data.pickup?.selectedPickup?.date as string) || '',
+      date: (pickupSlot?.slot_date as string) || (pickupData?.slot?.date as string) || '',
       timeSlot: {
-        date: (data.pickup?.selectedPickup?.timeSlot?.date as string) || '',
-        timeWindow: (data.pickup?.selectedPickup?.timeSlot?.label as string) || 
-                    (data.pickup?.selectedPickup?.timeSlot?.timeWindow as string) || '',
-        fee: (data.pickup?.selectedPickup?.timeSlot?.fee as number) || 0,
+        date: (pickupSlot?.slot_date as string) || '',
+        timeWindow: (pickupSlot?.time_window as string) || '',
+        fee: parseFloat(pickupSlot?.fee as string) || 0,
       },
-      readyTime: (data.pickup?.selectedPickup?.readyTime as string) || '',
+      readyTime: '', // Would come from pickup details extension
     },
     location: {
-      locationType: (data.pickup?.location?.locationType as string) || '',
-      locationTypeLabel: (data.pickup?.location?.locationTypeLabel as string) || '',
-      dockNumber: (data.pickup?.location?.dockNumber as string) || undefined,
-      otherDescription: (data.pickup?.location?.otherDescription as string) || undefined,
+      locationType: (pickupData?.location_type as string) || 'ground_level',
+      locationTypeLabel: 'Ground Level',
+      dockNumber: (pickupData?.dock_number as string) || undefined,
     },
     access: {
-      requirements: (data.pickup?.access?.requirements as string[]) || [],
-      requirementLabels: (data.pickup?.access?.requirementLabels as string[]) || undefined,
-      gateCode: (data.pickup?.access?.gateCode as string) || undefined,
-      parkingInstructions: (data.pickup?.access?.parkingInstructions as string) || undefined,
+      requirements: (pickupData?.accessRequirements as Record<string, unknown>[])?.map(
+        (r: Record<string, unknown>) => r.requirement_type as string
+      ) || [],
+      gateCode: (pickupData?.gate_code as string) || undefined,
+      parkingInstructions: (pickupData?.parking_instructions as string) || undefined,
     },
     equipment: {
-      equipment: (data.pickup?.equipment?.equipment as string[]) || [],
-      equipmentLabels: (data.pickup?.equipment?.equipmentLabels as string[]) || undefined,
+      equipment: (pickupData?.equipmentNeeds as Record<string, unknown>[])?.map(
+        (e: Record<string, unknown>) => e.equipment_type as string
+      ) || [],
     },
     loading: {
-      assistanceType: (data.pickup?.loading?.assistanceType as string) || '',
-      assistanceTypeLabel: (data.pickup?.loading?.assistanceTypeLabel as string) || '',
+      assistanceType: (pickupData?.loading_assistance_type as string) || 'customer_load',
+      assistanceTypeLabel: 'Customer Will Load',
     },
     specialInstructions: {
-      gateCode: (data.pickup?.specialInstructions?.gateCode as string) || undefined,
-      parkingLoading: (data.pickup?.specialInstructions?.parkingLoading as string) || undefined,
-      packageLocation: (data.pickup?.specialInstructions?.packageLocation as string) || undefined,
-      driverInstructions: (data.pickup?.specialInstructions?.driverInstructions as string) || undefined,
+      driverInstructions: (pickupData?.instructions as string) || undefined,
     },
     contacts: {
       primary: {
-        name: (data.pickup?.contacts?.primary?.name as string) || '',
-        jobTitle: (data.pickup?.contacts?.primary?.jobTitle as string) || undefined,
-        mobilePhone: (data.pickup?.contacts?.primary?.mobilePhone as string) || '',
-        altPhone: (data.pickup?.contacts?.primary?.altPhone as string) || undefined,
-        email: (data.pickup?.contacts?.primary?.email as string) || '',
-        preferredMethod: (data.pickup?.contacts?.primary?.preferredMethod as string) || 'email',
+        name: (primaryContact?.contact_name as string) || (data.sender_contact_name as string) || '',
+        jobTitle: (primaryContact?.job_title as string) || undefined,
+        mobilePhone: (primaryContact?.contact_phone as string) || (data.sender_contact_phone as string) || '',
+        email: (primaryContact?.contact_email as string) || (data.sender_contact_email as string) || '',
+        preferredMethod: 'email',
       },
       backup: {
-        name: (data.pickup?.contacts?.backup?.name as string) || '',
-        phone: (data.pickup?.contacts?.backup?.phone as string) || '',
-        email: (data.pickup?.contacts?.backup?.email as string) || undefined,
+        name: (backupContact?.contact_name as string) || '',
+        phone: (backupContact?.contact_phone as string) || '',
+        email: (backupContact?.contact_email as string) || undefined,
       },
     },
     authorizedPersonnel: {
-      anyoneAtLocation: (data.pickup?.authorizedPersonnel?.anyoneAtLocation as boolean) || false,
-      personnelList: (data.pickup?.authorizedPersonnel?.personnelList as PickupData['authorizedPersonnel']['personnelList']) || [],
+      anyoneAtLocation: (pickupData?.authorizedPersonnel as Record<string, unknown>[])?.length === 0,
+      personnelList: (pickupData?.authorizedPersonnel as Record<string, unknown>[])?.map(
+        (p: Record<string, unknown>) => ({
+          name: p.personnel_name as string,
+          authorizationLevel: p.authorization_type as string,
+          authorizationLevelLabel: p.authorization_type as string,
+        })
+      ) || [],
     },
-    specialAuthorization: data.pickup?.specialAuthorization ? {
-      idVerificationRequired: (data.pickup.specialAuthorization.idVerificationRequired as boolean) || false,
-      signatureRequired: (data.pickup.specialAuthorization.signatureRequired as boolean) || false,
-      photoIdMatching: (data.pickup.specialAuthorization.photoIdMatching as boolean) || false,
-    } : undefined,
     notifications: {
-      emailReminder24h: (data.pickup?.notifications?.emailReminder24h as boolean) ?? true,
-      smsReminder2h: (data.pickup?.notifications?.smsReminder2h as boolean) ?? true,
-      callReminder30m: (data.pickup?.notifications?.callReminder30m as boolean) || false,
-      driverEnroute: (data.pickup?.notifications?.driverEnroute as boolean) ?? true,
-      pickupCompletion: (data.pickup?.notifications?.pickupCompletion as boolean) ?? true,
-      transitUpdates: (data.pickup?.notifications?.transitUpdates as boolean) ?? true,
+      emailReminder24h: true,
+      smsReminder2h: true,
+      callReminder30m: false,
+      driverEnroute: true,
+      pickupCompletion: true,
+      transitUpdates: true,
     },
     fees: {
-      timeSlotFee: (data.pickup?.fees?.timeSlotFee as number) || 0,
-      locationFee: (data.pickup?.fees?.locationFee as number) || 0,
-      equipmentFee: (data.pickup?.fees?.equipmentFee as number) || 0,
-      loadingFee: (data.pickup?.fees?.loadingFee as number) || 0,
-      accessFee: (data.pickup?.fees?.accessFee as number) || 0,
-      totalFee: (data.pickup?.fees?.totalFee as number) || 0,
+      timeSlotFee: parseFloat(pickupSlot?.fee as string) || 0,
+      locationFee: 0,
+      equipmentFee: 0,
+      loadingFee: 0,
+      accessFee: 0,
+      totalFee: parseFloat(pickupSlot?.fee as string) || 0,
     },
   }
+
+  // Build special handling from API data
+  const apiSpecialHandling = (data.specialHandling as Record<string, unknown>[]) || []
+  const specialHandling: SpecialHandlingItem[] = apiSpecialHandling.map((item: Record<string, unknown>) => ({
+    id: item.handling_type as string,
+    name: formatHandlingType(item.handling_type as string),
+    fee: parseFloat(item.fee as string) || 0,
+  }))
 
   return {
     id: (data.id as string) || '',
     origin,
     destination,
     package: packageData,
-    specialHandling: (data.specialHandling as SpecialHandlingItem[]) || [],
-    deliveryPreferences: (data.deliveryPreferences as DeliveryPreferenceItem[]) || [],
+    specialHandling,
+    deliveryPreferences: [], // Would be populated from deliveryPreferences data
     pricing,
     payment,
     billing,
     pickup,
   }
+}
+
+// Helper function to get payment method label
+function getPaymentMethodLabel(method: string | undefined): string {
+  if (!method) return ''
+  
+  const labels: Record<string, string> = {
+    purchase_order: 'Purchase Order',
+    bill_of_lading: 'Bill of Lading',
+    third_party: 'Third-Party Billing',
+    net_terms: 'Net Terms',
+    corporate_account: 'Corporate Account',
+  }
+  
+  return labels[method] || method
+}
+
+// Helper function to format handling type
+function formatHandlingType(type: string | undefined): string {
+  if (!type) return ''
+  
+  const labels: Record<string, string> = {
+    fragile: 'Fragile Handling',
+    hazardous: 'Hazardous Materials',
+    temperature_controlled: 'Temperature Controlled',
+    signature_required: 'Signature Required',
+    adult_signature: 'Adult Signature Required',
+    hold_for_pickup: 'Hold for Pickup',
+    appointment_delivery: 'Appointment Delivery',
+  }
+  
+  return labels[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
 
 export default function ReviewPage() {
@@ -403,15 +451,11 @@ export default function ReviewPage() {
             title: 'Finance Manager',
             phone: '555-123-4568',
             email: 'sarah@acme.com',
-            department: 'Finance',
-            glCode: 'GL-001-EXP',
           },
           company: {
             legalName: 'Acme Corporation',
-            dba: 'Acme Shipping',
             businessType: 'corporation',
             industry: 'manufacturing',
-            shippingVolume: '501-1000',
           },
           invoicePreferences: {
             deliveryMethod: 'email',
@@ -461,10 +505,7 @@ export default function ReviewPage() {
           },
           authorizedPersonnel: {
             anyoneAtLocation: false,
-            personnelList: [
-              { name: 'John Smith', authorizationLevel: 'full', authorizationLevelLabel: 'Full Authorization' },
-              { name: 'Mike Brown', authorizationLevel: 'limited', authorizationLevelLabel: 'Limited Authorization' },
-            ],
+            personnelList: [],
           },
           notifications: {
             emailReminder24h: true,
@@ -495,11 +536,11 @@ export default function ReviewPage() {
 
   // Check if hazmat is selected
   const hasHazmat = shipment?.specialHandling?.some(item => 
-    item.id === 'hazmat' || item.name?.toLowerCase().includes('hazmat')
+    item.id === 'hazardous' || item.id === 'hazmat' || item.name?.toLowerCase().includes('hazmat')
   ) ?? false
 
-  // Handle continue to confirmation
-  const handleContinue = async () => {
+  // Handle submit shipment
+  const handleSubmit = async () => {
     if (!shipment) return
 
     // Validate submission
@@ -525,7 +566,7 @@ export default function ReviewPage() {
         },
         specialHandling: shipment.specialHandling.map(item => item.id),
         selectedRate: {
-          id: shipment.pricing?.carrierName, // Using carrier name as ID for now
+          id: shipment.pricing?.carrierName,
           carrierName: shipment.pricing?.carrierName,
           total: shipment.pricing?.total,
         },
@@ -555,10 +596,44 @@ export default function ReviewPage() {
 
     // All validations passed - proceed to submission
     setIsSubmitting(true)
+    setShowValidationErrors(false)
+    
     try {
-      // TODO: Call submission endpoint (Step 33)
-      // For now, just navigate to confirmation
-      router.push(`/shipments/${shipmentId}/confirm`)
+      // Call the submission endpoint
+      const response = await fetch(`/api/shipments/${shipmentId}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          terms_accepted: true,
+          acknowledgments: [
+            'declared_value_accurate',
+            'insurance_understood',
+            'contents_compliant',
+            'carrier_authorized',
+            ...(hasHazmat ? ['hazmat_certification'] : []),
+          ],
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        // Handle validation errors from server
+        if (data.code === 'VALIDATION_FAILED' && data.details) {
+          const serverErrors: ValidationError[] = data.details.map((d: { message: string }) => ({
+            type: 'terms',
+            message: d.message,
+          }))
+          setValidationErrors(serverErrors)
+          setShowValidationErrors(true)
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+          return
+        }
+        throw new Error(data.error || 'Failed to submit shipment')
+      }
+
+      // Navigate to confirmation page with tracking number
+      router.push(`/shipments/${shipmentId}/confirm?tracking=${data.trackingNumber}`)
     } catch (err) {
       console.error('Submission error:', err)
       setError(err instanceof Error ? err.message : 'Failed to submit shipment')
@@ -662,7 +737,7 @@ export default function ReviewPage() {
         backHref: `/shipments/${shipmentId}/pickup`,
       }}
       navigationProps={{
-        onNext: handleContinue,
+        onNext: handleSubmit,
         onPrevious: handleBack,
         nextLabel: isSubmitting ? 'Submitting...' : 'Confirm Shipment',
         previousLabel: 'Back to Pickup',
@@ -795,7 +870,7 @@ export default function ReviewPage() {
             isSaving={isSavingDraft}
             canSubmit={areTermsAccepted(termsAccepted, hasHazmat) && validationErrors.length === 0}
             onSaveDraft={handleSaveDraft}
-            onSubmit={handleContinue}
+            onSubmit={handleSubmit}
             onStartOver={handleStartOver}
           />
         )}

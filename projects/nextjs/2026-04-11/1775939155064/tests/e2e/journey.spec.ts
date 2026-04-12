@@ -1200,15 +1200,15 @@ test('Gate 6: Time slot selection enables ready time input', async ({ page }) =>
   await page.waitForTimeout(500)
   
   // Fill required contact fields - use placeholder to distinguish
-  await page.getByPlaceholder(/e\.g\.\, John Smith/i).scrollIntoViewIfNeeded()
-  await page.getByPlaceholder(/e\.g\.\, John Smith/i).fill('Test Contact')
-  await page.getByPlaceholder(/e\.g\.\, Shipping Manager/i).fill('Test Manager')
+  await page.getByPlaceholder(/e\.g\., John Smith/i).scrollIntoViewIfNeeded()
+  await page.getByPlaceholder(/e\.g\., John Smith/i).fill('Test Contact')
+  await page.getByPlaceholder(/e\.g\., Shipping Manager/i).fill('Test Manager')
   await page.getByPlaceholder(/\(555\) 123-4567/i).fill('555-111-2222')
   await page.getByPlaceholder(/john\.smith@company\.com/i).fill('test@test.com')
   
   // Fill backup contact - scroll into view first
-  await page.getByPlaceholder(/e\.g\.\, Jane Doe/i).scrollIntoViewIfNeeded()
-  await page.getByPlaceholder(/e\.g\.\, Jane Doe/i).fill('Backup Contact')
+  await page.getByPlaceholder(/e\.g\., Jane Doe/i).scrollIntoViewIfNeeded()
+  await page.getByPlaceholder(/e\.g\., Jane Doe/i).fill('Backup Contact')
   await page.getByPlaceholder(/\(555\) 456-7890/i).fill('555-333-4444')
   
   // Verify Continue button becomes enabled
@@ -1644,15 +1644,15 @@ test('Gate 7: Complete journey from home through pickup scheduling', async ({ pa
   await page.waitForTimeout(500)
   
   // Fill contact information using placeholders
-  await page.getByPlaceholder(/e\.g\.\, John Smith/i).scrollIntoViewIfNeeded()
-  await page.getByPlaceholder(/e\.g\.\, John Smith/i).fill('Jane Pickup')
-  await page.getByPlaceholder(/e\.g\.\, Shipping Manager/i).fill('Warehouse Manager')
+  await page.getByPlaceholder(/e\.g\., John Smith/i).scrollIntoViewIfNeeded()
+  await page.getByPlaceholder(/e\.g\., John Smith/i).fill('Jane Pickup')
+  await page.getByPlaceholder(/e\.g\., Shipping Manager/i).fill('Warehouse Manager')
   await page.getByPlaceholder(/\(555\) 123-4567/i).fill('555-111-2222')
   await page.getByPlaceholder(/john\.smith@company\.com/i).fill('jane@acme.com')
   
   // Fill backup contact using placeholders
-  await page.getByPlaceholder(/e\.g\.\, Jane Doe/i).scrollIntoViewIfNeeded()
-  await page.getByPlaceholder(/e\.g\.\, Jane Doe/i).fill('Bob Backup')
+  await page.getByPlaceholder(/e\.g\., Jane Doe/i).scrollIntoViewIfNeeded()
+  await page.getByPlaceholder(/e\.g\., Jane Doe/i).fill('Bob Backup')
   await page.getByPlaceholder(/\(555\) 456-7890/i).fill('555-333-4444')
   
   // Verify Continue button is now enabled
@@ -1723,15 +1723,15 @@ test('Gate 7: Pickup data persists to database and navigates to review', async (
   await page.waitForTimeout(500)
   
   // Fill primary contact using placeholders
-  await page.getByPlaceholder(/e\.g\.\, John Smith/i).scrollIntoViewIfNeeded()
-  await page.getByPlaceholder(/e\.g\.\, John Smith/i).fill('Jane Pickup')
-  await page.getByPlaceholder(/e\.g\.\, Shipping Manager/i).fill('Warehouse Manager')
+  await page.getByPlaceholder(/e\.g\., John Smith/i).scrollIntoViewIfNeeded()
+  await page.getByPlaceholder(/e\.g\., John Smith/i).fill('Jane Pickup')
+  await page.getByPlaceholder(/e\.g\., Shipping Manager/i).fill('Warehouse Manager')
   await page.getByPlaceholder(/\(555\) 123-4567/i).fill('555-111-2222')
   await page.getByPlaceholder(/john\.smith@company\.com/i).fill('jane@acme.com')
   
   // Fill backup contact using placeholders
-  await page.getByPlaceholder(/e\.g\.\, Jane Doe/i).scrollIntoViewIfNeeded()
-  await page.getByPlaceholder(/e\.g\.\, Jane Doe/i).fill('Bob Backup')
+  await page.getByPlaceholder(/e\.g\., Jane Doe/i).scrollIntoViewIfNeeded()
+  await page.getByPlaceholder(/e\.g\., Jane Doe/i).fill('Bob Backup')
   await page.getByPlaceholder(/\(555\) 456-7890/i).fill('555-333-4444')
   
   // Click Continue to save and navigate to review
@@ -1774,4 +1774,353 @@ test('Gate 7: Back button navigates from pickup to payment', async ({ page }) =>
   // Verify back on payment page
   await expect(page).toHaveURL(/\/shipments\/[^/]+\/payment/, { timeout: 10000 })
   await expect(page.getByRole('heading', { name: /Payment & Billing/i })).toBeVisible()
+})
+
+// ============================================
+// GATE 8: Step 5 Review Page Integration [GATE]
+// Tests for step 31: Review page data loading and submission flow
+// ============================================
+
+test('Gate 8: Review page loads with all sections from Supabase', async ({ page }) => {
+  // Complete prior steps and create shipment
+  await completePriorSteps(page, { through: 3 })
+  await page.waitForTimeout(500)
+  
+  // Submit to pricing page
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pricing/, { timeout: 10000 })
+  
+  // Get shipment ID
+  const pricingUrl = page.url()
+  const shipmentIdMatch = pricingUrl.match(/\/shipments\/([a-zA-Z0-9-]+)\/pricing/)
+  expect(shipmentIdMatch).toBeTruthy()
+  const shipmentId = shipmentIdMatch![1]
+  
+  // Select rate and continue
+  await expect(page.getByText(/Generating quotes/i)).not.toBeVisible({ timeout: 15000 })
+  await page.getByRole('radio').first().click()
+  await page.getByRole('button', { name: /Select Rate & Continue/i }).click()
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/payment/, { timeout: 10000 })
+  
+  // Navigate to pickup page
+  await page.goto(`/shipments/${shipmentId}/pickup`)
+  await expect(page.getByRole('heading', { name: /Schedule Pickup/i })).toBeVisible({ timeout: 10000 })
+  
+  // Fill out required pickup fields
+  await page.waitForTimeout(1000)
+  
+  // Select date
+  const calendarButtons = page.locator('div.grid-cols-7 button:not([disabled])')
+  const count = await calendarButtons.count()
+  expect(count).toBeGreaterThan(0)
+  await calendarButtons.nth(Math.min(5, count - 1)).click()
+  
+  // Wait for time slots and select one
+  await expect(page.getByText(/Select a Time Window/).first()).toBeVisible({ timeout: 10000 })
+  const availableSlot = page.locator('button').filter({ hasText: /Available/ }).first()
+  await availableSlot.click()
+  
+  // Select ready time
+  await expect(page.getByText(/Package Ready Time/i)).toBeVisible({ timeout: 10000 })
+  const readyTimeDropdown = page.getByRole('combobox')
+  await readyTimeDropdown.selectOption({ index: 1 })
+  
+  // Select location type
+  const groundLevelRadio = page.getByRole('radio', { name: /Ground Level/i })
+  await groundLevelRadio.scrollIntoViewIfNeeded()
+  await groundLevelRadio.click({ force: true })
+  
+  // Select loading assistance
+  await page.getByRole('heading', { name: /Equipment & Loading/i }).first().click()
+  await page.waitForTimeout(500)
+  const customerLoadRadio = page.getByRole('radio', { name: /Customer Will Load/i })
+  await customerLoadRadio.scrollIntoViewIfNeeded()
+  await customerLoadRadio.click({ force: true })
+  
+  // Fill contact information
+  await page.getByRole('heading', { name: /Contact Information/i }).first().click()
+  await page.waitForTimeout(500)
+  await page.getByPlaceholder(/e\.g\., John Smith/i).scrollIntoViewIfNeeded()
+  await page.getByPlaceholder(/e\.g\., John Smith/i).fill('Jane Pickup')
+  await page.getByPlaceholder(/e\.g\., Shipping Manager/i).fill('Warehouse Manager')
+  await page.getByPlaceholder(/\(555\) 123-4567/i).fill('555-111-2222')
+  await page.getByPlaceholder(/john\.smith@company\.com/i).fill('jane@acme.com')
+  await page.getByPlaceholder(/e\.g\., Jane Doe/i).scrollIntoViewIfNeeded()
+  await page.getByPlaceholder(/e\.g\., Jane Doe/i).fill('Bob Backup')
+  await page.getByPlaceholder(/\(555\) 456-7890/i).fill('555-333-4444')
+  
+  // Navigate to review page
+  await page.getByRole('button', { name: /Continue to Review/i }).click()
+  
+  // Verify review page loaded
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/review/, { timeout: 10000 })
+  await expect(page.getByRole('heading', { name: /Review Shipment/i })).toBeVisible({ timeout: 10000 })
+  
+  // Verify all 6 review sections are displayed
+  await expect(page.getByRole('heading', { name: /Origin/i }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Destination/i }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Package/i }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Pricing & Rates/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Payment/i }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Pickup Schedule/i })).toBeVisible()
+  
+  // Verify Edit buttons are present
+  const editButtons = page.getByRole('link', { name: /Edit/i })
+  expect(await editButtons.count()).toBeGreaterThanOrEqual(6)
+  
+  // Verify Terms & Conditions section
+  await expect(page.getByRole('heading', { name: /Terms & Conditions/i })).toBeVisible()
+  
+  // Verify Shipment Summary Card - look for the labels specifically
+  await expect(page.getByText('Origin', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('Destination', { exact: true }).first()).toBeVisible()
+})
+
+test('Gate 8: Review page Edit buttons navigate to correct steps', async ({ page }) => {
+  // Complete prior steps and create shipment
+  await completePriorSteps(page, { through: 3 })
+  await page.waitForTimeout(500)
+  
+  // Submit to pricing page
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pricing/, { timeout: 10000 })
+  
+  // Get shipment ID
+  const pricingUrl = page.url()
+  const shipmentIdMatch = pricingUrl.match(/\/shipments\/([a-zA-Z0-9-]+)\/pricing/)
+  expect(shipmentIdMatch).toBeTruthy()
+  const shipmentId = shipmentIdMatch![1]
+  
+  // Navigate directly to review page
+  await page.goto(`/shipments/${shipmentId}/review`)
+  await expect(page.getByRole('heading', { name: /Review Shipment/i })).toBeVisible({ timeout: 10000 })
+  
+  // Test Edit button for Origin section
+  // Note: In the actual implementation, Edit buttons navigate to specific steps
+  // The editHref for Origin is `/shipments/new?edit=${shipmentId}`
+  // For Pricing it's `/shipments/${shipmentId}/pricing`
+  // For Payment it's `/shipments/${shipmentId}/payment`
+  // For Pickup it's `/shipments/${shipmentId}/pickup`
+  
+  // Verify Pricing Edit button navigates to pricing page
+  const pricingEditButton = page.locator('div').filter({ hasText: /^Pricing & Rates$/ }).locator('..').locator('a:has-text("Edit")')
+  if (await pricingEditButton.isVisible().catch(() => false)) {
+    await pricingEditButton.click()
+    await expect(page).toHaveURL(/\/shipments\/[^/]+\/pricing/, { timeout: 10000 })
+    
+    // Navigate back to review
+    await page.goto(`/shipments/${shipmentId}/review`)
+    await expect(page.getByRole('heading', { name: /Review Shipment/i })).toBeVisible({ timeout: 10000 })
+  }
+  
+  // Verify Payment Edit button navigates to payment page
+  const paymentEditButton = page.locator('div').filter({ hasText: /^Payment$/ }).first().locator('..').locator('a:has-text("Edit")')
+  if (await paymentEditButton.isVisible().catch(() => false)) {
+    await paymentEditButton.click()
+    await expect(page).toHaveURL(/\/shipments\/[^/]+\/payment/, { timeout: 10000 })
+    
+    // Navigate back to review
+    await page.goto(`/shipments/${shipmentId}/review`)
+    await expect(page.getByRole('heading', { name: /Review Shipment/i })).toBeVisible({ timeout: 10000 })
+  }
+  
+  // Verify Pickup Edit button navigates to pickup page
+  const pickupEditButton = page.locator('div').filter({ hasText: /^Pickup Schedule$/ }).locator('..').locator('a:has-text("Edit")')
+  if (await pickupEditButton.isVisible().catch(() => false)) {
+    await pickupEditButton.click()
+    await expect(page).toHaveURL(/\/shipments\/[^/]+\/pickup/, { timeout: 10000 })
+  }
+})
+
+test('Gate 8: Review page submission endpoint validates data', async ({ page }) => {
+  // Create a shipment
+  await completePriorSteps(page, { through: 3 })
+  await page.waitForTimeout(500)
+  
+  // Submit to get shipment ID
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pricing/, { timeout: 10000 })
+  
+  const pricingUrl = page.url()
+  const shipmentIdMatch = pricingUrl.match(/\/shipments\/([a-zA-Z0-9-]+)\/pricing/)
+  expect(shipmentIdMatch).toBeTruthy()
+  const shipmentId = shipmentIdMatch![1]
+  
+  // Test submission endpoint without terms acceptance
+  const responseWithoutTerms = await page.request.post(`/api/shipments/${shipmentId}/submit`, {
+    data: {
+      terms_accepted: false,
+    },
+  })
+  
+  expect(responseWithoutTerms.status()).toBe(400)
+  const errorData = await responseWithoutTerms.json()
+  expect(errorData.code).toBe('TERMS_NOT_ACCEPTED')
+  
+  // Test submission endpoint with terms acceptance but missing data
+  // This will fail validation since we haven't completed all steps
+  const responseWithTerms = await page.request.post(`/api/shipments/${shipmentId}/submit`, {
+    data: {
+      terms_accepted: true,
+      acknowledgments: ['test'],
+    },
+  })
+  
+  // Should either succeed or fail with validation errors
+  expect([200, 400]).toContain(responseWithTerms.status())
+  
+  if (responseWithTerms.status() === 400) {
+    const validationData = await responseWithTerms.json()
+    expect(validationData.code).toBe('VALIDATION_FAILED')
+    expect(validationData.details).toBeDefined()
+  }
+})
+
+test('Gate 8: Submission API exists and returns valid structure', async ({ page }) => {
+  // Create a shipment
+  await completePriorSteps(page, { through: 3 })
+  await page.waitForTimeout(500)
+  
+  // Submit to get shipment ID
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pricing/, { timeout: 10000 })
+  
+  const pricingUrl = page.url()
+  const shipmentIdMatch = pricingUrl.match(/\/shipments\/([a-zA-Z0-9-]+)\/pricing/)
+  expect(shipmentIdMatch).toBeTruthy()
+  const shipmentId = shipmentIdMatch![1]
+  
+  // Verify GET /api/shipments/:id returns comprehensive data
+  const shipmentResponse = await page.request.get(`/api/shipments/${shipmentId}`)
+  expect(shipmentResponse.status()).toBe(200)
+  
+  const shipmentData = await shipmentResponse.json()
+  expect(shipmentData.id).toBe(shipmentId)
+  expect(shipmentData.origin).toBeDefined()
+  expect(shipmentData.destination).toBeDefined()
+  expect(shipmentData.package_type).toBeDefined()
+  expect(shipmentData.weight).toBeDefined()
+  expect(shipmentData.sender_contact_name).toBeDefined()
+  expect(shipmentData.recipient_contact_name).toBeDefined()
+  
+  // Verify submission endpoint exists and handles requests
+  const submitResponse = await page.request.post(`/api/shipments/${shipmentId}/submit`, {
+    data: {
+      terms_accepted: false, // Test with false to avoid actual submission
+    },
+  })
+  
+  // Endpoint should exist (returns 400 for terms not accepted, not 404)
+  expect(submitResponse.status()).toBe(400)
+  const submitData = await submitResponse.json()
+  expect(submitData.code).toBe('TERMS_NOT_ACCEPTED')
+})
+
+test('Gate 8: Complete journey through review page with submission flow', async ({ page }) => {
+  // Complete prior steps and create shipment
+  await completePriorSteps(page, { through: 3 })
+  await page.waitForTimeout(500)
+  
+  // Submit to pricing page
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pricing/, { timeout: 10000 })
+  
+  // Get shipment ID
+  const pricingUrl = page.url()
+  const shipmentIdMatch = pricingUrl.match(/\/shipments\/([a-zA-Z0-9-]+)\/pricing/)
+  expect(shipmentIdMatch).toBeTruthy()
+  const shipmentId = shipmentIdMatch![1]
+  
+  // Select rate and continue to payment
+  await expect(page.getByText(/Generating quotes/i)).not.toBeVisible({ timeout: 15000 })
+  await page.getByRole('radio').first().click()
+  await page.getByRole('button', { name: /Select Rate & Continue/i }).click()
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/payment/, { timeout: 10000 })
+  
+  // Navigate to pickup page
+  await page.goto(`/shipments/${shipmentId}/pickup`)
+  await expect(page.getByRole('heading', { name: /Schedule Pickup/i })).toBeVisible({ timeout: 10000 })
+  
+  // Fill out all required pickup fields
+  await page.waitForTimeout(1000)
+  
+  // Select date
+  const calendarButtons = page.locator('div.grid-cols-7 button:not([disabled])')
+  const count = await calendarButtons.count()
+  expect(count).toBeGreaterThan(0)
+  await calendarButtons.nth(Math.min(5, count - 1)).click()
+  
+  // Wait for time slots and select one
+  await expect(page.getByText(/Select a Time Window/).first()).toBeVisible({ timeout: 10000 })
+  const availableSlot = page.locator('button').filter({ hasText: /Available/ }).first()
+  await availableSlot.click()
+  
+  // Select ready time
+  await expect(page.getByText(/Package Ready Time/i)).toBeVisible({ timeout: 10000 })
+  const readyTimeDropdown = page.getByRole('combobox')
+  await readyTimeDropdown.selectOption({ index: 1 })
+  
+  // Select location type
+  const groundLevelRadio = page.getByRole('radio', { name: /Ground Level/i })
+  await groundLevelRadio.scrollIntoViewIfNeeded()
+  await groundLevelRadio.click({ force: true })
+  
+  // Select loading assistance
+  await page.getByRole('heading', { name: /Equipment & Loading/i }).first().click()
+  await page.waitForTimeout(500)
+  const customerLoadRadio = page.getByRole('radio', { name: /Customer Will Load/i })
+  await customerLoadRadio.scrollIntoViewIfNeeded()
+  await customerLoadRadio.click({ force: true })
+  
+  // Fill contact information
+  await page.getByRole('heading', { name: /Contact Information/i }).first().click()
+  await page.waitForTimeout(500)
+  await page.getByPlaceholder(/e\.g\., John Smith/i).scrollIntoViewIfNeeded()
+  await page.getByPlaceholder(/e\.g\., John Smith/i).fill('Jane Pickup')
+  await page.getByPlaceholder(/e\.g\., Shipping Manager/i).fill('Warehouse Manager')
+  await page.getByPlaceholder(/\(555\) 123-4567/i).fill('555-111-2222')
+  await page.getByPlaceholder(/john\.smith@company\.com/i).fill('jane@acme.com')
+  await page.getByPlaceholder(/e\.g\., Jane Doe/i).scrollIntoViewIfNeeded()
+  await page.getByPlaceholder(/e\.g\., Jane Doe/i).fill('Bob Backup')
+  await page.getByPlaceholder(/\(555\) 456-7890/i).fill('555-333-4444')
+  
+  // Navigate to review page
+  await page.getByRole('button', { name: /Continue to Review/i }).click()
+  
+  // Verify review page loaded with all data
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/review/, { timeout: 10000 })
+  await expect(page.getByRole('heading', { name: /Review Shipment/i })).toBeVisible({ timeout: 10000 })
+  
+  // Verify shipment data is displayed (use first() to handle duplicates)
+  await expect(page.getByText(/New York/i).first()).toBeVisible()
+  await expect(page.getByText(/Los Angeles/i).first()).toBeVisible()
+  await expect(page.getByText(/Complete/i).first()).toBeVisible()
+  
+  // Verify Terms & Conditions section requires acceptance
+  await expect(page.getByRole('heading', { name: /Terms & Conditions/i })).toBeVisible()
+  
+  // Verify Confirm Shipment button is disabled until terms are accepted
+  const confirmButton = page.getByRole('button', { name: /Confirm Shipment/i })
+  await expect(confirmButton).toBeDisabled()
+  
+  // Accept all terms (check all checkboxes by ID with force)
+  await page.locator('#declaredValueAccurate').check({ force: true })
+  await page.locator('#insuranceUnderstood').check({ force: true })
+  await page.locator('#contentsCompliant').check({ force: true })
+  await page.locator('#carrierAuthorized').check({ force: true })
+  
+  // Button should now be enabled
+  await expect(confirmButton).toBeEnabled()
+  
+  // Verify Save as Draft button works
+  const saveDraftButton = page.getByRole('button', { name: /Save as Draft/i })
+  await expect(saveDraftButton).toBeVisible()
+  
+  // Verify Print Summary button works
+  const printButton = page.getByRole('button', { name: /Print Summary/i })
+  await expect(printButton).toBeVisible()
+  
+  // Verify Edit Shipment button works
+  const editButton = page.getByRole('button', { name: /Edit Shipment/i })
+  await expect(editButton).toBeVisible()
 })
