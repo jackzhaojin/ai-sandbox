@@ -17,8 +17,11 @@ import {
 } from '@/components/shipping/SpecialHandlingSection'
 import { shipmentStep1Schema, type ShipmentStep1FormData } from '@/lib/validation'
 import { z } from 'zod'
-import { Loader2, AlertCircle } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { useLiveRegion } from '@/lib/accessibility'
+import { ErrorAlert } from '@/components/ui/ErrorAlert'
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { withRetry } from '@/lib/retry'
 
 // Package configuration schema
 const packageConfigSchema = z.object({
@@ -332,69 +335,77 @@ export default function NewShipmentPage() {
     setSaveMessage(null)
 
     try {
-      // Call API to create shipment
-      const response = await fetch('/api/shipments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Call API to create shipment with retry
+      const { result } = await withRetry(
+        async () => {
+          const response = await fetch('/api/shipments', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              origin: {
+                name: data.originName,
+                company: data.originCompany,
+                line1: data.originLine1,
+                line2: data.originLine2,
+                city: data.originCity,
+                state: data.originState,
+                postalCode: data.originPostal,
+                country: data.originCountry,
+                locationType: data.originLocationType,
+                phone: data.originPhone,
+                extension: data.originExtension,
+                email: data.originEmail,
+              },
+              destination: {
+                name: data.destinationName,
+                company: data.destinationCompany,
+                line1: data.destinationLine1,
+                line2: data.destinationLine2,
+                city: data.destinationCity,
+                state: data.destinationState,
+                postalCode: data.destinationPostal,
+                country: data.destinationCountry,
+                locationType: data.destinationLocationType,
+                phone: data.destinationPhone,
+                extension: data.destinationExtension,
+                email: data.destinationEmail,
+              },
+              package: {
+                type: data.packageTypeId,
+                length: data.length,
+                width: data.width,
+                height: data.height,
+                dimensionUnit: data.dimensionUnit,
+                weight: data.weight,
+                weightUnit: data.weightUnit,
+                declaredValue: data.declaredValue,
+                currency: data.currency,
+                contentsDescription: data.contentsDescription,
+              },
+              specialHandling: specialHandlingData.specialHandling.selectedOptions,
+              specialHandlingFee: specialHandlingData.specialHandling.totalFee,
+              deliveryPreferences: specialHandlingData.deliveryPreferences.selectedOptions,
+              deliveryFee: specialHandlingData.deliveryPreferences.totalFee,
+              hazmatDetails: specialHandlingData.hazmatDetails,
+              multiPiece: specialHandlingData.multiPiece,
+              saveAsDraft: false,
+            }),
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(errorData.error || 'Failed to create shipment')
+          }
+
+          return response.json()
         },
-        body: JSON.stringify({
-          origin: {
-            name: data.originName,
-            company: data.originCompany,
-            line1: data.originLine1,
-            line2: data.originLine2,
-            city: data.originCity,
-            state: data.originState,
-            postalCode: data.originPostal,
-            country: data.originCountry,
-            locationType: data.originLocationType,
-            phone: data.originPhone,
-            extension: data.originExtension,
-            email: data.originEmail,
-          },
-          destination: {
-            name: data.destinationName,
-            company: data.destinationCompany,
-            line1: data.destinationLine1,
-            line2: data.destinationLine2,
-            city: data.destinationCity,
-            state: data.destinationState,
-            postalCode: data.destinationPostal,
-            country: data.destinationCountry,
-            locationType: data.destinationLocationType,
-            phone: data.destinationPhone,
-            extension: data.destinationExtension,
-            email: data.destinationEmail,
-          },
-          package: {
-            type: data.packageTypeId,
-            length: data.length,
-            width: data.width,
-            height: data.height,
-            dimensionUnit: data.dimensionUnit,
-            weight: data.weight,
-            weightUnit: data.weightUnit,
-            declaredValue: data.declaredValue,
-            currency: data.currency,
-            contentsDescription: data.contentsDescription,
-          },
-          specialHandling: specialHandlingData.specialHandling.selectedOptions,
-          specialHandlingFee: specialHandlingData.specialHandling.totalFee,
-          deliveryPreferences: specialHandlingData.deliveryPreferences.selectedOptions,
-          deliveryFee: specialHandlingData.deliveryPreferences.totalFee,
-          hazmatDetails: specialHandlingData.hazmatDetails,
-          multiPiece: specialHandlingData.multiPiece,
-          saveAsDraft: false,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to create shipment')
-      }
-
-      const result = await response.json()
+        {
+          maxRetries: 2,
+          initialDelay: 1000,
+        }
+      )
       
       announce('Shipment created successfully. Redirecting to rates page.', 'polite')
       
@@ -457,14 +468,8 @@ export default function NewShipmentPage() {
           showPrevious: false,
         }}
       >
-        <div 
-          className="flex flex-col items-center justify-center py-16"
-          role="status"
-          aria-live="polite"
-          aria-busy="true"
-        >
-          <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" aria-hidden="true" />
-          <p className="text-gray-600">Loading shipment data...</p>
+        <div className="flex flex-col items-center justify-center py-16">
+          <LoadingSpinner size="lg" label="Loading shipment data..." centered />
         </div>
       </ShippingLayout>
     )
@@ -503,18 +508,13 @@ export default function NewShipmentPage() {
 
         {/* Error Alert */}
         {submitError && (
-          <div 
-            className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg"
-            role="alert"
-            aria-live="assertive"
-          >
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
-              <div>
-                <h2 className="text-sm font-medium text-red-800">Error</h2>
-                <p className="text-sm text-red-600 mt-1">{submitError}</p>
-              </div>
-            </div>
+          <div className="mb-6">
+            <ErrorAlert
+              title="Error"
+              message={submitError}
+              severity="error"
+              onDismiss={() => setSubmitError(null)}
+            />
           </div>
         )}
 

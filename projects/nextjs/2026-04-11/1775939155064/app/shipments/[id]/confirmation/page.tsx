@@ -19,7 +19,9 @@ import type {
   ConfirmationPageData,
   RecentShipmentData,
 } from '@/components/confirmation'
-import { Loader2, AlertCircle, Shield, MapPin, Package, FileText } from 'lucide-react'
+import { AlertCircle, Shield, MapPin, Package, FileText } from 'lucide-react'
+import { ErrorAlert } from '@/components/ui/ErrorAlert'
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 
 interface ConfirmPageData extends ConfirmationPageData {
   recentShipments: RecentShipmentData[]
@@ -358,10 +360,11 @@ export default function ConfirmationPage() {
         showStepIndicator={false}
       >
         <div className="flex flex-col items-center justify-center py-16">
-          <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
-          <p className="text-gray-600">
-            {isRedirecting ? 'Redirecting to review page...' : 'Loading confirmation details...'}
-          </p>
+          <LoadingSpinner 
+            size="lg" 
+            label={isRedirecting ? 'Redirecting to review page...' : 'Loading confirmation details...'} 
+            centered 
+          />
         </div>
       </ShippingLayout>
     )
@@ -375,21 +378,13 @@ export default function ConfirmationPage() {
         showNavigation={false}
         showStepIndicator={false}
       >
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <div className="flex items-center gap-3 mb-2">
-            <AlertCircle className="h-6 w-6 text-red-600" />
-            <h2 className="text-lg font-semibold text-red-800">Error Loading Confirmation</h2>
-          </div>
-          <p className="text-red-700 mb-4">
-            {error || 'Unable to load confirmation details. Please try again.'}
-          </p>
-          <button
-            onClick={fetchConfirmationData}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
+        <ErrorAlert
+          title="Error Loading Confirmation"
+          message={error || 'Unable to load confirmation details. Please try again.'}
+          severity="error"
+          onRetry={fetchConfirmationData}
+          retryLabel="Retry"
+        />
       </ShippingLayout>
     )
   }
@@ -457,12 +452,12 @@ export default function ConfirmationPage() {
 
         {/* Error message if any */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-sm text-red-600 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" />
-              {error}
-            </p>
-          </div>
+          <ErrorAlert
+            title="Error"
+            message={error}
+            severity="error"
+            onRetry={fetchConfirmationData}
+          />
         )}
 
         {/* 8 Confirmation Sections */}

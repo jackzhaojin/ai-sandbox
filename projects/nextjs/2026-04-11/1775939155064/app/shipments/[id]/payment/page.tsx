@@ -34,9 +34,12 @@ import {
   paymentMethodSelectionSchema,
   SUPPORTED_COUNTRIES,
 } from '@/lib/validation'
-import { Loader2, AlertCircle, DollarSign, Truck, Package, Building2, User, FileText, CheckCircle } from 'lucide-react'
+import { DollarSign, Truck, Package, Building2, User, FileText, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { z } from 'zod'
+import { ErrorAlert } from '@/components/ui/ErrorAlert'
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { withRetry } from '@/lib/retry'
 
 // Extended form type that includes billing information
  type BillingFormData = {
@@ -403,17 +406,25 @@ export default function PaymentPage() {
         }
       }
 
-      // Save payment method to API
-      const response = await fetch(`/api/shipments/${shipmentId}/payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(fullPaymentData),
-      })
+      // Save payment method to API with retry
+      await withRetry(
+        async () => {
+          const response = await fetch(`/api/shipments/${shipmentId}/payment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(fullPaymentData),
+          })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to save payment method')
-      }
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(errorData.error || 'Failed to save payment method')
+          }
+        },
+        {
+          maxRetries: 2,
+          initialDelay: 1000,
+        }
+      )
 
       // Navigate to pickup scheduling page
       router.push(`/shipments/${shipmentId}/pickup`)
@@ -529,8 +540,7 @@ export default function PaymentPage() {
         }}
       >
         <div className="flex flex-col items-center justify-center py-16">
-          <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
-          <p className="text-gray-600">Loading payment options...</p>
+          <LoadingSpinner size="lg" label="Loading payment options..." centered />
         </div>
       </ShippingLayout>
     )
@@ -570,14 +580,18 @@ export default function PaymentPage() {
               </p>
             </div>
 
-            {/* Error message */}
+            {/* Error message with retry */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-sm text-red-600 flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  {error}
-                </p>
-              </div>
+              <ErrorAlert
+                title="Payment Error"
+                message={error}
+                severity="error"
+                onRetry={() => {
+                  setError(null)
+                  handleSubmit(onSubmit)()
+                }}
+                retryLabel="Try Again"
+              />
             )}
 
             {/* Save success message */}

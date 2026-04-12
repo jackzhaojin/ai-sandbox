@@ -19,11 +19,14 @@ import {
   NotificationPreferencesForm,
   PickupGuidelinesSidebar,
 } from '@/components/pickup'
-import { Truck, Package, MapPin, Calendar, Clock, AlertCircle, Loader2, Building2, Shield, PackageCheck, HandHelping, MessageSquare, User, Bell, Users, CheckCircle } from 'lucide-react'
+import { Truck, Package, MapPin, Calendar, Clock, Building2, Shield, PackageCheck, HandHelping, MessageSquare, User, Bell, Users, CheckCircle } from 'lucide-react'
 import type { DateAvailability, TimeSlot, SelectedPickup } from '@/types/pickup'
 import type { PickupLocationType, AccessRequirement, PickupEquipment, LoadingAssistanceType } from '@/types/pickup'
 import type { PrimaryContact, BackupContact, AuthorizedPerson, SpecialAuthorizationDetails, NotificationPreferences } from '@/types/pickup'
 import { pickupContactSchema } from '@/lib/validation'
+import { ErrorAlert } from '@/components/ui/ErrorAlert'
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { withRetry } from '@/lib/retry'
 
 interface ShipmentSummary {
   id: string
@@ -355,22 +358,29 @@ export default function PickupPage() {
         notifications: notificationPreferences,
       }
 
-      // Call API to save pickup
-      const response = await fetch(`/api/shipments/${shipmentId}/pickup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Call API to save pickup with retry
+      await withRetry(
+        async () => {
+          const response = await fetch(`/api/shipments/${shipmentId}/pickup`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(pickupRequestData),
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || errorData.message || 'Failed to save pickup')
+          }
+
+          return response.json()
         },
-        body: JSON.stringify(pickupRequestData),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || errorData.message || 'Failed to save pickup')
-      }
-
-      const result = await response.json()
-      console.log('Pickup saved successfully:', result)
+        {
+          maxRetries: 2,
+          initialDelay: 1000,
+        }
+      )
 
       // Navigate to review page
       router.push(`/shipments/${shipmentId}/review`)
@@ -429,8 +439,7 @@ export default function PickupPage() {
         }}
       >
         <div className="flex flex-col items-center justify-center py-16">
-          <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
-          <p className="text-gray-600">Loading pickup availability...</p>
+          <LoadingSpinner size="lg" label="Loading pickup availability..." centered />
         </div>
       </ShippingLayout>
     )
@@ -467,14 +476,18 @@ export default function PickupPage() {
           </p>
         </div>
 
-        {/* Error message */}
+        {/* Error message with retry */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-sm text-red-600 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" />
-              {error}
-            </p>
-          </div>
+          <ErrorAlert
+            title="Pickup Scheduling Error"
+            message={error}
+            severity="error"
+            onRetry={() => {
+              setError(null)
+              fetchData()
+            }}
+            retryLabel="Retry"
+          />
         )}
 
         {/* Save success message */}

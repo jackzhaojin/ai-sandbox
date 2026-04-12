@@ -8,7 +8,10 @@ import {
   ShipmentSummaryBar,
   type QuoteResult,
 } from "@/components/pricing"
-import { Loader2, RefreshCw, ArrowLeft, CheckCircle } from "lucide-react"
+import { ErrorAlert } from "@/components/ui/ErrorAlert"
+import { SkeletonPricingCard, SkeletonGrid } from "@/components/ui/Skeleton"
+import { withRetry } from "@/lib/retry"
+import { RefreshCw, ArrowLeft, CheckCircle } from "lucide-react"
 
 interface ShipmentDetails {
   id: string
@@ -212,34 +215,49 @@ export default function PricingPage() {
     }
   }, [shipmentId])
 
-  // Generate quotes via API
+  // Generate quotes via API with retry logic
   const generateQuotes = useCallback(async () => {
     setIsGenerating(true)
+    setError(null)
+    
     try {
-      const response = await fetch("/api/quote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shipmentId }),
-      })
+      const { result } = await withRetry(
+        async () => {
+          const response = await fetch("/api/quote", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ shipmentId }),
+          })
 
-      const data = await response.json()
+          const data = await response.json()
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to generate quotes")
-      }
+          if (!response.ok) {
+            throw new Error(data.error || "Failed to generate quotes")
+          }
+
+          return data
+        },
+        {
+          maxRetries: 3,
+          initialDelay: 1000,
+          onRetry: (err, attempt, delay) => {
+            console.log(`Retrying quote generation (attempt ${attempt}) in ${delay}ms...`)
+          },
+        }
+      )
 
       // Use generated quotes directly
-      setQuotes(data.quotes as QuoteResult[])
+      setQuotes(result.quotes as QuoteResult[])
 
       // Store shipment details from response
-      if (data.shipmentDetails) {
-        setShipmentDetails(data.shipmentDetails as ShipmentDetails)
+      if (result.shipmentDetails) {
+        setShipmentDetails(result.shipmentDetails as ShipmentDetails)
       }
 
       return true
     } catch (err) {
       console.error("Error generating quotes:", err)
-      setError(err instanceof Error ? err.message : "Failed to generate quotes")
+      setError(err instanceof Error ? err.message : "Failed to generate quotes. Please check your connection and try again.")
       return false
     } finally {
       setIsGenerating(false)
@@ -279,12 +297,75 @@ export default function PricingPage() {
   // Store mapping of frontend quote IDs to DB quote IDs
   const [quoteIdMap, setQuoteIdMap] = useState<Record<string, string>>({})
 
-  // Handle quote selection (UI only - just track the selection)
-  const handleSelectQuote = (quoteId: string) => {
+  // Handle quote selection with optimistic UI update
+  const handleSelectQuote = useCallback((quoteId: string) => {
+    // Optimistically update the UI immediately
     setSelectedQuoteId(quoteId)
-  }
+    
+    // Store the previous selection for potential rollback
+    const previousQuoteId = selectedQuoteId
+    
+    // Try to persist the selection in the background
+    const persistSelection = async () => {
+      try {
+        let quoteDBId: string | null = null
+        
+        // Check if we already have the DB ID from the quoteIdMap
+        if (quoteIdMap[quoteId]) {
+          quoteDBId = quoteIdMap[quoteId]
+        } else {
+          // Try to fetch quotes from DB to get the ID
+          try {
+            const response = await fetch(`/api/quote?shipmentId=${shipmentId}`)
+            if (response.ok) {
+              const data = await response.json()
+              const quotesFromDB: QuoteFromAPI[] = data.quotes || []
+              
+              // Build a map and find the selected quote
+              const newIdMap: Record<string, string> = {}
+              quotesFromDB.forEach((q: QuoteFromAPI) => {
+                const frontendId = `${q.carriers?.code || 'unknown'}-${q.service_types?.code || 'unknown'}`
+                newIdMap[frontendId] = q.id
+              })
+              setQuoteIdMap(newIdMap)
+              
+              quoteDBId = newIdMap[quoteId] || null
+            }
+          } catch (fetchErr) {
+            console.warn("Could not fetch quotes from DB:", fetchErr)
+          }
+        }
 
-  // Handle continue to payment - persist selection to database
+        // If we have a DB ID, call the select API
+        if (quoteDBId) {
+          const selectResponse = await fetch("/api/quote/select", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              shipment_id: shipmentId,
+              quote_id: quoteDBId,
+            }),
+          })
+
+          if (!selectResponse.ok) {
+            const selectData = await selectResponse.json()
+            console.warn("Select API failed:", selectData.error)
+            // Don't throw - optimistic update remains
+          }
+        }
+      } catch (err) {
+        console.error("Error persisting quote selection:", err)
+        // On error, we could rollback here if needed:
+        // setSelectedQuoteId(previousQuoteId)
+        // For now, keep the optimistic selection
+      }
+    }
+    
+    // Fire and forget the persistence
+    persistSelection()
+  }, [shipmentId, selectedQuoteId, quoteIdMap])
+
+  // Handle continue to payment - persist selection to database with retry
   const handleContinue = async () => {
     if (!selectedQuoteId) return
 
@@ -292,60 +373,64 @@ export default function PricingPage() {
     setError(null)
     
     try {
-      let quoteDBId: string | null = null
-      
-      // First, check if we already have the DB ID from the quoteIdMap
-      if (quoteIdMap[selectedQuoteId]) {
-        quoteDBId = quoteIdMap[selectedQuoteId]
-      } else {
-        // Try to fetch quotes from DB to get the ID
-        try {
-          const response = await fetch(`/api/quote?shipmentId=${shipmentId}`)
-          if (response.ok) {
-            const data = await response.json()
-            const quotesFromDB: QuoteFromAPI[] = data.quotes || []
-            
-            // Build a map and find the selected quote
-            const newIdMap: Record<string, string> = {}
-            quotesFromDB.forEach((q: QuoteFromAPI) => {
-              const frontendId = `${q.carriers?.code || 'unknown'}-${q.service_types?.code || 'unknown'}`
-              newIdMap[frontendId] = q.id
-            })
-            setQuoteIdMap(newIdMap)
-            
-            quoteDBId = newIdMap[selectedQuoteId] || null
+      await withRetry(
+        async () => {
+          let quoteDBId: string | null = null
+          
+          // First, check if we already have the DB ID from the quoteIdMap
+          if (quoteIdMap[selectedQuoteId]) {
+            quoteDBId = quoteIdMap[selectedQuoteId]
+          } else {
+            // Try to fetch quotes from DB to get the ID
+            const response = await fetch(`/api/quote?shipmentId=${shipmentId}`)
+            if (response.ok) {
+              const data = await response.json()
+              const quotesFromDB: QuoteFromAPI[] = data.quotes || []
+              
+              // Build a map and find the selected quote
+              const newIdMap: Record<string, string> = {}
+              quotesFromDB.forEach((q: QuoteFromAPI) => {
+                const frontendId = `${q.carriers?.code || 'unknown'}-${q.service_types?.code || 'unknown'}`
+                newIdMap[frontendId] = q.id
+              })
+              setQuoteIdMap(newIdMap)
+              
+              quoteDBId = newIdMap[selectedQuoteId] || null
+            }
           }
-        } catch (fetchErr) {
-          console.warn("Could not fetch quotes from DB:", fetchErr)
+
+          // If we have a DB ID, call the select API
+          if (quoteDBId) {
+            const selectResponse = await fetch("/api/quote/select", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                shipment_id: shipmentId,
+                quote_id: quoteDBId,
+              }),
+            })
+
+            if (!selectResponse.ok) {
+              const selectData = await selectResponse.json()
+              throw new Error(selectData.error || "Failed to select quote")
+            }
+          }
+        },
+        {
+          maxRetries: 2,
+          initialDelay: 500,
         }
-      }
+      )
 
-      // If we have a DB ID, call the select API
-      if (quoteDBId) {
-        const selectResponse = await fetch("/api/quote/select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            shipment_id: shipmentId,
-            quote_id: quoteDBId,
-          }),
-        })
-
-        if (!selectResponse.ok) {
-          const selectData = await selectResponse.json()
-          throw new Error(selectData.error || "Failed to select quote")
-        }
-      }
-
-      // Navigate to payment page (even if select API failed, continue the flow)
+      // Navigate to payment page
       router.push(`/shipments/${shipmentId}/payment`)
     } catch (err) {
       console.error("Error selecting quote:", err)
       // Show error but still navigate to allow flow to continue
-      setError(err instanceof Error ? err.message : "Failed to select quote")
+      setError(err instanceof Error ? err.message : "Failed to save selection. Continuing anyway...")
       setTimeout(() => {
         router.push(`/shipments/${shipmentId}/payment`)
-      }, 2000)
+      }, 1500)
     } finally {
       setIsSelecting(false)
     }
@@ -448,17 +533,18 @@ export default function PricingPage() {
           </div>
         </div>
 
-        {/* Error message */}
+        {/* Error message with retry */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-sm text-red-600">{error}</p>
-            <button
-              onClick={() => generateQuotes()}
-              className="mt-2 text-sm font-medium text-red-700 hover:text-red-800"
-            >
-              Try again
-            </button>
-          </div>
+          <ErrorAlert
+            title="Unable to Load Rates"
+            message={error}
+            severity="error"
+            onRetry={() => {
+              setError(null)
+              generateQuotes()
+            }}
+            retryLabel="Try Again"
+          />
         )}
 
         {/* Save success message */}
@@ -482,18 +568,19 @@ export default function PricingPage() {
           onEdit={handleBack}
         />
 
-        {/* Loading state */}
+        {/* Loading state with skeleton cards */}
         {isLoading || isGenerating ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12">
-            <div className="flex flex-col items-center justify-center">
-              <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
-              <p className="text-gray-600 font-medium">
-                {isGenerating ? "Generating quotes..." : "Loading rates..."}
-              </p>
-              <p className="text-sm text-gray-400 mt-1">
-                This may take a few moments
-              </p>
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="h-8 bg-gray-200 rounded w-48 animate-pulse" />
+                  <div className="h-4 bg-gray-200 rounded w-72 mt-2 animate-pulse" />
+                </div>
+                <div className="h-10 bg-gray-200 rounded w-32 animate-pulse" />
+              </div>
             </div>
+            <SkeletonGrid type="pricing" count={6} columns={3} />
           </div>
         ) : (
           /* Pricing grid */

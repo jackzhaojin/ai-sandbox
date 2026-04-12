@@ -8,7 +8,10 @@ import {
   ShipmentSummaryBar,
   type QuoteResult,
 } from "@/components/pricing"
-import { Loader2, RefreshCw } from "lucide-react"
+import { ErrorAlert } from "@/components/ui/ErrorAlert"
+import { SkeletonGrid } from "@/components/ui/Skeleton"
+import { withRetry } from "@/lib/retry"
+import { RefreshCw } from "lucide-react"
 
 interface ShipmentDetails {
   id: string
@@ -182,32 +185,47 @@ export default function RatesPage() {
     }
   }, [shipmentId])
 
-  // Generate quotes via API
+  // Generate quotes via API with retry logic
   const generateQuotes = useCallback(async () => {
     setIsGenerating(true)
+    setError(null)
+    
     try {
-      const response = await fetch("/api/quote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shipmentId }),
-      })
+      const { result } = await withRetry(
+        async () => {
+          const response = await fetch("/api/quote", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ shipmentId }),
+          })
 
-      const data = await response.json()
+          const data = await response.json()
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to generate quotes")
-      }
+          if (!response.ok) {
+            throw new Error(data.error || "Failed to generate quotes")
+          }
 
-      setQuotes(data.quotes as QuoteResult[])
+          return data
+        },
+        {
+          maxRetries: 3,
+          initialDelay: 1000,
+          onRetry: (err, attempt, delay) => {
+            console.log(`Retrying quote generation (attempt ${attempt}) in ${delay}ms...`)
+          },
+        }
+      )
 
-      if (data.shipmentDetails) {
-        setShipmentDetails(data.shipmentDetails as ShipmentDetails)
+      setQuotes(result.quotes as QuoteResult[])
+
+      if (result.shipmentDetails) {
+        setShipmentDetails(result.shipmentDetails as ShipmentDetails)
       }
 
       return true
     } catch (err) {
       console.error("Error generating quotes:", err)
-      setError(err instanceof Error ? err.message : "Failed to generate quotes")
+      setError(err instanceof Error ? err.message : "Failed to generate quotes. Please check your connection and try again.")
       return false
     } finally {
       setIsGenerating(false)
@@ -371,17 +389,18 @@ export default function RatesPage() {
           </div>
         </div>
 
-        {/* Error message */}
+        {/* Error message with retry */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-sm text-red-600">{error}</p>
-            <button
-              onClick={() => generateQuotes()}
-              className="mt-2 text-sm font-medium text-red-700 hover:text-red-800"
-            >
-              Try again
-            </button>
-          </div>
+          <ErrorAlert
+            title="Unable to Load Rates"
+            message={error}
+            severity="error"
+            onRetry={() => {
+              setError(null)
+              generateQuotes()
+            }}
+            retryLabel="Try Again"
+          />
         )}
 
         {/* Shipment summary bar */}
@@ -397,18 +416,19 @@ export default function RatesPage() {
           onEdit={handleBack}
         />
 
-        {/* Loading state */}
+        {/* Loading state with skeleton cards */}
         {isLoading || isGenerating ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12">
-            <div className="flex flex-col items-center justify-center">
-              <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
-              <p className="text-gray-600 font-medium">
-                {isGenerating ? "Generating quotes..." : "Loading rates..."}
-              </p>
-              <p className="text-sm text-gray-400 mt-1">
-                This may take a few moments
-              </p>
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="h-8 bg-gray-200 rounded w-48 animate-pulse" />
+                  <div className="h-4 bg-gray-200 rounded w-72 mt-2 animate-pulse" />
+                </div>
+                <div className="h-10 bg-gray-200 rounded w-32 animate-pulse" />
+              </div>
             </div>
+            <SkeletonGrid type="pricing" count={6} columns={3} />
           </div>
         ) : (
           <PricingGrid

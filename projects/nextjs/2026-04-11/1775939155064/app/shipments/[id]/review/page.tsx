@@ -29,7 +29,10 @@ import type {
   ValidationError,
 } from '@/components/review'
 import { validateSubmission, areTermsAccepted } from '@/lib/submissionValidation'
-import { Loader2, AlertCircle, CheckCircle } from 'lucide-react'
+import { ErrorAlert } from '@/components/ui/ErrorAlert'
+import { SkeletonReviewSection } from '@/components/ui/Skeleton'
+import { withRetry } from '@/lib/retry'
+import { CheckCircle } from 'lucide-react'
 
 interface ShipmentDetails {
   id: string
@@ -610,43 +613,64 @@ export default function ReviewPage() {
       return
     }
 
-    // All validations passed - proceed to submission
+    // All validations passed - proceed to submission with retry
     setIsSubmitting(true)
     setShowValidationErrors(false)
+    setError(null)
     
     try {
-      // Call the submission endpoint
-      const response = await fetch(`/api/shipments/${shipmentId}/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          terms_accepted: true,
-          acknowledgments: [
-            'declared_value_accurate',
-            'insurance_understood',
-            'contents_compliant',
-            'carrier_authorized',
-            ...(hasHazmat ? ['hazmat_certification'] : []),
-          ],
-        }),
-      })
+      await withRetry(
+        async () => {
+          // Call the submission endpoint
+          const response = await fetch(`/api/shipments/${shipmentId}/submit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              terms_accepted: true,
+              acknowledgments: [
+                'declared_value_accurate',
+                'insurance_understood',
+                'contents_compliant',
+                'carrier_authorized',
+                ...(hasHazmat ? ['hazmat_certification'] : []),
+              ],
+            }),
+          })
 
-      const data = await response.json()
+          const data = await response.json()
 
-      if (!response.ok) {
-        // Handle validation errors from server
-        if (data.code === 'VALIDATION_FAILED' && data.details) {
-          const serverErrors: ValidationError[] = data.details.map((d: { message: string }) => ({
-            type: 'terms',
-            message: d.message,
-          }))
-          setValidationErrors(serverErrors)
-          setShowValidationErrors(true)
-          window.scrollTo({ top: 0, behavior: 'smooth' })
-          return
+          if (!response.ok) {
+            // Handle validation errors from server (don't retry these)
+            if (data.code === 'VALIDATION_FAILED' && data.details) {
+              const serverErrors: ValidationError[] = data.details.map((d: { message: string }) => ({
+                type: 'terms',
+                message: d.message,
+              }))
+              setValidationErrors(serverErrors)
+              setShowValidationErrors(true)
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+              // Throw a non-retryable error
+              const validationError = new Error('Validation failed')
+              ;(validationError as Error & { isValidationError: boolean }).isValidationError = true
+              throw validationError
+            }
+            throw new Error(data.error || 'Failed to submit shipment')
+          }
+
+          return data
+        },
+        {
+          maxRetries: 2,
+          initialDelay: 1000,
+          shouldRetry: (err) => {
+            // Don't retry validation errors
+            if ((err as Error & { isValidationError?: boolean }).isValidationError) {
+              return false
+            }
+            return true
+          },
         }
-        throw new Error(data.error || 'Failed to submit shipment')
-      }
+      )
 
       // Navigate to confirmation page
       router.push(`/shipments/${shipmentId}/confirmation`)
@@ -738,9 +762,27 @@ export default function ReviewPage() {
           isNextLoading: true,
         }}
       >
-        <div className="flex flex-col items-center justify-center py-16">
-          <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
-          <p className="text-gray-600">Loading shipment details...</p>
+        <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex-1 min-w-0 space-y-4 md:space-y-6">
+            {/* Header skeleton */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
+              <div className="h-8 bg-gray-200 rounded w-48 animate-pulse mb-2" />
+              <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse" />
+            </div>
+            {/* Section skeletons */}
+            <SkeletonReviewSection />
+            <SkeletonReviewSection />
+            <SkeletonReviewSection />
+            <SkeletonReviewSection />
+          </div>
+          <div className="lg:w-80 shrink-0 order-first lg:order-last">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4">
+              <div className="h-6 bg-gray-200 rounded w-32 animate-pulse" />
+              <div className="h-4 bg-gray-200 rounded w-full animate-pulse" />
+              <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse" />
+              <div className="h-10 bg-gray-200 rounded w-full animate-pulse mt-4" />
+            </div>
+          </div>
         </div>
       </ShippingLayout>
     )
@@ -777,14 +819,18 @@ export default function ReviewPage() {
             </p>
           </div>
 
-          {/* Error message */}
+          {/* Error message with retry */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-sm text-red-600 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                {error}
-              </p>
-            </div>
+            <ErrorAlert
+              title="Error"
+              message={error}
+              severity="error"
+              onRetry={() => {
+                setError(null)
+                fetchShipmentDetails()
+              }}
+              retryLabel="Retry"
+            />
           )}
 
           {/* Save success message */}

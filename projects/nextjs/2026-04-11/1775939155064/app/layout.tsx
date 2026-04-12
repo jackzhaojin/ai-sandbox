@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { LiveRegionProvider } from '@/lib/accessibility'
+import { ErrorBoundary } from '@/components/error'
 
 export const metadata: Metadata = {
   title: 'B2B Postal Checkout',
@@ -35,9 +36,11 @@ export default function RootLayout({
         
         {/* Live region provider for screen reader announcements */}
         <LiveRegionProvider>
-          <main id="main-content" className="min-h-screen" tabIndex={-1}>
-            {children}
-          </main>
+          <ErrorBoundary>
+            <main id="main-content" className="min-h-screen" tabIndex={-1}>
+              {children}
+            </main>
+          </ErrorBoundary>
         </LiveRegionProvider>
       </body>
     </html>
