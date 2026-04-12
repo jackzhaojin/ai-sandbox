@@ -1208,3 +1208,264 @@ test('Gate 6: Pickup availability API validates ZIP code format', async ({ page 
   const validData = await validZipResponse.json()
   expect(validData.zipCode).toBe('10001')
 })
+
+// ============================================
+// GATE 7: Step 4 Pickup Integration
+// ============================================
+
+test('Gate 7: Step 4 - Full pickup flow persists to database', async ({ page }) => {
+  // Complete Step 1 to create a shipment
+  await completePriorSteps(page, { through: 3 })
+  
+  await page.waitForTimeout(500)
+  
+  // Submit to create shipment
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  
+  // Wait for pricing page and get shipment ID
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pricing/, { timeout: 10000 })
+  const url = page.url()
+  const shipmentIdMatch = url.match(/\/shipments\/([a-zA-Z0-9-]+)\/pricing/)
+  expect(shipmentIdMatch).toBeTruthy()
+  const shipmentId = shipmentIdMatch![1]
+  
+  // Select a rate (click on first carrier option)
+  await page.waitForTimeout(1000)
+  const carrierOptions = page.locator('[data-testid="carrier-option"]').first()
+  if (await carrierOptions.isVisible().catch(() => false)) {
+    await carrierOptions.click()
+  }
+  
+  // Continue to payment
+  await page.getByRole('button', { name: /Continue to Payment/i }).click()
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/payment/, { timeout: 10000 })
+  
+  // Select a payment method (Purchase Order)
+  await page.getByRole('button', { name: /Purchase Order/i }).click()
+  
+  // Fill payment details
+  await page.getByLabel(/PO Number/i).fill('PO-TEST-12345')
+  await page.getByLabel(/PO Amount/i).fill('500')
+  await page.getByLabel(/Expiration Date/i).fill('2026-12-31')
+  await page.getByLabel(/Approval Contact/i).fill('John Approver')
+  await page.getByLabel(/Department/i).fill('Procurement')
+  
+  // Continue to pickup page
+  await page.getByRole('button', { name: /Continue to Pickup/i }).click()
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pickup/, { timeout: 10000 })
+  
+  // Wait for pickup page to load
+  await expect(page.getByRole('heading', { name: /Schedule Pickup/i })).toBeVisible({ timeout: 10000 })
+  await page.waitForTimeout(1000)
+  
+  // Step 1: Select a date
+  const calendarButtons = page.locator('div.grid-cols-7 button:not([disabled])')
+  const dateCount = await calendarButtons.count()
+  expect(dateCount).toBeGreaterThan(0)
+  await calendarButtons.nth(Math.min(10, dateCount - 1)).click()
+  
+  // Wait for time slots
+  await expect(page.getByText(/Select a Time Window/).first()).toBeVisible({ timeout: 10000 })
+  
+  // Step 2: Select a time slot
+  const availableSlot = page.locator('button').filter({ hasText: /Available/ }).filter({ hasText: /Morning|Afternoon/ }).first()
+  await availableSlot.click()
+  
+  // Step 3: Select ready time
+  await expect(page.getByText(/Package Ready Time/i)).toBeVisible({ timeout: 10000 })
+  const readyTimeDropdown = page.getByRole('combobox')
+  await readyTimeDropdown.selectOption({ index: 1 })
+  
+  // Step 4: Select location type
+  await page.getByRole('button', { name: /Loading Dock/i }).click()
+  await page.getByLabel(/Dock Number/i).fill('Dock-A12')
+  
+  // Step 5: Select access requirements
+  await page.getByText(/Security Check-in/i).click()
+  await page.getByText(/Call Upon Arrival/i).click()
+  
+  // Step 6: Select equipment
+  await page.getByText(/Standard Dolly/i).click()
+  await page.getByText(/Furniture Pads/i).click()
+  
+  // Step 7: Select loading assistance
+  await page.getByRole('button', { name: /Customer Will Load/i }).click()
+  
+  // Step 8: Fill primary contact
+  await page.getByLabel(/Primary Contact Name/i).fill('Jane Pickup')
+  await page.getByLabel(/Job Title/i).first().fill('Warehouse Manager')
+  await page.getByLabel(/Mobile Phone/i).first().fill('555-111-2222')
+  await page.getByLabel(/Email/i).nth(2).fill('jane@acme.com')
+  
+  // Step 9: Fill backup contact
+  await page.getByLabel(/Backup Contact Name/i).fill('Bob Backup')
+  await page.getByLabel(/Backup Phone/i).fill('555-333-4444')
+  
+  // Step 10: Set notification preferences (keep defaults)
+  await expect(page.getByText(/Email Reminder/i)).toBeVisible()
+  
+  // Submit the form
+  await page.getByRole('button', { name: /Continue to Review/i }).click()
+  
+  // Verify navigation to review page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/review/, { timeout: 15000 })
+  
+  // Verify pickup data persisted - check for pickup summary on review page
+  await expect(page.getByText(/Pickup Scheduled/i).or(page.getByText(/Pickup Details/i))).toBeVisible({ timeout: 10000 })
+})
+
+test('Gate 7: Pickup API validates required fields', async ({ page }) => {
+  // Create a shipment first
+  await completePriorSteps(page, { through: 3 })
+  await page.waitForTimeout(500)
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pricing/, { timeout: 10000 })
+  
+  const url = page.url()
+  const shipmentIdMatch = url.match(/\/shipments\/([a-zA-Z0-9-]+)\/pricing/)
+  const shipmentId = shipmentIdMatch![1]
+  
+  // Test API with invalid data (missing required fields)
+  const invalidResponse = await page.request.post(`/api/shipments/${shipmentId}/pickup`, {
+    data: {
+      selectedPickup: {
+        date: '2026-04-15',
+        timeSlot: {
+          id: 'morning-2026-04-15',
+          label: 'Morning',
+          startTime: '08:00',
+          endTime: '12:00',
+          availability: 'available',
+          fee: 0,
+          description: '8:00 AM - 12:00 PM',
+        },
+        readyTime: '07:30',
+      },
+      location: {
+        locationType: 'loading_dock',
+        // Missing dockNumber which is required for loading_dock
+      },
+      access: {
+        requirements: [],
+      },
+      equipment: {
+        equipment: [],
+      },
+      loading: {
+        assistanceType: 'customer_load',
+      },
+      specialInstructions: {},
+      contacts: {
+        primary: {
+          name: 'Test',
+          mobilePhone: '555-123-4567',
+          email: 'test@test.com',
+          preferredMethod: 'email',
+        },
+        backup: {
+          name: 'Backup',
+          phone: '555-987-6543',
+        },
+      },
+      authorizedPersonnel: {
+        anyoneAtLocation: true,
+        personnelList: [],
+      },
+      specialAuthorization: {
+        idVerificationRequired: false,
+        signatureRequired: false,
+        photoIdMatching: false,
+      },
+      notifications: {
+        emailReminder24h: true,
+        smsReminder2h: true,
+        callReminder30m: false,
+        driverEnroute: true,
+        pickupCompletion: true,
+        transitUpdates: true,
+      },
+    },
+  })
+  
+  expect(invalidResponse.status()).toBe(400)
+  const errorData = await invalidResponse.json()
+  expect(errorData.error).toBe('Validation failed')
+})
+
+test('Gate 7: Pickup API validates ready time is 30+ min before slot', async ({ page }) => {
+  // Create a shipment first
+  await completePriorSteps(page, { through: 3 })
+  await page.waitForTimeout(500)
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pricing/, { timeout: 10000 })
+  
+  const url = page.url()
+  const shipmentIdMatch = url.match(/\/shipments\/([a-zA-Z0-9-]+)\/pricing/)
+  const shipmentId = shipmentIdMatch![1]
+  
+  // Test API with ready time too close to slot start
+  const invalidResponse = await page.request.post(`/api/shipments/${shipmentId}/pickup`, {
+    data: {
+      selectedPickup: {
+        date: '2026-04-15',
+        timeSlot: {
+          id: 'morning-2026-04-15',
+          label: 'Morning',
+          startTime: '08:00',
+          endTime: '12:00',
+          availability: 'available',
+          fee: 0,
+          description: '8:00 AM - 12:00 PM',
+        },
+        readyTime: '07:45', // Only 15 minutes before slot start - should fail
+      },
+      location: {
+        locationType: 'ground_level',
+      },
+      access: {
+        requirements: [],
+      },
+      equipment: {
+        equipment: [],
+      },
+      loading: {
+        assistanceType: 'customer_load',
+      },
+      specialInstructions: {},
+      contacts: {
+        primary: {
+          name: 'Test',
+          mobilePhone: '555-123-4567',
+          email: 'test@test.com',
+          preferredMethod: 'email',
+        },
+        backup: {
+          name: 'Backup',
+          phone: '555-987-6543',
+        },
+      },
+      authorizedPersonnel: {
+        anyoneAtLocation: true,
+        personnelList: [],
+      },
+      specialAuthorization: {
+        idVerificationRequired: false,
+        signatureRequired: false,
+        photoIdMatching: false,
+      },
+      notifications: {
+        emailReminder24h: true,
+        smsReminder2h: true,
+        callReminder30m: false,
+        driverEnroute: true,
+        pickupCompletion: true,
+        transitUpdates: true,
+      },
+    },
+  })
+  
+  expect(invalidResponse.status()).toBe(400)
+  const errorData = await invalidResponse.json()
+  expect(errorData.error).toBe('Validation failed')
+  expect(errorData.details.some((d: { message: string }) => d.message.includes('30 minutes'))).toBe(true)
+})

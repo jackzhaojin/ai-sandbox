@@ -296,24 +296,67 @@ export default function PickupPage() {
     setError(null)
 
     try {
-      const pickupData: SelectedPickup = {
-        date: selectedDate!,
-        timeSlot: selectedSlot,
-        readyTime,
+      // Prepare pickup data for API
+      const pickupRequestData = {
+        selectedPickup: {
+          date: selectedDate!,
+          timeSlot: selectedSlot,
+          readyTime,
+        },
+        location: {
+          locationType: locationDetails.locationType!,
+          dockNumber: locationDetails.dockNumber,
+          otherDescription: locationDetails.otherDescription,
+        },
+        access: {
+          requirements: accessDetails.requirements,
+          gateCode: accessDetails.gateCode,
+          parkingInstructions: accessDetails.parkingInstructions,
+        },
+        equipment: {
+          equipment: equipmentDetails.equipment,
+        },
+        loading: {
+          assistanceType: loadingDetails.assistanceType!,
+        },
+        specialInstructions: {
+          gateCode: specialInstructions.gateCode,
+          parkingLoading: specialInstructions.parkingLoading,
+          packageLocation: specialInstructions.packageLocation,
+          driverInstructions: specialInstructions.driverInstructions,
+        },
+        contacts: {
+          primary: primaryContact,
+          backup: backupContact,
+        },
+        authorizedPersonnel: {
+          anyoneAtLocation: authorizedPersonnel.anyoneAtLocation,
+          personnelList: authorizedPersonnel.personnelList,
+        },
+        specialAuthorization: {
+          idVerificationRequired: specialAuthorization.idVerificationRequired,
+          signatureRequired: specialAuthorization.signatureRequired,
+          photoIdMatching: specialAuthorization.photoIdMatching,
+        },
+        notifications: notificationPreferences,
       }
 
-      // TODO: Save pickup selection to API (Step 27 will implement persistence)
-      console.log('Saving pickup selection:', pickupData)
-      console.log('Location details:', locationDetails)
-      console.log('Access details:', accessDetails)
-      console.log('Equipment details:', equipmentDetails)
-      console.log('Loading details:', loadingDetails)
-      console.log('Special instructions:', specialInstructions)
-      console.log('Primary contact:', primaryContact)
-      console.log('Backup contact:', backupContact)
-      console.log('Authorized personnel:', authorizedPersonnel)
-      console.log('Special authorization:', specialAuthorization)
-      console.log('Notification preferences:', notificationPreferences)
+      // Call API to save pickup
+      const response = await fetch(`/api/shipments/${shipmentId}/pickup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pickupRequestData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || errorData.message || 'Failed to save pickup')
+      }
+
+      const result = await response.json()
+      console.log('Pickup saved successfully:', result)
 
       // Navigate to review page
       router.push(`/shipments/${shipmentId}/review`)
