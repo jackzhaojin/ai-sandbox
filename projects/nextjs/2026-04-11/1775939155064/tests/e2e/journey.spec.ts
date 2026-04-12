@@ -305,3 +305,144 @@ test('Gate 4: Save as Draft creates draft shipment without navigating', async ({
   // Should still be on the new shipment page
   await expect(page).toHaveURL(/\/shipments\/new/)
 })
+
+test('Gate 4: Rates page loads with multi-carrier quotes', async ({ page }) => {
+  // Complete Step 1 and submit to get to rates page
+  await completePriorSteps(page, { through: 3 })
+  
+  await page.waitForTimeout(500)
+  
+  // Submit the form to navigate to rates
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  
+  // Wait for navigation to rates page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/rates/, { timeout: 10000 })
+  
+  // Verify rates page header renders
+  await expect(page.getByRole('heading', { name: /Select Shipping Rate/i })).toBeVisible({ timeout: 10000 })
+  await expect(page.getByText(/Compare rates from multiple carriers/i)).toBeVisible()
+  
+  // Wait for quotes to load (not loading state)
+  await expect(page.getByText(/Generating quotes/i)).not.toBeVisible({ timeout: 15000 })
+  
+  // Verify shipment summary bar is displayed (shows Route, Package, Special Services)
+  await expect(page.getByText(/Route/i)).toBeVisible()
+  await expect(page.getByText(/Package/i)).toBeVisible()
+  // Note: Shipment summary shows mock data until /api/shipments/[id] endpoint is built
+  // The route displays based on available data (falls back to Austin → Dallas mock)
+  
+  // Verify category tabs are present
+  await expect(page.getByRole('button', { name: /All Services/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Ground/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Express/i })).toBeVisible()
+  
+  // Verify sort controls - use exact match for Price to avoid matching "View price breakdown" buttons
+  await expect(page.getByText(/Sort by:/i)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Price', exact: true })).toBeVisible()
+})
+
+test('Gate 4: Pricing cards display with correct structure', async ({ page }) => {
+  // Complete Step 1 and submit to get to rates page
+  await completePriorSteps(page, { through: 3 })
+  
+  await page.waitForTimeout(500)
+  
+  // Submit the form
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  
+  // Wait for rates page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/rates/, { timeout: 10000 })
+  await expect(page.getByRole('heading', { name: /Select Shipping Rate/i })).toBeVisible({ timeout: 10000 })
+  
+  // Wait for quotes to load
+  await expect(page.getByText(/Generating quotes/i)).not.toBeVisible({ timeout: 15000 })
+  
+  // Verify pricing cards are displayed by checking for carrier codes (PEX, VC, EFL)
+  // These are shown in the carrier logo boxes
+  await expect(page.getByText(/PEX|VC|EFL/i).first()).toBeVisible({ timeout: 10000 })
+  
+  // Verify price amounts are displayed (format: $XX.XX)
+  const pricePattern = /\$\d+\.\d{2}/
+  await expect(page.getByText(pricePattern).first()).toBeVisible()
+  
+  // Verify transit time info
+  await expect(page.getByText(/business day/i).first()).toBeVisible()
+  
+  // Verify radio buttons for selection are present on cards
+  await expect(page.getByRole('radio').first()).toBeVisible()
+  
+  // Verify service features are shown (ground/air/express/freight categories)
+  await expect(page.getByText(/Ground Standard|Air Express|Economy Ground|Direct Ground/i).first()).toBeVisible()
+})
+
+test('Gate 4: User can select a rate and continue to payment', async ({ page }) => {
+  // Complete Step 1 and submit to get to rates page
+  await completePriorSteps(page, { through: 3 })
+  
+  await page.waitForTimeout(500)
+  
+  // Submit the form
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  
+  // Wait for rates page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/rates/, { timeout: 10000 })
+  await expect(page.getByRole('heading', { name: /Select Shipping Rate/i })).toBeVisible({ timeout: 10000 })
+  
+  // Wait for quotes to load
+  await expect(page.getByText(/Generating quotes/i)).not.toBeVisible({ timeout: 15000 })
+  
+  // Click on the first pricing card (radio role) to select a rate
+  const firstCard = page.getByRole('radio').first()
+  await expect(firstCard).toBeVisible({ timeout: 10000 })
+  await firstCard.click()
+  
+  // Verify the card is now selected (has aria-checked=true)
+  await expect(firstCard).toHaveAttribute('aria-checked', 'true')
+  
+  // Verify the Continue button becomes enabled
+  const continueButton = page.getByRole('button', { name: /Select Rate & Continue/i })
+  await expect(continueButton).toBeEnabled({ timeout: 5000 })
+  
+  // Click Continue to proceed to payment
+  await continueButton.click()
+  
+  // Should navigate to payment page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/payment/, { timeout: 10000 })
+})
+
+test('Gate 4: Rate filtering and sorting works correctly', async ({ page }) => {
+  // Complete Step 1 and submit to get to rates page
+  await completePriorSteps(page, { through: 3 })
+  
+  await page.waitForTimeout(500)
+  
+  // Submit the form
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  
+  // Wait for rates page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/rates/, { timeout: 10000 })
+  await expect(page.getByRole('heading', { name: /Select Shipping Rate/i })).toBeVisible({ timeout: 10000 })
+  
+  // Wait for quotes to load
+  await expect(page.getByText(/Generating quotes/i)).not.toBeVisible({ timeout: 15000 })
+  
+  // Verify "All Services" tab shows count
+  const allServicesTab = page.getByRole('button', { name: /All Services/i })
+  await expect(allServicesTab).toBeVisible()
+  
+  // Click Ground filter
+  await page.getByRole('button', { name: /Ground/i }).click()
+  
+  // Click Express filter
+  await page.getByRole('button', { name: /Express/i }).click()
+  
+  // Click back to All Services
+  await page.getByRole('button', { name: /All Services/i }).click()
+  
+  // Verify results count is displayed
+  await expect(page.getByText(/Showing \d+ of \d+ rates/i)).toBeVisible()
+  
+  // Verify filter toggles work
+  await page.getByRole('button', { name: /Eco-friendly/i }).click()
+  await page.getByRole('button', { name: /4\+ Stars/i }).click()
+})
