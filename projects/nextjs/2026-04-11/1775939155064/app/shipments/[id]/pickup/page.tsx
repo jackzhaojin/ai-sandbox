@@ -3,9 +3,20 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ShippingLayout } from '@/components/shipping/ShippingLayout'
-import { PickupCalendar, TimeSlotSelector, ReadyTimeInput } from '@/components/pickup'
-import { Truck, Package, MapPin, Calendar, Clock, AlertCircle, Loader2 } from 'lucide-react'
+import {
+  PickupCalendar,
+  TimeSlotSelector,
+  ReadyTimeInput,
+  PickupLocationForm,
+  AccessRequirementsSelector,
+  PickupEquipmentSelector,
+  LoadingAssistanceSelector,
+  SpecialInstructionsForm,
+  PickupFeesSummary,
+} from '@/components/pickup'
+import { Truck, Package, MapPin, Calendar, Clock, AlertCircle, Loader2, Building2, Shield, PackageCheck, HandHelping, MessageSquare } from 'lucide-react'
 import type { DateAvailability, TimeSlot, SelectedPickup } from '@/types/pickup'
+import type { PickupLocationType, AccessRequirement, PickupEquipment, LoadingAssistanceType } from '@/types/pickup'
 
 interface ShipmentSummary {
   id: string
@@ -39,9 +50,40 @@ export default function PickupPage() {
   // State
   const [shipmentSummary, setShipmentSummary] = useState<ShipmentSummary | null>(null)
   const [availabilityData, setAvailabilityData] = useState<DateAvailability[]>([])
+  
+  // Date/Time Selection (from Step 23)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
   const [readyTime, setReadyTime] = useState<string>('')
+  
+  // Location & Access (new from Step 25)
+  const [locationDetails, setLocationDetails] = useState<{
+    locationType: PickupLocationType | null
+    dockNumber?: string
+    otherDescription?: string
+  }>({ locationType: null })
+  
+  const [accessDetails, setAccessDetails] = useState<{
+    requirements: AccessRequirement[]
+    gateCode?: string
+    parkingInstructions?: string
+  }>({ requirements: [] })
+  
+  const [equipmentDetails, setEquipmentDetails] = useState<{
+    equipment: PickupEquipment[]
+  }>({ equipment: [] })
+  
+  const [loadingDetails, setLoadingDetails] = useState<{
+    assistanceType: LoadingAssistanceType | null
+  }>({ assistanceType: null })
+  
+  const [specialInstructions, setSpecialInstructions] = useState<{
+    gateCode?: string
+    parkingLoading?: string
+    packageLocation?: string
+    driverInstructions?: string
+  }>({})
+  
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -148,12 +190,18 @@ export default function PickupPage() {
     if (!selectedDate) return false
     if (!selectedSlot) return false
     if (!readyTime) return false
+    if (!locationDetails.locationType) return false
+    if (locationDetails.locationType === 'loading_dock' && !locationDetails.dockNumber) return false
+    if (locationDetails.locationType === 'other' && !locationDetails.otherDescription) return false
+    if (accessDetails.requirements.includes('gate_code') && !accessDetails.gateCode) return false
+    if (accessDetails.requirements.includes('limited_parking') && !accessDetails.parkingInstructions) return false
+    if (!loadingDetails.assistanceType) return false
     return true
-  }, [selectedDate, selectedSlot, readyTime])
+  }, [selectedDate, selectedSlot, readyTime, locationDetails, accessDetails, loadingDetails])
 
   // Handle continue to next step
   const handleContinue = async () => {
-    if (!isFormValid() || !selectedSlot) return
+    if (!isFormValid() || !selectedSlot || !locationDetails.locationType || !loadingDetails.assistanceType) return
 
     setIsSaving(true)
     setError(null)
@@ -165,8 +213,13 @@ export default function PickupPage() {
         readyTime,
       }
 
-      // TODO: Save pickup selection to API (Step 24 will implement this)
+      // TODO: Save pickup selection to API (Step 27 will implement persistence)
       console.log('Saving pickup selection:', pickupData)
+      console.log('Location details:', locationDetails)
+      console.log('Access details:', accessDetails)
+      console.log('Equipment details:', equipmentDetails)
+      console.log('Loading details:', loadingDetails)
+      console.log('Special instructions:', specialInstructions)
 
       // Navigate to review page
       router.push(`/shipments/${shipmentId}/review`)
@@ -220,14 +273,14 @@ export default function PickupPage() {
         showPrevious: true,
       }}
     >
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Schedule Pickup
           </h1>
           <p className="text-gray-600">
-            Select a convenient pickup date and time window for your shipment.
+            Select a convenient pickup date and time window for your shipment, and provide details about your location.
           </p>
         </div>
 
@@ -277,107 +330,198 @@ export default function PickupPage() {
           </div>
         )}
 
-        {/* Main Content */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Calendar Section */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <Calendar className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-gray-900">
-                Select Pickup Date
-              </h2>
-            </div>
-            <PickupCalendar
-              availabilityData={availabilityData}
-              selectedDate={selectedDate}
-              onSelectDate={handleSelectDate}
-              isLoading={isLoading}
-            />
-          </div>
-
-          {/* Time Slot Section */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <Clock className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-gray-900">
-                Select Time Window
-              </h2>
-            </div>
-            
-            {!selectedDate ? (
-              <div className="bg-gray-50 rounded-lg border border-gray-200 p-8 text-center">
-                <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-600 font-medium">Select a date first</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Choose an available date from the calendar to see time slots
-                </p>
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Main Form Content */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Section 1: Date & Time */}
+            <section className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Date & Time
+                  </h2>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-6">
-                <TimeSlotSelector
-                  slots={availableSlotsForDate()}
-                  selectedSlotId={selectedSlot?.id || null}
-                  onSelectSlot={handleSelectSlot}
+              <div className="p-6 space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <PickupCalendar
+                    availabilityData={availabilityData}
+                    selectedDate={selectedDate}
+                    onSelectDate={handleSelectDate}
+                    isLoading={isLoading}
+                  />
+                  
+                  <div className="space-y-6">
+                    {!selectedDate ? (
+                      <div className="bg-gray-50 rounded-lg border border-gray-200 p-8 text-center">
+                        <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-600 font-medium">Select a date first</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Choose an available date to see time slots
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <TimeSlotSelector
+                          slots={availableSlotsForDate()}
+                          selectedSlotId={selectedSlot?.id || null}
+                          onSelectSlot={handleSelectSlot}
+                          disabled={isSaving}
+                        />
+
+                        {selectedSlot && (
+                          <ReadyTimeInput
+                            selectedSlot={selectedSlot}
+                            value={readyTime}
+                            onChange={setReadyTime}
+                            disabled={isSaving}
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Section 2: Location Type */}
+            <section className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Pickup Location
+                  </h2>
+                </div>
+              </div>
+              <div className="p-6">
+                <PickupLocationForm
+                  value={locationDetails}
+                  onChange={setLocationDetails}
                   disabled={isSaving}
                 />
+              </div>
+            </section>
 
-                {selectedSlot && (
-                  <ReadyTimeInput
-                    selectedSlot={selectedSlot}
-                    value={readyTime}
-                    onChange={setReadyTime}
+            {/* Section 3: Access Requirements */}
+            <section className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Access Requirements
+                  </h2>
+                </div>
+              </div>
+              <div className="p-6">
+                <AccessRequirementsSelector
+                  value={accessDetails}
+                  onChange={setAccessDetails}
+                  disabled={isSaving}
+                />
+              </div>
+            </section>
+
+            {/* Section 4: Equipment & Loading */}
+            <section className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center gap-2">
+                  <PackageCheck className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Equipment & Loading
+                  </h2>
+                </div>
+              </div>
+              <div className="p-6 space-y-8">
+                <PickupEquipmentSelector
+                  value={equipmentDetails}
+                  onChange={setEquipmentDetails}
+                  disabled={isSaving}
+                />
+                
+                <div className="border-t border-gray-200 pt-8">
+                  <LoadingAssistanceSelector
+                    value={loadingDetails}
+                    onChange={setLoadingDetails}
                     disabled={isSaving}
                   />
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Selection Summary */}
-        {selectedDate && selectedSlot && (
-          <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
-            <h3 className="text-sm font-semibold text-blue-900 mb-2">
-              Your Pickup Selection
-            </h3>
-            <div className="flex flex-wrap items-center gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-blue-600" />
-                <span className="text-blue-800">
-                  {new Date(selectedDate).toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-blue-600" />
-                <span className="text-blue-800">
-                  {selectedSlot.label} ({selectedSlot.description})
-                </span>
-              </div>
-              {readyTime && (
-                <div className="flex items-center gap-2">
-                  <span className="text-blue-600">Ready by:</span>
-                  <span className="text-blue-800">
-                    {new Date(`2000-01-01T${readyTime}`).toLocaleTimeString('en-US', {
-                      hour: 'numeric',
-                      minute: '2-digit',
-                      hour12: true,
-                    })}
-                  </span>
                 </div>
-              )}
-              {selectedSlot.fee > 0 && (
-                <div className="ml-auto text-amber-700 font-medium">
-                  +${selectedSlot.fee} fee
+              </div>
+            </section>
+
+            {/* Section 5: Special Instructions */}
+            <section className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Special Instructions
+                  </h2>
+                </div>
+              </div>
+              <div className="p-6">
+                <SpecialInstructionsForm
+                  value={specialInstructions}
+                  onChange={setSpecialInstructions}
+                  disabled={isSaving}
+                />
+              </div>
+            </section>
+          </div>
+
+          {/* Sidebar: Fees Summary */}
+          <div className="space-y-6">
+            <div className="sticky top-6 space-y-6">
+              <PickupFeesSummary
+                timeSlot={selectedSlot}
+                locationType={locationDetails.locationType}
+                accessRequirements={accessDetails.requirements}
+                equipment={equipmentDetails.equipment}
+                loadingAssistance={loadingDetails.assistanceType}
+              />
+
+              {/* Selection Summary */}
+              {selectedDate && selectedSlot && (
+                <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
+                  <h3 className="text-sm font-semibold text-blue-900 mb-3">
+                    Your Selection
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                      <span className="text-blue-800">
+                        {new Date(selectedDate).toLocaleDateString('en-US', { 
+                          weekday: 'short', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-blue-600" />
+                      <span className="text-blue-800">
+                        {selectedSlot.label}
+                      </span>
+                    </div>
+                    {readyTime && (
+                      <div className="flex items-center gap-2">
+                        <HandHelping className="w-4 h-4 text-blue-600" />
+                        <span className="text-blue-800">
+                          Ready by {new Date(`2000-01-01T${readyTime}`).toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true,
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
           </div>
-        )}
+        </div>
       </div>
     </ShippingLayout>
   )

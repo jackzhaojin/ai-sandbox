@@ -1185,3 +1185,246 @@ export const INDUSTRY_LABELS: Record<Industry, string> = {
   wood_paper: "Wood, Paper & Forestry",
   other: "Other",
 }
+
+// ==========================================
+// Pickup Location Validation
+// ==========================================
+
+export const PICKUP_LOCATION_TYPES = [
+  "loading_dock",
+  "ground_level",
+  "residential",
+  "storage_facility",
+  "construction_site",
+  "other",
+] as const
+export type PickupLocationType = (typeof PICKUP_LOCATION_TYPES)[number]
+
+export const PICKUP_LOCATION_TYPE_LABELS: Record<PickupLocationType, string> = {
+  loading_dock: "Loading Dock",
+  ground_level: "Ground Level",
+  residential: "Residential",
+  storage_facility: "Storage Facility",
+  construction_site: "Construction Site",
+  other: "Other",
+}
+
+export const PICKUP_LOCATION_TYPE_FEES: Record<PickupLocationType, number> = {
+  loading_dock: 0,
+  ground_level: 0,
+  residential: 15,
+  storage_facility: 0,
+  construction_site: 25,
+  other: 0,
+}
+
+// Pickup location schema
+export const pickupLocationSchema = z.object({
+  locationType: z.enum(PICKUP_LOCATION_TYPES, {
+    errorMap: () => ({ message: "Location type is required" }),
+  }),
+  dockNumber: z
+    .string()
+    .max(50, "Dock number must not exceed 50 characters")
+    .optional(),
+  otherDescription: z
+    .string()
+    .max(200, "Description must not exceed 200 characters")
+    .optional(),
+}).superRefine((data, ctx) => {
+  // Dock number required for loading dock
+  if (data.locationType === "loading_dock" && !data.dockNumber) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Dock number is required for loading dock locations",
+      path: ["dockNumber"],
+    })
+  }
+  // Description required for other location type
+  if (data.locationType === "other" && !data.otherDescription) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Description is required for other location types",
+      path: ["otherDescription"],
+    })
+  }
+})
+
+export type PickupLocationData = z.infer<typeof pickupLocationSchema>
+
+// ==========================================
+// Access Requirements Validation
+// ==========================================
+
+export const ACCESS_REQUIREMENTS = [
+  "call_upon_arrival",
+  "security_checkin",
+  "gate_code",
+  "appointment_required",
+  "limited_parking",
+  "forklift_available",
+  "liftgate_service",
+] as const
+export type AccessRequirement = (typeof ACCESS_REQUIREMENTS)[number]
+
+export const ACCESS_REQUIREMENT_LABELS: Record<AccessRequirement, string> = {
+  call_upon_arrival: "Call Upon Arrival",
+  security_checkin: "Security Check-in",
+  gate_code: "Gate Code Required",
+  appointment_required: "Appointment Required",
+  limited_parking: "Limited Parking",
+  forklift_available: "Forklift Available",
+  liftgate_service: "Liftgate Service",
+}
+
+export const ACCESS_REQUIREMENT_FEES: Record<AccessRequirement, number> = {
+  call_upon_arrival: 0,
+  security_checkin: 0,
+  gate_code: 0,
+  appointment_required: 0,
+  limited_parking: 0,
+  forklift_available: 0,
+  liftgate_service: 35,
+}
+
+// Access requirements schema
+export const accessRequirementsSchema = z.object({
+  requirements: z.array(z.enum(ACCESS_REQUIREMENTS)).default([]),
+  gateCode: z
+    .string()
+    .max(200, "Gate code must not exceed 200 characters")
+    .optional(),
+  parkingInstructions: z
+    .string()
+    .max(200, "Parking instructions must not exceed 200 characters")
+    .optional(),
+}).superRefine((data, ctx) => {
+  // Gate code required if gate_code requirement selected
+  if (data.requirements.includes("gate_code") && !data.gateCode) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Gate code or access instructions are required",
+      path: ["gateCode"],
+    })
+  }
+  // Parking instructions required if limited_parking selected
+  if (data.requirements.includes("limited_parking") && !data.parkingInstructions) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Parking instructions are required",
+      path: ["parkingInstructions"],
+    })
+  }
+})
+
+export type AccessRequirementsData = z.infer<typeof accessRequirementsSchema>
+
+// ==========================================
+// Pickup Equipment Validation
+// ==========================================
+
+export const PICKUP_EQUIPMENT = [
+  "standard_dolly",
+  "appliance_dolly",
+  "furniture_pads",
+  "straps",
+  "pallet_jack",
+  "two_person_team",
+] as const
+export type PickupEquipment = (typeof PICKUP_EQUIPMENT)[number]
+
+export const PICKUP_EQUIPMENT_LABELS: Record<PickupEquipment, string> = {
+  standard_dolly: "Standard Dolly",
+  appliance_dolly: "Appliance Dolly",
+  furniture_pads: "Furniture Pads",
+  straps: "Straps",
+  pallet_jack: "Pallet Jack",
+  two_person_team: "Two-Person Team",
+}
+
+export const PICKUP_EQUIPMENT_FEES: Record<PickupEquipment, number> = {
+  standard_dolly: 0,
+  appliance_dolly: 0,
+  furniture_pads: 0,
+  straps: 0,
+  pallet_jack: 0,
+  two_person_team: 45,
+}
+
+// Pickup equipment schema
+export const pickupEquipmentSchema = z.object({
+  equipment: z.array(z.enum(PICKUP_EQUIPMENT)).default([]),
+})
+
+export type PickupEquipmentData = z.infer<typeof pickupEquipmentSchema>
+
+// ==========================================
+// Loading Assistance Validation
+// ==========================================
+
+export const LOADING_ASSISTANCE_TYPES = [
+  "customer_load",
+  "driver_assistance",
+  "full_service",
+] as const
+export type LoadingAssistanceType = (typeof LOADING_ASSISTANCE_TYPES)[number]
+
+export const LOADING_ASSISTANCE_LABELS: Record<LoadingAssistanceType, string> = {
+  customer_load: "Customer Will Load",
+  driver_assistance: "Driver Assistance",
+  full_service: "Full Service",
+}
+
+export const LOADING_ASSISTANCE_FEES: Record<LoadingAssistanceType, number> = {
+  customer_load: 0,
+  driver_assistance: 25,
+  full_service: 65,
+}
+
+// Loading assistance schema
+export const loadingAssistanceSchema = z.object({
+  assistanceType: z.enum(LOADING_ASSISTANCE_TYPES, {
+    errorMap: () => ({ message: "Loading assistance type is required" }),
+  }),
+})
+
+export type LoadingAssistanceData = z.infer<typeof loadingAssistanceSchema>
+
+// ==========================================
+// Special Instructions Validation
+// ==========================================
+
+export const specialInstructionsSchema = z.object({
+  gateCode: z
+    .string()
+    .max(200, "Gate code must not exceed 200 characters")
+    .optional(),
+  parkingLoading: z
+    .string()
+    .max(200, "Parking/loading instructions must not exceed 200 characters")
+    .optional(),
+  packageLocation: z
+    .string()
+    .max(100, "Package location must not exceed 100 characters")
+    .optional(),
+  driverInstructions: z
+    .string()
+    .max(300, "Driver instructions must not exceed 300 characters")
+    .optional(),
+})
+
+export type SpecialInstructionsData = z.infer<typeof specialInstructionsSchema>
+
+// ==========================================
+// Complete Pickup Details Validation
+// ==========================================
+
+export const pickupDetailsSchema = z.object({
+  location: pickupLocationSchema,
+  access: accessRequirementsSchema,
+  equipment: pickupEquipmentSchema,
+  loading: loadingAssistanceSchema,
+  specialInstructions: specialInstructionsSchema,
+})
+
+export type PickupDetailsData = z.infer<typeof pickupDetailsSchema>
