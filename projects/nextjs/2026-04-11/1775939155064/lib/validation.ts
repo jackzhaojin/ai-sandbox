@@ -1428,3 +1428,171 @@ export const pickupDetailsSchema = z.object({
 })
 
 export type PickupDetailsData = z.infer<typeof pickupDetailsSchema>
+
+// ==========================================
+// Pickup Contact Validation
+// ==========================================
+
+export const PREFERRED_CONTACT_METHODS = ["phone", "email", "text"] as const
+export type PreferredContactMethod = (typeof PREFERRED_CONTACT_METHODS)[number]
+
+export const PREFERRED_CONTACT_METHOD_LABELS: Record<PreferredContactMethod, string> = {
+  phone: "Phone Call",
+  email: "Email",
+  text: "Text Message",
+}
+
+// Primary contact schema
+export const primaryContactSchema = z.object({
+  name: z
+    .string()
+    .min(1, "Primary contact name is required")
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must not exceed 100 characters"),
+  jobTitle: z
+    .string()
+    .max(100, "Job title must not exceed 100 characters")
+    .optional(),
+  mobilePhone: z
+    .string()
+    .min(1, "Mobile phone is required")
+    .regex(/^\+?[\d\s\-\(\)]{10,}$/, "Invalid phone number format"),
+  altPhone: z
+    .string()
+    .regex(/^\+?[\d\s\-\(\)]{10,}$/, "Invalid phone number format")
+    .optional()
+    .or(z.literal("")),
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Invalid email address"),
+  preferredMethod: z.enum(PREFERRED_CONTACT_METHODS, {
+    errorMap: () => ({ message: "Preferred contact method is required" }),
+  }),
+})
+
+export type PrimaryContactData = z.infer<typeof primaryContactSchema>
+
+// Backup contact schema
+export const backupContactSchema = z.object({
+  name: z
+    .string()
+    .min(1, "Backup contact name is required")
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must not exceed 100 characters"),
+  phone: z
+    .string()
+    .min(1, "Backup phone is required")
+    .regex(/^\+?[\d\s\-\(\)]{10,}$/, "Invalid phone number format"),
+  email: z
+    .string()
+    .email("Invalid email address")
+    .optional()
+    .or(z.literal("")),
+})
+
+export type BackupContactData = z.infer<typeof backupContactSchema>
+
+// Combined contact schema with cross-validation
+export const pickupContactSchema = z.object({
+  primary: primaryContactSchema,
+  backup: backupContactSchema,
+}).superRefine((data, ctx) => {
+  // Backup contact cannot be the same as primary
+  if (data.primary.name.toLowerCase().trim() === data.backup.name.toLowerCase().trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Backup contact cannot be the same person as primary contact",
+      path: ["backup", "name"],
+    })
+  }
+  
+  // Backup phone cannot be the same as primary mobile
+  const primaryPhone = data.primary.mobilePhone.replace(/\D/g, "")
+  const backupPhone = data.backup.phone.replace(/\D/g, "")
+  if (primaryPhone === backupPhone && primaryPhone.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Backup phone cannot be the same as primary mobile phone",
+      path: ["backup", "phone"],
+    })
+  }
+})
+
+export type PickupContactData = z.infer<typeof pickupContactSchema>
+
+// ==========================================
+// Authorized Personnel Validation
+// ==========================================
+
+export const AUTHORIZATION_LEVELS = ["full", "limited", "notification_only"] as const
+export type AuthorizationLevel = (typeof AUTHORIZATION_LEVELS)[number]
+
+export const AUTHORIZATION_LEVEL_LABELS: Record<AuthorizationLevel, string> = {
+  full: "Full Authorization",
+  limited: "Limited Authorization",
+  notification_only: "Notification Only",
+}
+
+export const authorizedPersonSchema = z.object({
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must not exceed 100 characters"),
+  authorizationLevel: z.enum(AUTHORIZATION_LEVELS, {
+    errorMap: () => ({ message: "Authorization level is required" }),
+  }),
+})
+
+export type AuthorizedPersonData = z.infer<typeof authorizedPersonSchema>
+
+export const authorizedPersonnelSchema = z.object({
+  anyoneAtLocation: z.boolean().default(false),
+  personnelList: z.array(authorizedPersonSchema).default([]),
+}).superRefine((data, ctx) => {
+  // If "anyone at location" is not selected, at least one person is recommended
+  // (but we'll make it optional - just a warning at UI level)
+})
+
+export type AuthorizedPersonnelData = z.infer<typeof authorizedPersonnelSchema>
+
+// ==========================================
+// Special Authorization Validation (High-Value)
+// ==========================================
+
+export const specialAuthorizationSchema = z.object({
+  idVerificationRequired: z.boolean().default(false),
+  signatureRequired: z.boolean().default(false),
+  photoIdMatching: z.boolean().default(false),
+})
+
+export type SpecialAuthorizationData = z.infer<typeof specialAuthorizationSchema>
+
+// ==========================================
+// Notification Preferences Validation
+// ==========================================
+
+export const notificationPreferencesSchema = z.object({
+  emailReminder24h: z.boolean().default(true),
+  smsReminder2h: z.boolean().default(true),
+  callReminder30m: z.boolean().default(false),
+  driverEnroute: z.boolean().default(true),
+  pickupCompletion: z.boolean().default(true),
+  transitUpdates: z.boolean().default(true),
+})
+
+export type NotificationPreferencesData = z.infer<typeof notificationPreferencesSchema>
+
+// ==========================================
+// Complete Pickup Contacts & Notifications Schema
+// ==========================================
+
+export const pickupContactsNotificationsSchema = z.object({
+  contacts: pickupContactSchema,
+  authorizedPersonnel: authorizedPersonnelSchema,
+  specialAuthorization: specialAuthorizationSchema.optional(),
+  notifications: notificationPreferencesSchema,
+})
+
+export type PickupContactsNotificationsData = z.infer<typeof pickupContactsNotificationsSchema>

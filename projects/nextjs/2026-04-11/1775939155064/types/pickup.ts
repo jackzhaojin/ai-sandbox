@@ -414,6 +414,10 @@ export interface CompletePickupDetails {
   equipment: PickupEquipmentDetails
   loading: PickupLoadingDetails
   specialInstructions: PickupSpecialInstructions
+  contacts: PickupContactDetails
+  authorizedPersonnel: AuthorizedPersonnelDetails
+  specialAuthorization?: SpecialAuthorizationDetails
+  notifications: NotificationPreferences
   fees: {
     timeSlotFee: number
     locationFee: number
@@ -422,4 +426,101 @@ export interface CompletePickupDetails {
     accessFee: number
     totalFee: number
   }
+}
+
+// ==========================================
+// Pickup Contact Types
+// ==========================================
+
+export type PreferredContactMethod = 'phone' | 'email' | 'text'
+
+export const PREFERRED_CONTACT_METHODS = ['phone', 'email', 'text'] as const
+
+export const PREFERRED_CONTACT_METHOD_LABELS: Record<PreferredContactMethod, string> = {
+  phone: 'Phone Call',
+  email: 'Email',
+  text: 'Text Message',
+}
+
+export interface PrimaryContact {
+  name: string
+  jobTitle?: string
+  mobilePhone: string
+  altPhone?: string
+  email: string
+  preferredMethod: PreferredContactMethod
+}
+
+export interface BackupContact {
+  name: string
+  phone: string
+  email?: string
+}
+
+export interface PickupContactDetails {
+  primary: PrimaryContact
+  backup: BackupContact
+}
+
+// ==========================================
+// Authorized Personnel Types
+// ==========================================
+
+export type AuthorizationLevel = 'full' | 'limited' | 'notification_only'
+
+export const AUTHORIZATION_LEVELS = ['full', 'limited', 'notification_only'] as const
+
+export const AUTHORIZATION_LEVEL_LABELS: Record<AuthorizationLevel, string> = {
+  full: 'Full Authorization',
+  limited: 'Limited Authorization',
+  notification_only: 'Notification Only',
+}
+
+export interface AuthorizedPerson {
+  name: string
+  authorizationLevel: AuthorizationLevel
+}
+
+export interface AuthorizedPersonnelDetails {
+  anyoneAtLocation: boolean
+  personnelList: AuthorizedPerson[]
+}
+
+// ==========================================
+// Special Authorization Types (for high-value)
+// ==========================================
+
+export interface SpecialAuthorizationDetails {
+  idVerificationRequired: boolean
+  signatureRequired: boolean
+  photoIdMatching: boolean
+}
+
+// ==========================================
+// Notification Preference Types
+// ==========================================
+
+export interface NotificationPreferences {
+  emailReminder24h: boolean
+  smsReminder2h: boolean
+  callReminder30m: boolean
+  driverEnroute: boolean
+  pickupCompletion: boolean
+  transitUpdates: boolean
+}
+
+// ==========================================
+// Pickup Guidelines Types
+// ==========================================
+
+export interface PickupGuidelines {
+  minLeadDays: number
+  sameDayCutoff: string
+  serviceAreaDescription: string
+  premiumTimeSlotFees: {
+    morning: number
+    evening: number
+    weekend: number
+  }
+  equipmentAvailability: string[]
 }

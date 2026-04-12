@@ -13,10 +13,17 @@ import {
   LoadingAssistanceSelector,
   SpecialInstructionsForm,
   PickupFeesSummary,
+  PickupContactForm,
+  AuthorizedPersonnelList,
+  SpecialAuthorizationSection,
+  NotificationPreferencesForm,
+  PickupGuidelinesSidebar,
 } from '@/components/pickup'
-import { Truck, Package, MapPin, Calendar, Clock, AlertCircle, Loader2, Building2, Shield, PackageCheck, HandHelping, MessageSquare } from 'lucide-react'
+import { Truck, Package, MapPin, Calendar, Clock, AlertCircle, Loader2, Building2, Shield, PackageCheck, HandHelping, MessageSquare, User, Bell, Users } from 'lucide-react'
 import type { DateAvailability, TimeSlot, SelectedPickup } from '@/types/pickup'
 import type { PickupLocationType, AccessRequirement, PickupEquipment, LoadingAssistanceType } from '@/types/pickup'
+import type { PrimaryContact, BackupContact, AuthorizedPerson, SpecialAuthorizationDetails, NotificationPreferences } from '@/types/pickup'
+import { pickupContactSchema } from '@/lib/validation'
 
 interface ShipmentSummary {
   id: string
@@ -34,6 +41,8 @@ interface ShipmentSummary {
     weight: number
     weightUnit: string
   }
+  declaredValue?: number
+  currency?: string
   selectedRate?: {
     carrierName: string
     serviceName: string
@@ -84,6 +93,50 @@ export default function PickupPage() {
     driverInstructions?: string
   }>({})
   
+  // Contact & Authorization (Step 26)
+  const [primaryContact, setPrimaryContact] = useState<PrimaryContact>({
+    name: '',
+    jobTitle: '',
+    mobilePhone: '',
+    altPhone: '',
+    email: '',
+    preferredMethod: 'email',
+  })
+  
+  const [backupContact, setBackupContact] = useState<BackupContact>({
+    name: '',
+    phone: '',
+    email: '',
+  })
+  
+  const [authorizedPersonnel, setAuthorizedPersonnel] = useState<{
+    anyoneAtLocation: boolean
+    personnelList: AuthorizedPerson[]
+  }>({
+    anyoneAtLocation: false,
+    personnelList: [],
+  })
+  
+  const [specialAuthorization, setSpecialAuthorization] = useState<SpecialAuthorizationDetails>({
+    idVerificationRequired: false,
+    signatureRequired: false,
+    photoIdMatching: false,
+  })
+  
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>({
+    emailReminder24h: true,
+    smsReminder2h: true,
+    callReminder30m: false,
+    driverEnroute: true,
+    pickupCompletion: true,
+    transitUpdates: true,
+  })
+  
+  const [contactErrors, setContactErrors] = useState<{
+    primary?: Record<string, string>
+    backup?: Record<string, string>
+  } | null>(null)
+  
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -117,6 +170,8 @@ export default function PickupPage() {
           weight: shipmentData.package?.weight || 0,
           weightUnit: shipmentData.package?.weightUnit || 'lbs',
         },
+        declaredValue: shipmentData.package?.declaredValue || 0,
+        currency: shipmentData.package?.currency || 'USD',
         selectedRate: shipmentData.selectedRate || undefined,
       })
 
@@ -147,6 +202,8 @@ export default function PickupPage() {
         },
         destination: { city: 'Dallas', state: 'TX' },
         package: { weight: 5.5, weightUnit: 'lbs' },
+        declaredValue: 2500,
+        currency: 'USD',
         selectedRate: {
           carrierName: 'Postal Express',
           serviceName: 'Ground',
@@ -185,6 +242,33 @@ export default function PickupPage() {
     setError(null)
   }, [])
 
+  // Validate contact information
+  const validateContacts = useCallback(() => {
+    const result = pickupContactSchema.safeParse({
+      primary: primaryContact,
+      backup: backupContact,
+    })
+    
+    if (!result.success) {
+      const errors: { primary?: Record<string, string>; backup?: Record<string, string> } = {}
+      result.error.errors.forEach((err) => {
+        const path = err.path
+        if (path[0] === 'primary') {
+          errors.primary = errors.primary || {}
+          errors.primary[path[1] as string] = err.message
+        } else if (path[0] === 'backup') {
+          errors.backup = errors.backup || {}
+          errors.backup[path[1] as string] = err.message
+        }
+      })
+      setContactErrors(errors)
+      return false
+    }
+    
+    setContactErrors(null)
+    return true
+  }, [primaryContact, backupContact])
+
   // Check if form is valid
   const isFormValid = useCallback((): boolean => {
     if (!selectedDate) return false
@@ -196,8 +280,13 @@ export default function PickupPage() {
     if (accessDetails.requirements.includes('gate_code') && !accessDetails.gateCode) return false
     if (accessDetails.requirements.includes('limited_parking') && !accessDetails.parkingInstructions) return false
     if (!loadingDetails.assistanceType) return false
+    
+    // Contact validation
+    if (!primaryContact.name || !primaryContact.mobilePhone || !primaryContact.email) return false
+    if (!backupContact.name || !backupContact.phone) return false
+    
     return true
-  }, [selectedDate, selectedSlot, readyTime, locationDetails, accessDetails, loadingDetails])
+  }, [selectedDate, selectedSlot, readyTime, locationDetails, accessDetails, loadingDetails, primaryContact, backupContact])
 
   // Handle continue to next step
   const handleContinue = async () => {
@@ -220,6 +309,11 @@ export default function PickupPage() {
       console.log('Equipment details:', equipmentDetails)
       console.log('Loading details:', loadingDetails)
       console.log('Special instructions:', specialInstructions)
+      console.log('Primary contact:', primaryContact)
+      console.log('Backup contact:', backupContact)
+      console.log('Authorized personnel:', authorizedPersonnel)
+      console.log('Special authorization:', specialAuthorization)
+      console.log('Notification preferences:', notificationPreferences)
 
       // Navigate to review page
       router.push(`/shipments/${shipmentId}/review`)
@@ -468,9 +562,96 @@ export default function PickupPage() {
                 />
               </div>
             </section>
+
+            {/* Section 6: Contact Information (Step 26) */}
+            <section className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center gap-2">
+                  <User className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Contact Information
+                  </h2>
+                </div>
+              </div>
+              <div className="p-6">
+                <PickupContactForm
+                  primaryContact={primaryContact}
+                  backupContact={backupContact}
+                  onPrimaryChange={setPrimaryContact}
+                  onBackupChange={setBackupContact}
+                  errors={contactErrors || undefined}
+                  disabled={isSaving}
+                />
+              </div>
+            </section>
+
+            {/* Section 7: Authorized Personnel (Step 26) */}
+            <section className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Authorized Personnel
+                  </h2>
+                </div>
+              </div>
+              <div className="p-6">
+                <AuthorizedPersonnelList
+                  anyoneAtLocation={authorizedPersonnel.anyoneAtLocation}
+                  personnelList={authorizedPersonnel.personnelList}
+                  onAnyoneAtLocationChange={(value) =>
+                    setAuthorizedPersonnel({ ...authorizedPersonnel, anyoneAtLocation: value })
+                  }
+                  onPersonnelListChange={(list) =>
+                    setAuthorizedPersonnel({ ...authorizedPersonnel, personnelList: list })
+                  }
+                  disabled={isSaving}
+                />
+              </div>
+            </section>
+
+            {/* Section 8: Special Authorization (Step 26) - Conditional */}
+            <section className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Security Authorization
+                  </h2>
+                </div>
+              </div>
+              <div className="p-6">
+                <SpecialAuthorizationSection
+                  value={specialAuthorization}
+                  onChange={setSpecialAuthorization}
+                  declaredValue={shipmentSummary?.declaredValue || 0}
+                  currency={shipmentSummary?.currency}
+                  disabled={isSaving}
+                />
+              </div>
+            </section>
+
+            {/* Section 9: Notification Preferences (Step 26) */}
+            <section className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Notification Preferences
+                  </h2>
+                </div>
+              </div>
+              <div className="p-6">
+                <NotificationPreferencesForm
+                  value={notificationPreferences}
+                  onChange={setNotificationPreferences}
+                  disabled={isSaving}
+                />
+              </div>
+            </section>
           </div>
 
-          {/* Sidebar: Fees Summary */}
+          {/* Sidebar: Fees Summary & Guidelines */}
           <div className="space-y-6">
             <div className="sticky top-6 space-y-6">
               <PickupFeesSummary
@@ -519,6 +700,9 @@ export default function PickupPage() {
                   </div>
                 </div>
               )}
+
+              {/* Pickup Guidelines Sidebar (Step 26) */}
+              <PickupGuidelinesSidebar />
             </div>
           </div>
         </div>
