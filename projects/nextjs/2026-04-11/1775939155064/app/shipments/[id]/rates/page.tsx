@@ -180,7 +180,6 @@ export default function RatesPage() {
       
       return { hasQuotes: transformedQuotes.length > 0, quotes: data.quotes as QuoteFromAPI[] }
     } catch (err) {
-      console.error("Error fetching quotes:", err)
       return { hasQuotes: false, quotes: [] }
     }
   }, [shipmentId])
@@ -211,7 +210,6 @@ export default function RatesPage() {
           maxRetries: 3,
           initialDelay: 1000,
           onRetry: (err, attempt, delay) => {
-            console.log(`Retrying quote generation (attempt ${attempt}) in ${delay}ms...`)
           },
         }
       )
@@ -224,7 +222,6 @@ export default function RatesPage() {
 
       return true
     } catch (err) {
-      console.error("Error generating quotes:", err)
       setError(err instanceof Error ? err.message : "Failed to generate quotes. Please check your connection and try again.")
       return false
     } finally {
@@ -294,7 +291,6 @@ export default function RatesPage() {
             quoteDBId = newIdMap[selectedQuoteId] || null
           }
         } catch (fetchErr) {
-          console.warn("Could not fetch quotes from DB:", fetchErr)
         }
       }
 
@@ -311,14 +307,12 @@ export default function RatesPage() {
 
         if (!selectResponse.ok) {
           const selectData = await selectResponse.json()
-          console.warn("Select API failed:", selectData.error)
         }
       }
 
       // Navigate to payment page
       router.push(`/shipments/${shipmentId}/payment`)
     } catch (err) {
-      console.error("Error selecting quote:", err)
       // Continue to payment even if selection fails
       router.push(`/shipments/${shipmentId}/payment`)
     } finally {

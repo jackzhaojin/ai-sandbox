@@ -106,7 +106,6 @@ async function getOrganizationId(): Promise<string | null> {
     .limit(1)
 
   if (error) {
-    console.error('Error fetching organizations:', error)
     return null
   }
 
@@ -125,7 +124,6 @@ async function getUserId(): Promise<string | null> {
     .limit(1)
 
   if (error) {
-    console.error('Error fetching users:', error)
     return null
   }
 
@@ -166,7 +164,6 @@ async function createAddress(
     .single()
 
   if (error) {
-    console.error('Error creating address:', error)
     return null
   }
 
@@ -271,7 +268,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // If no organization exists, use mock mode
     if (!orgId || !userId) {
-      console.log('Using mock mode - no organization or user found in database')
       
       const mockId = `mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
       const trackingNumber = `TRK-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000000 + Math.random() * 9000000)}`
@@ -378,7 +374,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .single()
 
     if (insertError) {
-      console.error('Error creating shipment:', insertError)
       return NextResponse.json(
         { error: 'Failed to create shipment', details: insertError.message },
         { status: 500 }
@@ -408,7 +403,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           .insert(specialHandlingRecords)
 
         if (specialHandlingError) {
-          console.error('Error saving special handling:', specialHandlingError)
         }
       }
     }
@@ -434,7 +428,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         .insert(deliveryPrefs)
 
       if (deliveryPrefsError) {
-        console.error('Error saving delivery preferences:', deliveryPrefsError)
       }
     }
 
@@ -452,7 +445,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         })
 
       if (hazmatError) {
-        console.error('Error saving hazmat details:', hazmatError)
       }
     }
 
@@ -474,7 +466,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         .insert(packageRecords)
 
       if (packagesError) {
-        console.error('Error saving shipment packages:', packagesError)
       }
     }
 
@@ -496,7 +487,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         })
 
       if (eventError) {
-        console.error('Error creating shipment event:', eventError)
       }
     } else {
       // Create draft saved event
@@ -513,7 +503,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         })
 
       if (eventError) {
-        console.error('Error creating draft event:', eventError)
       }
     }
 
@@ -533,7 +522,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     )
   } catch (error) {
-    console.error('Error processing shipment creation:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -726,7 +714,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const { data: shipments, error, count } = await query
 
     if (error) {
-      console.error('Error fetching shipments:', error)
       return NextResponse.json(
         { error: 'Failed to fetch shipments', details: error.message },
         { status: 500 }
@@ -775,7 +762,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     )
   } catch (error) {
-    console.error('Error processing shipments request:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

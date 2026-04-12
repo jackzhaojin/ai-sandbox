@@ -267,7 +267,6 @@ export async function POST(
     const validationResult = pickupRequestSchema.safeParse(body)
     
     if (!validationResult.success) {
-      console.error('Pickup validation failed:', validationResult.error.errors)
       return NextResponse.json(
         { 
           error: 'Validation failed', 
@@ -332,7 +331,6 @@ export async function POST(
         .single()
 
       if (createSlotError) {
-        console.error('Error creating pickup slot:', createSlotError)
         return NextResponse.json(
           { error: 'Failed to create pickup slot' },
           { status: 500 }
@@ -350,7 +348,6 @@ export async function POST(
       .single()
 
     if (shipmentError) {
-      console.error('Error fetching shipment:', shipmentError)
       return NextResponse.json(
         { error: 'Shipment not found' },
         { status: 404 }
@@ -371,7 +368,6 @@ export async function POST(
       .single()
 
     if (pickupError) {
-      console.error('Error creating pickup details:', pickupError)
       return NextResponse.json(
         { error: 'Failed to create pickup details' },
         { status: 500 }
@@ -403,7 +399,6 @@ export async function POST(
       .insert(contactsToInsert)
 
     if (contactsError) {
-      console.error('Error inserting pickup contacts:', contactsError)
       return NextResponse.json(
         { error: 'Failed to save pickup contacts' },
         { status: 500 }
@@ -428,7 +423,6 @@ export async function POST(
         .insert(accessRequirementsToInsert)
 
       if (accessError) {
-        console.error('Error inserting access requirements:', accessError)
         return NextResponse.json(
           { error: 'Failed to save access requirements' },
           { status: 500 }
@@ -450,7 +444,6 @@ export async function POST(
         .insert(equipmentToInsert)
 
       if (equipmentError) {
-        console.error('Error inserting equipment needs:', equipmentError)
         return NextResponse.json(
           { error: 'Failed to save equipment needs' },
           { status: 500 }
@@ -472,7 +465,6 @@ export async function POST(
         .insert(personnelToInsert)
 
       if (personnelError) {
-        console.error('Error inserting authorized personnel:', personnelError)
         return NextResponse.json(
           { error: 'Failed to save authorized personnel' },
           { status: 500 }
@@ -502,7 +494,6 @@ export async function POST(
         .insert(notificationsToInsert)
 
       if (notificationsError) {
-        console.error('Error inserting notification preferences:', notificationsError)
         return NextResponse.json(
           { error: 'Failed to save notification preferences' },
           { status: 500 }
@@ -535,14 +526,12 @@ export async function POST(
             .eq('id', shipmentId)
           
           if (simpleUpdateError) {
-            console.error('Error updating shipment (simple):', simpleUpdateError)
             return NextResponse.json(
               { error: 'Failed to update shipment status' },
               { status: 500 }
             )
           }
         } else {
-          console.error('Error updating shipment:', updateError)
           return NextResponse.json(
             { error: 'Failed to update shipment status' },
             { status: 500 }
@@ -550,7 +539,6 @@ export async function POST(
         }
       }
     } catch (error) {
-      console.error('Exception updating shipment:', error)
       return NextResponse.json(
         { error: 'Failed to update shipment status' },
         { status: 500 }
@@ -575,7 +563,6 @@ export async function POST(
       })
 
     if (eventError) {
-      console.error('Error creating shipment event:', eventError)
       // Don't fail the request if event creation fails
     }
 
@@ -587,7 +574,6 @@ export async function POST(
     }, { status: 201 })
 
   } catch (error) {
-    console.error('Error in POST /api/shipments/[id]/pickup:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

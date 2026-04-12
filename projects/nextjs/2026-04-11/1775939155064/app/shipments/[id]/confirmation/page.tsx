@@ -42,7 +42,6 @@ function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) 
         setShowTooltip(false)
       }, 2000)
     } catch {
-      console.error('Failed to copy to clipboard')
     }
   }
 
@@ -334,13 +333,11 @@ export default function ConfirmationPage() {
             }))
         }
       } catch (e) {
-        console.error('Error fetching recent shipments:', e)
         confirmationData.recentShipments = []
       }
 
       setData(confirmationData)
     } catch (err) {
-      console.error('Error fetching confirmation data:', err)
       setError(err instanceof Error ? err.message : 'Failed to load confirmation details')
     } finally {
       setIsLoading(false)

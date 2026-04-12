@@ -210,7 +210,6 @@ export default function PricingPage() {
       
       return { hasQuotes: transformedQuotes.length > 0, quotes: data.quotes as QuoteFromAPI[] }
     } catch (err) {
-      console.error("Error fetching quotes:", err)
       return { hasQuotes: false, quotes: [] }
     }
   }, [shipmentId])
@@ -241,7 +240,6 @@ export default function PricingPage() {
           maxRetries: 3,
           initialDelay: 1000,
           onRetry: (err, attempt, delay) => {
-            console.log(`Retrying quote generation (attempt ${attempt}) in ${delay}ms...`)
           },
         }
       )
@@ -256,7 +254,6 @@ export default function PricingPage() {
 
       return true
     } catch (err) {
-      console.error("Error generating quotes:", err)
       setError(err instanceof Error ? err.message : "Failed to generate quotes. Please check your connection and try again.")
       return false
     } finally {
@@ -332,7 +329,6 @@ export default function PricingPage() {
               quoteDBId = newIdMap[quoteId] || null
             }
           } catch (fetchErr) {
-            console.warn("Could not fetch quotes from DB:", fetchErr)
           }
         }
 
@@ -349,12 +345,10 @@ export default function PricingPage() {
 
           if (!selectResponse.ok) {
             const selectData = await selectResponse.json()
-            console.warn("Select API failed:", selectData.error)
             // Don't throw - optimistic update remains
           }
         }
       } catch (err) {
-        console.error("Error persisting quote selection:", err)
         // On error, we could rollback here if needed:
         // setSelectedQuoteId(previousQuoteId)
         // For now, keep the optimistic selection
@@ -425,7 +419,6 @@ export default function PricingPage() {
       // Navigate to payment page
       router.push(`/shipments/${shipmentId}/payment`)
     } catch (err) {
-      console.error("Error selecting quote:", err)
       // Show error but still navigate to allow flow to continue
       setError(err instanceof Error ? err.message : "Failed to save selection. Continuing anyway...")
       setTimeout(() => {
@@ -472,7 +465,6 @@ export default function PricingPage() {
       // Clear message after 3 seconds
       setTimeout(() => setSaveMessage(null), 3000)
     } catch (err) {
-      console.error('Error saving draft:', err)
       setError(err instanceof Error ? err.message : 'Failed to save draft')
     } finally {
       setIsSavingDraft(false)

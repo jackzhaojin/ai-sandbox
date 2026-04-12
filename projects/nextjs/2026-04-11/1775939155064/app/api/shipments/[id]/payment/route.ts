@@ -131,7 +131,6 @@ async function getOrganizationIdFromShipment(shipmentId: string): Promise<string
     .single()
 
   if (error) {
-    console.error('Error fetching shipment organization:', error)
     return null
   }
 
@@ -164,7 +163,6 @@ async function createBillingAddress(
     .single()
 
   if (error) {
-    console.error('Error creating billing address:', error)
     return null
   }
 
@@ -193,7 +191,6 @@ async function uploadCreditApplication(
       })
 
     if (error) {
-      console.error('Error uploading credit application:', error)
       return null
     }
 
@@ -204,7 +201,6 @@ async function uploadCreditApplication(
 
     return publicUrl
   } catch (error) {
-    console.error('Error uploading credit application:', error)
     return null
   }
 }
@@ -283,7 +279,6 @@ export async function POST(
       .single()
 
     if (paymentInfoError) {
-      console.error('Error creating payment_info:', paymentInfoError)
       return NextResponse.json(
         { error: 'Failed to create payment info' },
         { status: 500 }
@@ -312,7 +307,6 @@ export async function POST(
           })
 
         if (error) {
-          console.error('Error creating purchase order:', error)
           return NextResponse.json(
             { error: 'Failed to create purchase order record' },
             { status: 500 }
@@ -338,7 +332,6 @@ export async function POST(
           })
 
         if (error) {
-          console.error('Error creating bill of lading:', error)
           return NextResponse.json(
             { error: 'Failed to create bill of lading record' },
             { status: 500 }
@@ -365,7 +358,6 @@ export async function POST(
           })
 
         if (error) {
-          console.error('Error creating third party record:', error)
           return NextResponse.json(
             { error: 'Failed to create third party billing record' },
             { status: 500 }
@@ -404,7 +396,6 @@ export async function POST(
           .single()
 
         if (netTermsError) {
-          console.error('Error creating net terms:', netTermsError)
           return NextResponse.json(
             { error: 'Failed to create net terms record' },
             { status: 500 }
@@ -430,7 +421,6 @@ export async function POST(
             .insert(tradeReferenceInserts)
 
           if (tradeRefError) {
-            console.error('Error creating trade references:', tradeRefError)
           }
         }
         break
@@ -453,7 +443,6 @@ export async function POST(
           })
 
         if (error) {
-          console.error('Error creating corporate account:', error)
           return NextResponse.json(
             { error: 'Failed to create corporate account record' },
             { status: 500 }
@@ -478,7 +467,6 @@ export async function POST(
       .single()
 
     if (paymentError) {
-      console.error('Error creating payment record:', paymentError)
       return NextResponse.json(
         { error: 'Failed to create payment record' },
         { status: 500 }
@@ -512,14 +500,12 @@ export async function POST(
             .eq('id', shipmentId)
           
           if (retryError) {
-            console.error('Error updating shipment:', retryError)
             return NextResponse.json(
               { error: 'Failed to update shipment' },
               { status: 500 }
             )
           }
         } else {
-          console.error('Error updating shipment:', updateError)
           return NextResponse.json(
             { error: 'Failed to update shipment', details: updateError.message },
             { status: 500 }
@@ -527,7 +513,6 @@ export async function POST(
         }
       }
     } catch (error) {
-      console.error('Error in shipment update:', error)
       return NextResponse.json(
         { error: 'Failed to update shipment' },
         { status: 500 }
@@ -550,7 +535,6 @@ export async function POST(
       })
 
     if (eventError) {
-      console.error('Error creating shipment event:', eventError)
     }
 
     return NextResponse.json({
@@ -561,7 +545,6 @@ export async function POST(
       nextStep: 4,
     })
   } catch (error) {
-    console.error('Error in POST /api/shipments/[id]/payment:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

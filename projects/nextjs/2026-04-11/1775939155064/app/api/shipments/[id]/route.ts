@@ -232,7 +232,6 @@ export async function GET(
       .single()
 
     if (shipmentError) {
-      console.error('Error fetching shipment:', shipmentError)
       if (shipmentError.code === 'PGRST116') {
         return NextResponse.json(
           { error: 'Shipment not found' },
@@ -594,7 +593,6 @@ export async function GET(
 
     return NextResponse.json(response)
   } catch (error) {
-    console.error('Error in GET /api/shipments/[id]:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -689,7 +687,6 @@ export async function PATCH(
         })
 
       if (eventError) {
-        console.error('Error creating status change event:', eventError)
       }
     }
 
@@ -814,7 +811,6 @@ export async function PATCH(
       .single()
 
     if (error) {
-      console.error('Error updating shipment:', error)
       return NextResponse.json(
         { error: 'Failed to update shipment', details: error.message },
         { status: 500 }
@@ -827,7 +823,6 @@ export async function PATCH(
       message: 'Shipment updated successfully'
     })
   } catch (error) {
-    console.error('Error in PATCH /api/shipments/[id]:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -898,7 +893,6 @@ export async function DELETE(
       .eq('id', id)
 
     if (error) {
-      console.error('Error deleting shipment:', error)
       return NextResponse.json(
         { error: 'Failed to delete shipment', details: error.message },
         { status: 500 }
@@ -910,7 +904,6 @@ export async function DELETE(
       message: 'Shipment deleted successfully'
     })
   } catch (error) {
-    console.error('Error in DELETE /api/shipments/[id]:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

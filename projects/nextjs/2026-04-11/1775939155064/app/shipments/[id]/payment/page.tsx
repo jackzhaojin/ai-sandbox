@@ -242,7 +242,6 @@ export default function PaymentPage() {
         selectedRate: data.selectedRate || undefined,
       })
     } catch (err) {
-      console.error('Error fetching shipment:', err)
       // Use fallback data for development
       setShipmentSummary({
         id: shipmentId,
@@ -429,7 +428,6 @@ export default function PaymentPage() {
       // Navigate to pickup scheduling page
       router.push(`/shipments/${shipmentId}/pickup`)
     } catch (err) {
-      console.error('Error saving payment:', err)
       setError(err instanceof Error ? err.message : 'Failed to save payment method')
     } finally {
       setIsSaving(false)
@@ -464,7 +462,6 @@ export default function PaymentPage() {
       setSaveMessage('Draft saved successfully!')
       setTimeout(() => setSaveMessage(null), 3000)
     } catch (err) {
-      console.error('Error saving draft:', err)
       setError(err instanceof Error ? err.message : 'Failed to save draft')
     } finally {
       setIsSavingDraft(false)

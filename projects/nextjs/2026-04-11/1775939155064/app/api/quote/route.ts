@@ -58,7 +58,6 @@ async function getShipmentDetails(shipmentId: string) {
     .single()
 
   if (error) {
-    console.error('Error fetching shipment:', error)
     return null
   }
 
@@ -75,7 +74,6 @@ async function getSpecialHandling(shipmentId: string): Promise<string[]> {
     .eq('shipment_id', shipmentId)
 
   if (error) {
-    console.error('Error fetching special handling:', error)
     return []
   }
 
@@ -148,7 +146,6 @@ async function getActiveCarriers(): Promise<Carrier[]> {
     .eq('is_active', true)
 
   if (error) {
-    console.error('Error fetching carriers:', error)
     return []
   }
 
@@ -184,7 +181,6 @@ async function getActiveServiceTypes(carrierIds: string[]): Promise<ServiceType[
     .eq('is_active', true)
 
   if (error) {
-    console.error('Error fetching service types:', error)
     return []
   }
 
@@ -221,7 +217,6 @@ async function deleteExistingQuotes(shipmentId: string): Promise<void> {
     .eq('shipment_id', shipmentId)
 
   if (error) {
-    console.error('Error deleting existing quotes:', error)
   }
 }
 
@@ -248,13 +243,11 @@ async function persistQuotes(
       })
 
     if (error) {
-      console.error('Error inserting quotes:', error)
       return false
     }
 
     return true
   } catch (error) {
-    console.error('Error persisting quotes:', error)
     return false
   }
 }
@@ -377,7 +370,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // If no shipment found, use mock data
     if (!shipment) {
-      console.log('Shipment not found, using mock mode for quote generation')
       
       // Parse mock shipment ID to extract details if available
       const mockOriginZip = '78701'
@@ -508,7 +500,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const persisted = await persistQuotes(shipmentId, quotes)
     
     if (!persisted) {
-      console.warn('Failed to persist quotes to database, returning generated quotes anyway')
     }
 
     // Group quotes by category
@@ -533,7 +524,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }, { status: 200 })
 
   } catch (error) {
-    console.error('Error processing quote request:', error)
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -578,7 +568,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .order('total_cost', { ascending: true })
 
     if (error) {
-      console.error('Error fetching quotes:', error)
       return NextResponse.json(
         { error: 'Failed to fetch quotes' },
         { status: 500 }
@@ -593,7 +582,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }, { status: 200 })
 
   } catch (error) {
-    console.error('Error fetching quotes:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

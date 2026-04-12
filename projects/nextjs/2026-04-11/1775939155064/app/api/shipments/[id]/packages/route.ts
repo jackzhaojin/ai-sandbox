@@ -366,7 +366,6 @@ export async function POST(
         .eq('id', shipmentId)
 
       if (updateError) {
-        console.error('Error updating shipment package:', updateError)
         return NextResponse.json(
           { error: 'Failed to update shipment package', details: updateError.message },
           { status: 500 }
@@ -424,7 +423,6 @@ export async function POST(
       .eq('shipment_id', shipmentId)
 
     if (deleteError) {
-      console.error('Error deleting existing packages:', deleteError)
     }
 
     // Insert new packages
@@ -446,7 +444,6 @@ export async function POST(
       .select('id, package_index, package_type, weight, length, width, height')
 
     if (insertError) {
-      console.error('Error inserting packages:', insertError)
       return NextResponse.json(
         { error: 'Failed to save packages', details: insertError.message },
         { status: 500 }
@@ -469,7 +466,6 @@ export async function POST(
       .eq('id', shipmentId)
 
     if (updateError) {
-      console.error('Error updating shipment totals:', updateError)
     }
 
     // Create event for packages update
@@ -510,7 +506,6 @@ export async function POST(
       { status: 201 }
     )
   } catch (error) {
-    console.error('Error processing packages request:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -559,7 +554,6 @@ export async function GET(
       .order('package_index', { ascending: true })
 
     if (error) {
-      console.error('Error fetching packages:', error)
       return NextResponse.json(
         { error: 'Failed to fetch packages' },
         { status: 500 }
@@ -643,7 +637,6 @@ export async function GET(
       { status: 200 }
     )
   } catch (error) {
-    console.error('Error fetching packages:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -700,7 +693,6 @@ export async function DELETE(
       .eq('shipment_id', shipmentId)
 
     if (deleteError) {
-      console.error('Error deleting packages:', deleteError)
       return NextResponse.json(
         { error: 'Failed to delete packages', details: deleteError.message },
         { status: 500 }
@@ -725,7 +717,6 @@ export async function DELETE(
       { status: 200 }
     )
   } catch (error) {
-    console.error('Error deleting packages:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

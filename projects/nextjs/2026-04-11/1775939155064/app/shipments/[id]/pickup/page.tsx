@@ -200,12 +200,10 @@ export default function PickupPage() {
           const availability = await availabilityRes.json()
           setAvailabilityData(availability.availableDates || [])
         } else {
-          console.warn('Failed to fetch availability, using empty data')
           setAvailabilityData([])
         }
       }
     } catch (err) {
-      console.error('Error fetching data:', err)
       setError('Failed to load pickup availability. Please try again.')
       
       // Use fallback data for development
@@ -385,7 +383,6 @@ export default function PickupPage() {
       // Navigate to review page
       router.push(`/shipments/${shipmentId}/review`)
     } catch (err) {
-      console.error('Error saving pickup:', err)
       setError(err instanceof Error ? err.message : 'Failed to save pickup selection')
     } finally {
       setIsSaving(false)
@@ -420,7 +417,6 @@ export default function PickupPage() {
       setSaveMessage('Draft saved successfully!')
       setTimeout(() => setSaveMessage(null), 3000)
     } catch (err) {
-      console.error('Error saving draft:', err)
       setError(err instanceof Error ? err.message : 'Failed to save draft')
     } finally {
       setIsSavingDraft(false)

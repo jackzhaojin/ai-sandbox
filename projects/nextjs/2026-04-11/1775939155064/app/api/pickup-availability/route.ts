@@ -618,7 +618,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(availability, { status: 200 })
 
   } catch (error) {
-    console.error('Error processing pickup availability request:', error)
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

@@ -68,7 +68,6 @@ export function SubmissionActions({
         // Show success feedback (could be enhanced with toast)
         alert('Draft saved successfully')
       } catch (error) {
-        console.error('Error saving draft:', error)
         alert('Failed to save draft. Please try again.')
       }
     }
@@ -142,7 +141,6 @@ export function SubmissionActions({
         router.push('/shipments/new')
       }
     } catch (error) {
-      console.error('Error starting over:', error)
       alert('Failed to start over. Please try again.')
       setIsDeleting(false)
       setShowStartOverModal(false)

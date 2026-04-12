@@ -56,7 +56,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .single()
 
     if (shipmentError || !shipment) {
-      console.error('Shipment not found:', shipmentError)
       return NextResponse.json(
         { error: 'Shipment not found' },
         { status: 404 }
@@ -72,7 +71,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .single()
 
     if (quoteError || !quote) {
-      console.error('Quote not found:', quoteError)
       return NextResponse.json(
         { error: 'Quote not found for this shipment' },
         { status: 404 }
@@ -86,7 +84,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .eq('shipment_id', shipment_id)
 
     if (clearError) {
-      console.error('Error clearing previous selections:', clearError)
       return NextResponse.json(
         { error: 'Failed to clear previous quote selections' },
         { status: 500 }
@@ -100,7 +97,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .eq('id', quote_id)
 
     if (selectError) {
-      console.error('Error selecting quote:', selectError)
       return NextResponse.json(
         { error: 'Failed to select quote' },
         { status: 500 }
@@ -118,7 +114,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .eq('id', shipment_id)
 
     if (updateError) {
-      console.error('Error updating shipment status:', updateError)
       return NextResponse.json(
         { error: 'Failed to update shipment status' },
         { status: 500 }
@@ -142,7 +137,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       })
 
     if (eventError) {
-      console.error('Error creating shipment event:', eventError)
       // Non-fatal error, continue
     }
 
@@ -156,7 +150,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }, { status: 200 })
 
   } catch (error) {
-    console.error('Error processing quote selection:', error)
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

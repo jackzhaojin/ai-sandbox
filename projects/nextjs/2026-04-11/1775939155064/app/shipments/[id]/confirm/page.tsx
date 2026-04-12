@@ -176,13 +176,11 @@ export default function ConfirmPage() {
             }))
         }
       } catch (e) {
-        console.error('Error fetching recent shipments:', e)
         confirmationData.recentShipments = []
       }
 
       setData(confirmationData)
     } catch (err) {
-      console.error('Error fetching confirmation data:', err)
       setError(err instanceof Error ? err.message : 'Failed to load confirmation details')
 
       // Use fallback data for development

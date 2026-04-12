@@ -1,10 +1,34 @@
+/**
+ * React Custom Hooks Library
+ * 
+ * Provides reusable hooks for common UI patterns:
+ * - useDebounce: Delays value updates for search inputs
+ * - useAddressAutocomplete: Fetches address suggestions with debouncing
+ * - useFieldValidation: Tracks field touch/blur state for validation timing
+ * - useAsync: Manages async operations with retry and error handling
+ * - useLoadingState: Loading state with timeout detection
+ * - useOptimistic: Optimistic UI updates with rollback on error
+ * - useFetch: Enhanced data fetching with automatic retry
+ * - useDelayedLoading: Prevents flash of loading state
+ */
+
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { withRetry, RetryOptions, RetryResult } from "./retry"
 import { handleApiError, ApiErrorDetails } from "./apiErrorHandler"
 
-// Debounce hook for address autocomplete
+/**
+ * Debounce hook for delaying value updates
+ * Useful for search inputs to reduce API calls
+ * 
+ * @param value - The value to debounce
+ * @param delay - Delay in milliseconds
+ * @returns The debounced value
+ * 
+ * @example
+ * const debouncedSearch = useDebounce(searchQuery, 300)
+ */
 export function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value)
 
@@ -21,7 +45,9 @@ export function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue
 }
 
-// Address autocomplete hook
+/**
+ * Address suggestion structure returned by the API
+ */
 interface AddressSuggestion {
   id: string
   street: string
@@ -35,11 +61,29 @@ interface AddressSuggestion {
   confidence: number
 }
 
+/**
+ * Options for useAddressAutocomplete hook
+ */
 interface UseAddressAutocompleteOptions {
   minLength?: number
   debounceMs?: number
 }
 
+/**
+ * Hook for address autocomplete functionality
+ * Fetches address suggestions from /api/address-search with debouncing
+ * 
+ * @param options - Configuration options
+ * @param options.minLength - Minimum query length before searching (default: 3)
+ * @param options.debounceMs - Debounce delay in milliseconds (default: 300)
+ * @returns Object with query state, suggestions, loading state, and error
+ * 
+ * @example
+ * const { query, setQuery, suggestions, isLoading, error } = useAddressAutocomplete({
+ *   minLength: 3,
+ *   debounceMs: 300
+ * })
+ */
 export function useAddressAutocomplete(options: UseAddressAutocompleteOptions = {}) {
   const { minLength = 3, debounceMs = 300 } = options
   const [query, setQuery] = useState("")
@@ -90,7 +134,24 @@ export function useAddressAutocomplete(options: UseAddressAutocompleteOptions = 
   }
 }
 
-// Form field focus/blur tracking for validation timing
+/**
+ * Hook for tracking form field touch/blur state
+ * Controls when validation errors are shown to the user
+ * 
+ * @returns Object with field tracking methods and state checkers
+ * 
+ * @example
+ * const { touchField, blurField, shouldShowError } = useFieldValidation()
+ * 
+ * // On input change
+ * touchField('email')
+ * 
+ * // On input blur
+ * blurField('email')
+ * 
+ * // Check if error should be shown
+ * const showError = shouldShowError('email', hasEmailError)
+ */
 export function useFieldValidation() {
   const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set())
   const [blurredFields, setBlurredFields] = useState<Set<string>>(new Set())

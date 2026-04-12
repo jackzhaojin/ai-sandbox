@@ -202,7 +202,6 @@ export async function POST(
       .single()
 
     if (shipmentError || !shipment) {
-      console.error('Error fetching shipment:', shipmentError)
       return NextResponse.json(
         { error: 'Shipment not found' },
         { status: 404 }
@@ -411,7 +410,6 @@ export async function POST(
       .single()
 
     if (updateError) {
-      console.error('Error updating shipment:', updateError)
       return NextResponse.json(
         { error: 'Failed to submit shipment', code: 'UPDATE_FAILED' },
         { status: 500 }
@@ -438,7 +436,6 @@ export async function POST(
       })
 
     if (eventError) {
-      console.error('Error creating shipment event:', eventError)
       // Don't fail the submission if event logging fails
     }
 
@@ -480,7 +477,6 @@ export async function POST(
     })
 
   } catch (error) {
-    console.error('Error in POST /api/shipments/[id]/submit:', error)
     return NextResponse.json(
       { error: 'Internal server error', code: 'INTERNAL_ERROR' },
       { status: 500 }

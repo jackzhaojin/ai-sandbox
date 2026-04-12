@@ -65,7 +65,6 @@ async function checkDatabase(): Promise<HealthCheck> {
     const latency = Date.now() - startTime
     
     if (error) {
-      console.error('Health check - database error:', error)
       return {
         status: 'disconnected',
         latency_ms: latency
@@ -77,7 +76,6 @@ async function checkDatabase(): Promise<HealthCheck> {
       latency_ms: latency
     }
   } catch (error) {
-    console.error('Health check - database exception:', error)
     return {
       status: 'disconnected',
       latency_ms: Date.now() - startTime

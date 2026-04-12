@@ -20,7 +20,6 @@ export function SuccessBanner({ confirmationNumber, className }: SuccessBannerPr
       setTimeout(() => setCopied(false), 2000)
     } catch {
       // Fallback for browsers that don't support clipboard API
-      console.error('Failed to copy to clipboard')
     }
   }
 

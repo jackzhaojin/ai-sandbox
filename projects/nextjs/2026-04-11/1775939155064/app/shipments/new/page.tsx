@@ -226,7 +226,6 @@ export default function NewShipmentPage() {
       }
       setTimeout(() => setSaveMessage(null), 3000)
     } catch (err) {
-      console.error('Error loading draft:', err)
       const errorMsg = err instanceof Error ? err.message : 'Failed to load shipment data'
       setSubmitError(errorMsg)
       announce(`Error loading shipment: ${errorMsg}`, 'assertive')
@@ -320,7 +319,6 @@ export default function NewShipmentPage() {
       // Clear message after 3 seconds
       setTimeout(() => setSaveMessage(null), 3000)
     } catch (error) {
-      console.error('Failed to save draft:', error)
       const errorMsg = error instanceof Error ? error.message : 'Failed to save draft. Please try again.'
       setSubmitError(errorMsg)
       announce(`Error saving draft: ${errorMsg}`, 'assertive')
@@ -412,7 +410,6 @@ export default function NewShipmentPage() {
       // Navigate to pricing page with the created shipment ID
       router.push(`/shipments/${result.id}/pricing`)
     } catch (error) {
-      console.error('Failed to create shipment:', error)
       const errorMsg = error instanceof Error ? error.message : 'Failed to create shipment. Please try again.'
       setSubmitError(errorMsg)
       announce(`Error creating shipment: ${errorMsg}`, 'assertive')

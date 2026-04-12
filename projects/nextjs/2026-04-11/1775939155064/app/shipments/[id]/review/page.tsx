@@ -379,7 +379,6 @@ export default function ReviewPage() {
       const transformedData = transformShipmentData(data)
       setShipment(transformedData)
     } catch (err) {
-      console.error('Error fetching shipment:', err)
       setError(err instanceof Error ? err.message : 'Failed to load shipment details')
       
       // Use fallback data for development
@@ -675,7 +674,6 @@ export default function ReviewPage() {
       // Navigate to confirmation page
       router.push(`/shipments/${shipmentId}/confirmation`)
     } catch (err) {
-      console.error('Submission error:', err)
       setError(err instanceof Error ? err.message : 'Failed to submit shipment')
       setIsSubmitting(false)
     }
@@ -709,7 +707,6 @@ export default function ReviewPage() {
       setSaveMessage('Draft saved successfully!')
       setTimeout(() => setSaveMessage(null), 3000)
     } catch (err) {
-      console.error('Error saving draft:', err)
       setError(err instanceof Error ? err.message : 'Failed to save draft')
     } finally {
       setIsSavingDraft(false)
@@ -847,7 +844,6 @@ export default function ReviewPage() {
               errors={validationErrors}
               onErrorClick={(error) => {
                 // Additional handling if needed
-                console.log('Clicked error:', error)
               }}
             />
           )}

@@ -1,0 +1,10 @@
+node_modules
+.next
+*.log
+.env*
+dist
+build
+coverage
+.playwright-cli
+test-results
+migrations/*.sql

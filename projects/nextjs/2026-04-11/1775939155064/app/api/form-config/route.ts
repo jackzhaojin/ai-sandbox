@@ -661,7 +661,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     })
   } catch (error) {
-    console.error('Error serving form config:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

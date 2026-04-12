@@ -360,7 +360,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     )
   } catch (error) {
-    console.error('Error searching addresses:', error)
     return NextResponse.json(
       { 
         suggestions: [],
