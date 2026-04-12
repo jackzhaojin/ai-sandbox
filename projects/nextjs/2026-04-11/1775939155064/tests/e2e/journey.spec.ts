@@ -754,3 +754,230 @@ test('Gate 5: Billing information section renders all fields', async ({ page }) 
   await expect(page.getByLabel(/Invoice Format/i)).toBeVisible()
   await expect(page.getByLabel(/Invoice Frequency/i)).toBeVisible()
 })
+
+
+// ============================================
+// GATE 6: Step 3 - Payment Page Integration and Persistence
+// Tests for step 21: Payment submission and data persistence
+// ============================================
+
+test('Gate 6: Payment page fetches shipment and displays cost summary', async ({ page }) => {
+  // Complete prior steps through pricing
+  await completePriorSteps(page, { through: 3 })
+  
+  await page.waitForTimeout(500)
+  
+  // Submit to get to pricing
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  
+  // Wait for pricing page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pricing/, { timeout: 10000 })
+  await expect(page.getByText(/Generating quotes/i)).not.toBeVisible({ timeout: 15000 })
+  
+  // Select a rate
+  const firstCard = page.getByRole('radio').first()
+  await expect(firstCard).toBeVisible({ timeout: 10000 })
+  await firstCard.click()
+  
+  // Continue to payment
+  const continueButton = page.getByRole('button', { name: /Select Rate & Continue/i })
+  await expect(continueButton).toBeEnabled({ timeout: 5000 })
+  await continueButton.click()
+  
+  // Wait for payment page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/payment/, { timeout: 10000 })
+  await expect(page.getByRole('heading', { name: /Payment & Billing/i })).toBeVisible({ timeout: 10000 })
+  
+  // Verify payment method selector is displayed
+  await expect(page.getByRole('button', { name: /Purchase Order/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Bill of Lading/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Net Terms/i })).toBeVisible()
+})
+
+test('Gate 6: Purchase Order payment method persists to database', async ({ page }) => {
+  // Complete prior steps through pricing
+  await completePriorSteps(page, { through: 3 })
+  
+  await page.waitForTimeout(500)
+  
+  // Submit to get to pricing
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  
+  // Wait for pricing page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pricing/, { timeout: 10000 })
+  await expect(page.getByText(/Generating quotes/i)).not.toBeVisible({ timeout: 15000 })
+  
+  // Get shipment ID from URL
+  const pricingUrl = page.url()
+  const shipmentIdMatch = pricingUrl.match(/\/shipments\/([a-zA-Z0-9-]+)\/pricing/)
+  expect(shipmentIdMatch).toBeTruthy()
+  const shipmentId = shipmentIdMatch![1]
+  
+  // Select a rate
+  const firstCard = page.getByRole('radio').first()
+  await expect(firstCard).toBeVisible({ timeout: 10000 })
+  await firstCard.click()
+  
+  // Continue to payment
+  const continueButton = page.getByRole('button', { name: /Select Rate & Continue/i })
+  await expect(continueButton).toBeEnabled({ timeout: 5000 })
+  await continueButton.click()
+  
+  // Wait for payment page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/payment/, { timeout: 10000 })
+  await expect(page.getByRole('heading', { name: /Payment & Billing/i })).toBeVisible({ timeout: 10000 })
+  
+  // Select Purchase Order payment method
+  await page.getByRole('button', { name: /Purchase Order/i }).click()
+  
+  // Fill PO form
+  await page.getByLabel(/PO Number/i).fill('PO-2024-TEST-001')
+  await page.getByLabel(/PO Amount/i).fill('1000')
+  
+  // Set expiration date to tomorrow
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const dateStr = tomorrow.toISOString().split('T')[0]
+  await page.getByLabel(/Expiration Date/i).fill(dateStr)
+  
+  await page.getByLabel(/Approval Contact/i).fill('John Approver')
+  await page.getByLabel(/Department/i).fill('Procurement')
+  
+  // Switch to Billing Information tab
+  await page.getByRole('button', { name: /Billing Information/i }).click()
+  
+  // Fill billing address
+  await page.getByLabel(/Street Address/i).first().fill('123 Billing St')
+  await page.getByLabel(/City/i).first().fill('Austin')
+  await page.getByLabel(/ZIP Code/i).first().fill('78701')
+  
+  // Select state
+  await page.getByRole('button', { name: /State\/Province/i }).first().click()
+  await page.getByRole('button', { name: 'Texas', exact: true }).click()
+  
+  // Fill billing contact (filter by visible to get the right one)
+  const contactSection = page.locator('div:has-text("Billing Contact")').first()
+  await contactSection.getByLabel(/Contact Name/i).fill('Billing Contact')
+  await contactSection.getByLabel(/Job Title/i).fill('Finance Manager')
+  await contactSection.getByLabel(/Phone Number/i).fill('555-123-4567')
+  await contactSection.getByLabel(/Email Address/i).fill('billing@test.com')
+  
+  // Fill company info
+  await page.getByLabel(/Legal Company Name/i).fill('Test Corp Inc')
+  await page.getByRole('button', { name: /Business Type/i }).click()
+  await page.getByRole('button', { name: /Corporation/i }).click()
+  await page.getByRole('button', { name: /Industry/i }).click()
+  await page.getByRole('button', { name: 'Technology & Software' }).click()
+  
+  // Fill invoice preferences
+  await page.getByText(/Email/).first().click()
+  await page.getByRole('button', { name: /Invoice Format/i }).click()
+  await page.getByRole('button', { name: /Standard/i }).click()
+  await page.getByRole('button', { name: /Invoice Frequency/i }).click()
+  await page.getByRole('button', { name: /Per Shipment/i }).click()
+  
+  // Submit payment
+  await page.getByRole('button', { name: /Continue to Pickup/i }).click()
+  
+  // Wait a moment for form validation and submission
+  await page.waitForTimeout(2000)
+  
+  // Check if there's an error message
+  const errorMessage = page.locator('text=/error|failed|validation/i').first()
+  if (await errorMessage.isVisible().catch(() => false)) {
+    console.log('Error message found:', await errorMessage.textContent())
+  }
+  
+  // Wait for navigation to pickup page
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pickup/, { timeout: 20000 })
+  
+  // Verify pickup page loaded
+  await expect(page.getByRole('heading', { name: /Schedule Pickup/i })).toBeVisible()
+  
+  // Verify shipment status was updated via API
+  const shipmentResponse = await page.request.get(`/api/shipments/${shipmentId}`)
+  expect(shipmentResponse.status()).toBe(200)
+  
+  const shipmentData = await shipmentResponse.json()
+  expect(shipmentData.status).toBe('pickup')
+})
+
+
+test('Gate 6: API endpoints for shipment and payment exist and return valid data', async ({ page }) => {
+  // Complete Step 1 to create a shipment
+  await completePriorSteps(page, { through: 3 })
+  
+  await page.waitForTimeout(500)
+  
+  // Submit to create shipment
+  await page.getByRole('button', { name: /Continue to Rates/i }).click()
+  
+  // Wait for pricing page and get shipment ID
+  await expect(page).toHaveURL(/\/shipments\/[^/]+\/pricing/, { timeout: 10000 })
+  const url = page.url()
+  const shipmentIdMatch = url.match(/\/shipments\/([a-zA-Z0-9-]+)\/pricing/)
+  expect(shipmentIdMatch).toBeTruthy()
+  const shipmentId = shipmentIdMatch![1]
+  
+  // Verify GET /api/shipments/:id endpoint exists
+  const shipmentResponse = await page.request.get(`/api/shipments/${shipmentId}`)
+  expect(shipmentResponse.status()).toBe(200)
+  
+  const shipmentData = await shipmentResponse.json()
+  expect(shipmentData.id).toBe(shipmentId)
+  expect(shipmentData.origin).toBeDefined()
+  expect(shipmentData.destination).toBeDefined()
+  expect(shipmentData.package).toBeDefined()
+  
+  // Verify POST /api/shipments/:id/payment endpoint exists
+  // Send a minimal test payload to verify endpoint structure
+  const testPaymentResponse = await page.request.post(`/api/shipments/${shipmentId}/payment`, {
+    data: {
+      method: 'purchase_order',
+      purchaseOrder: {
+        poNumber: 'TEST-PO-001',
+        poAmount: 500,
+        expirationDate: '2025-12-31',
+        approvalContact: 'Test Contact',
+        department: 'Test Dept',
+      },
+      billing: {
+        address: {
+          line1: '123 Test St',
+          city: 'Austin',
+          state: 'TX',
+          postal: '78701',
+          country: 'US',
+          locationType: 'commercial',
+          sameAsOrigin: false,
+        },
+        contact: {
+          name: 'Test Contact',
+          title: 'Manager',
+          phone: '555-123-4567',
+          email: 'test@test.com',
+        },
+        company: {
+          legalName: 'Test Company',
+          businessType: 'corporation',
+          industry: 'technology',
+        },
+        invoicePreferences: {
+          deliveryMethod: 'email',
+          format: 'standard',
+          frequency: 'per_shipment',
+        },
+      },
+    },
+  })
+  
+  // Should succeed with valid data
+  expect(testPaymentResponse.status()).toBe(200)
+  
+  const paymentData = await testPaymentResponse.json()
+  expect(paymentData.success).toBe(true)
+  expect(paymentData.paymentInfoId).toBeDefined()
+  expect(paymentData.shipmentId).toBe(shipmentId)
+  // nextStep is returned when payment is successfully saved
+  expect([4, undefined]).toContain(paymentData.nextStep)
+})

@@ -20,6 +20,7 @@ interface NetTermsFormProps {
   disabled?: boolean
   className?: string
   errors?: Record<string, string>
+  onFileChange?: (file: File | null) => void
 }
 
 export function NetTermsForm({
@@ -28,6 +29,7 @@ export function NetTermsForm({
   disabled = false,
   className,
   errors = {},
+  onFileChange,
 }: NetTermsFormProps) {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
 
@@ -74,6 +76,7 @@ export function NetTermsForm({
         return
       }
       setUploadedFile(file)
+      onFileChange?.(file)
     }
   }
 

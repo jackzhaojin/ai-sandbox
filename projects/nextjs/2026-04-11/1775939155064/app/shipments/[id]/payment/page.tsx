@@ -152,6 +152,7 @@ export default function PaymentPage() {
   const [billOfLadingData, setBillOfLadingData] = useState<Partial<BillOfLadingFormData>>({})
   const [thirdPartyData, setThirdPartyData] = useState<Partial<ThirdPartyBillingFormData>>({})
   const [netTermsData, setNetTermsData] = useState<Partial<NetTermsFormData>>({})
+  const [netTermsFile, setNetTermsFile] = useState<File | null>(null)
   const [corporateAccountData, setCorporateAccountData] = useState<Partial<CorporateAccountFormData>>({})
 
   // React Hook Form for billing information
@@ -282,6 +283,22 @@ export default function PaymentPage() {
     return Object.keys(errors).length === 0
   }
 
+  // Convert file to base64 for transmission
+  const fileToBase64 = (file: File): Promise<{ name: string; type: string; base64: string }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => {
+        resolve({
+          name: file.name,
+          type: file.type,
+          base64: reader.result as string,
+        })
+      }
+      reader.onerror = (error) => reject(error)
+    })
+  }
+
   // Handle continue to next step
   const onSubmit = async (data: BillingFormData) => {
     if (!validateFormData()) {
@@ -328,7 +345,7 @@ export default function PaymentPage() {
       }
 
       // Combine payment and billing data for API
-      const fullPaymentData = {
+      const fullPaymentData: Record<string, unknown> = {
         ...paymentData,
         billing: {
           address: {
@@ -363,6 +380,15 @@ export default function PaymentPage() {
             frequency: data.invoiceFrequency,
           },
         },
+      }
+
+      // Handle Net Terms file upload
+      if (data.method === 'net_terms' && netTermsFile) {
+        const fileData = await fileToBase64(netTermsFile)
+        fullPaymentData.netTerms = {
+          ...netTermsData,
+          creditApplicationFile: fileData,
+        }
       }
 
       // Save payment method to API
@@ -432,6 +458,7 @@ export default function PaymentPage() {
             onChange={setNetTermsData}
             disabled={isSaving}
             errors={validationErrors}
+            onFileChange={setNetTermsFile}
           />
         )
       case 'corporate_account':
