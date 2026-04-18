@@ -100,12 +100,20 @@ export default async function ExpensesPage() {
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900">
             Expenses
           </h1>
-          <Link
-            href="/expenses/new"
-            className="inline-flex items-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
-          >
-            Add Expense
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/summary"
+              className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
+            >
+              Summary
+            </Link>
+            <Link
+              href="/expenses/new"
+              className="inline-flex items-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+            >
+              Add Expense
+            </Link>
+          </div>
         </div>
 
         {groups.size === 0 && (

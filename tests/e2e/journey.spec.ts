@@ -125,8 +125,13 @@ test('step 7: expenses list page renders with monthly grouping', async ({ page }
   expect(monthTexts.length).toBeGreaterThanOrEqual(2);
 
   // Verify category badges are visible (colored pills with category names)
-  const categories = await queryDatabase('SELECT name FROM expense_tracker_v1.categories');
-  for (const cat of categories) {
+  // Only check categories that actually appear in seeded expenses (random seed may not cover all 5)
+  const dbCategoryNames = await queryDatabase(
+    `SELECT DISTINCT c.name
+     FROM expense_tracker_v1.categories c
+     JOIN expense_tracker_v1.expenses e ON e.category_id = c.id`
+  );
+  for (const cat of dbCategoryNames) {
     await expect(page.getByText(cat.name, { exact: true }).first()).toBeVisible();
   }
 
@@ -214,3 +219,67 @@ test('step 9: create expense via server action, redirect, and verify in list', a
   const afterCount = Number(afterExpenses[0].count);
   expect(afterCount).toBe(beforeCount + 1);
 });
+
+test('step 10: summary page shows current-month totals grouped by category', async ({ page }) => {
+  // Navigate to /summary
+  await page.goto('/summary');
+
+  // Verify heading includes current month/year
+  const now = new Date();
+  const monthLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  await expect(page.getByRole('heading', { name: new RegExp(`Summary for ${monthLabel}`), level: 1 })).toBeVisible();
+
+  // Verify "Back to Expenses" link is present
+  const backLink = page.getByRole('link', { name: 'Back to Expenses' });
+  await expect(backLink).toBeVisible();
+  await expect(backLink).toHaveAttribute('href', '/expenses');
+
+  // Compute expected totals from database using SQL aggregation
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const monthStart = `${year}-${month}-01`;
+  const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+  const monthEnd = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+
+  const dbTotals = await queryDatabase(
+    `SELECT c.name, c.color, SUM(e.amount_cents) AS total_cents
+     FROM expense_tracker_v1.categories c
+     LEFT JOIN expense_tracker_v1.expenses e
+       ON e.category_id = c.id
+       AND e.occurred_on >= $1
+       AND e.occurred_on <= $2
+     GROUP BY c.id, c.name, c.color
+     HAVING SUM(e.amount_cents) > 0
+     ORDER BY total_cents DESC`,
+    [monthStart, monthEnd]
+  );
+
+  if (dbTotals.length === 0) {
+    // Seeded data is within 60 days, so it's possible some falls in current month
+    await expect(page.getByText('No expenses recorded this month.')).toBeVisible();
+  } else {
+    // Verify table has category badges and totals
+    const table = page.locator('table');
+    await expect(table).toBeVisible();
+
+    // Verify each category from DB appears in the table
+    for (const row of dbTotals) {
+      await expect(page.getByText(row.name, { exact: true }).first()).toBeVisible();
+      await expect(page.getByText(formatCents(Number(row.total_cents)))).toBeVisible();
+    }
+
+    // Verify grand total row
+    const grandTotal = dbTotals.reduce((sum: number, r: any) => sum + Number(r.total_cents), 0);
+    await expect(page.getByText('Grand Total')).toBeVisible();
+    await expect(page.getByText(formatCents(grandTotal))).toBeVisible();
+  }
+
+  // Verify navigation back to /expenses works
+  await page.getByRole('link', { name: 'Back to Expenses' }).click();
+  await expect(page).toHaveURL('/expenses');
+  await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
+});
+
+function formatCents(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
