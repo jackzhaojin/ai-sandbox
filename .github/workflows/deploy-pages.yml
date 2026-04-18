@@ -37,10 +37,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: |
-            projects/**/package-lock.json
-            .tmp-sources/**/package-lock.json
+          # No cache here: lockfiles live on aggregated branches that are
+          # only materialized at build time under .tmp-sources/, so
+          # setup-node's cache resolver can't see them when this step runs.
 
       - name: Build GitHub Pages artifact
         run: node scripts/build-pages-site.mjs
