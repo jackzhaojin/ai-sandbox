@@ -356,9 +356,45 @@ test('List page shows seeded expenses grouped by month', async ({ page }) => {
   await expect(totalLabel).toBeVisible();
 });
 
-test('Add new expense via form and verify it appears', async () => {
-  // Scaffold — will be implemented in step 13
-  test.skip(true, 'Scaffolded for step 13');
+test('step 13: add expense via form and verify it appears in list', async ({ page }) => {
+  // Navigate to expenses list
+  await page.goto('/expenses');
+  await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
+
+  // Click 'Add Expense' and wait for new page
+  await page.getByRole('link', { name: 'Add Expense' }).click();
+  await expect(page).toHaveURL('/expenses/new');
+  await expect(page.getByRole('heading', { name: 'Add Expense', level: 1 })).toBeVisible();
+
+  // Wait for categories to load and verify dropdown is populated (>0 real options beyond placeholder)
+  await expect(page.locator('select[name="category_id"]')).not.toBeDisabled();
+  const categoryOptions = page.locator('select[name="category_id"] option:not([value=""])');
+  await expect.poll(async () => await categoryOptions.count()).toBeGreaterThan(0);
+  const optionCount = await categoryOptions.count();
+  expect(optionCount).toBeGreaterThan(0);
+
+  // Fill form with unique identifiable data
+  const uniqueNote = `E2E test expense — step 13 ${Date.now()}`;
+  await page.fill('input[name="amount"]', '42.50');
+  await page.selectOption('select[name="category_id"]', { label: 'Food' });
+
+  // Ensure today's date is set (it defaults to today, but set explicitly for certainty)
+  const today = new Date().toISOString().split('T')[0];
+  await page.fill('input[name="occurred_on"]', today);
+
+  await page.fill('textarea[name="note"]', uniqueNote);
+
+  // Submit form
+  await page.getByRole('button', { name: 'Save Expense' }).click();
+
+  // Wait for redirect back to /expenses
+  await expect(page).toHaveURL('/expenses');
+  await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
+
+  // Assert new expense appears in list with correct amount, category badge, and note
+  await expect(page.getByText('$42.50', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(uniqueNote)).toBeVisible();
+  await expect(page.getByText('Food', { exact: true }).first()).toBeVisible();
 });
 
 test('Summary page shows correct totals', async () => {
