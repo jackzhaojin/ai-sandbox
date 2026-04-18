@@ -128,3 +128,42 @@ test('step 7: expenses list page renders with monthly grouping', async ({ page }
   const expenseAmounts = page.getByText(/^\$\d+\.\d{2}$/);
   await expect(expenseAmounts).toHaveCount(dbExpenses.length);
 });
+
+test('step 8: new expense form renders with category dropdown and validation', async ({ page }) => {
+  await completePriorSteps(page, { through: 5 });
+
+  // Navigate to /expenses/new
+  await page.goto('/expenses/new');
+  await expect(page.getByRole('heading', { name: 'Add Expense', level: 1 })).toBeVisible();
+
+  // Verify category dropdown is populated with real categories from DB
+  const dbCategories = await queryDatabase('SELECT name FROM expense_tracker_v1.categories ORDER BY name');
+  for (const cat of dbCategories) {
+    await expect(page.locator('select[name="category_id"]').locator('option', { hasText: cat.name })).toHaveCount(1);
+  }
+
+  // Verify date defaults to today
+  const today = new Date().toISOString().split('T')[0];
+  await expect(page.locator('input[name="occurred_on"]')).toHaveValue(today);
+
+  // Submit empty form to trigger validation
+  await page.getByRole('button', { name: 'Save Expense' }).click();
+
+  // Verify validation errors appear
+  await expect(page.getByText('Amount must be greater than 0')).toBeVisible();
+  await expect(page.getByText('Please select a category')).toBeVisible();
+
+  // Fill form with valid data and submit
+  await page.fill('input[name="amount"]', '25.50');
+  await page.selectOption('select[name="category_id"]', { label: 'Food' });
+  await page.fill('textarea[name="note"]', 'Lunch with team');
+  await page.getByRole('button', { name: 'Save Expense' }).click();
+
+  // Verify stub server action message appears
+  await expect(page.getByText('Stub: expense not actually created yet')).toBeVisible();
+
+  // Verify Cancel link works
+  await page.getByRole('link', { name: 'Cancel' }).first().click();
+  await expect(page).toHaveURL('/expenses');
+  await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
+});
