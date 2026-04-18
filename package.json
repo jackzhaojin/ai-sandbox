@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:setup": "npx tsx scripts/migrate.ts",
-    "db:seed": "echo 'Run supabase/migrations/seed.sql in the Supabase SQL Editor'",
+    "db:seed": "npx tsx scripts/seed.ts",
     "test:e2e": "npx playwright test tests/e2e/"
   },
   "dependencies": {
