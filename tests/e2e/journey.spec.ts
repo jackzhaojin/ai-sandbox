@@ -85,7 +85,7 @@ export async function completePriorSteps(page: Page, opts: { through: number }) 
     );
 
     const expenses = await queryDatabase('SELECT * FROM expense_tracker_v1.expenses');
-    expect(expenses.length).toBe(10);
+    expect(expenses.length).toBeGreaterThanOrEqual(10);
 
     // Verify schema columns exist
     const catColumns = await queryDatabase(
@@ -99,6 +99,41 @@ export async function completePriorSteps(page: Page, opts: { through: number }) 
     expect(expColumns.map((c: any) => c.column_name)).toEqual([
       'id', 'amount_cents', 'category_id', 'occurred_on', 'note', 'created_at',
     ]);
+  }
+
+  // Step 7: expenses list page renders with monthly grouping
+  if (opts.through >= 7) {
+    await page.goto('/expenses');
+    await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Add Expense' })).toBeVisible();
+  }
+
+  // Step 8: new expense form renders with category dropdown
+  if (opts.through >= 8) {
+    await page.getByRole('link', { name: 'Add Expense' }).click();
+    await expect(page).toHaveURL('/expenses/new');
+    await expect(page.getByRole('heading', { name: 'Add Expense', level: 1 })).toBeVisible();
+  }
+
+  // Step 9: create expense via server action, redirect, and verify in list
+  if (opts.through >= 9) {
+    await page.fill('input[name="amount"]', '99.99');
+    await page.selectOption('select[name="category_id"]', { label: 'Utilities' });
+    await page.fill('textarea[name="note"]', 'Journey checkpoint expense');
+    await page.getByRole('button', { name: 'Save Expense' }).click();
+    await expect(page).toHaveURL('/expenses');
+    await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
+    await expect(page.getByText('$99.99', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Journey checkpoint expense')).toBeVisible();
+  }
+
+  // Step 10: summary page shows current-month totals grouped by category
+  if (opts.through >= 10) {
+    await page.goto('/summary');
+    const now = new Date();
+    const monthLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    await expect(page.getByRole('heading', { name: new RegExp(`Summary for ${monthLabel}`), level: 1 })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Back to Expenses' })).toBeVisible();
   }
 }
 
@@ -278,6 +313,25 @@ test('step 10: summary page shows current-month totals grouped by category', asy
   await page.getByRole('link', { name: 'Back to Expenses' }).click();
   await expect(page).toHaveURL('/expenses');
   await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
+});
+
+test('checkpoint 2: full end-to-end journey through summary and back', async ({ page }) => {
+  await completePriorSteps(page, { through: 10 });
+
+  // Verify summary table shows the journey expense in the Utilities category
+  const table = page.locator('table');
+  await expect(table).toBeVisible();
+  await expect(page.getByText('Utilities', { exact: true }).first()).toBeVisible();
+
+  // Verify grand total row is present
+  await expect(page.getByText('Grand Total')).toBeVisible();
+
+  // Navigate back to expenses via the link and verify data persists
+  await page.getByRole('link', { name: 'Back to Expenses' }).click();
+  await expect(page).toHaveURL('/expenses');
+  await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
+  await expect(page.getByText('Journey checkpoint expense')).toBeVisible();
+  await expect(page.getByText('$99.99', { exact: true }).first()).toBeVisible();
 });
 
 test('List page shows seeded expenses grouped by month', async ({ page }) => {
