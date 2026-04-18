@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:setup": "echo 'Run supabase/migrations/schema.sql in the Supabase SQL Editor'",
+    "db:setup": "npx tsx scripts/migrate.ts",
     "db:seed": "echo 'Run supabase/migrations/seed.sql in the Supabase SQL Editor'",
     "test:e2e": "npx playwright test tests/e2e/"
   },
@@ -20,10 +20,12 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "pg": "^8.20.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

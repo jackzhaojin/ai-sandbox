@@ -1,13 +1,13 @@
 export type Category = {
-  id: number;
+  id: string;
   name: string;
   color: string;
 };
 
 export type Expense = {
-  id: number;
+  id: string;
   amount_cents: number;
-  category_id: number;
+  category_id: string;
   occurred_on: string;
   note: string | null;
   created_at: string;
