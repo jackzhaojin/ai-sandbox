@@ -94,3 +94,37 @@ export async function completePriorSteps(page: Page, opts: { through: number }) 
 test('checkpoint 1: app scaffolded, db migrated and seeded', async ({ page }) => {
   await completePriorSteps(page, { through: 5 });
 });
+
+test('step 7: expenses list page renders with monthly grouping', async ({ page }) => {
+  await completePriorSteps(page, { through: 5 });
+
+  // Navigate to /expenses
+  await page.goto('/expenses');
+  await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
+
+  // Verify "Add Expense" button links to /expenses/new
+  const addButton = page.getByRole('link', { name: 'Add Expense' });
+  await expect(addButton).toBeVisible();
+  await expect(addButton).toHaveAttribute('href', '/expenses/new');
+
+  // Verify monthly sections exist — seeded data spans at least 2 months
+  const monthHeadings = page.getByRole('heading', { level: 2 });
+  await expect(monthHeadings).toHaveCount(await monthHeadings.count()); // at least one
+  const monthTexts = await monthHeadings.allTextContents();
+  expect(monthTexts.length).toBeGreaterThanOrEqual(2);
+
+  // Verify category badges are visible (colored pills with category names)
+  const categories = await queryDatabase('SELECT name FROM expense_tracker_v1.categories');
+  for (const cat of categories) {
+    await expect(page.getByText(cat.name, { exact: true }).first()).toBeVisible();
+  }
+
+  // Verify month totals are present
+  const monthTotalLabels = page.getByText(/Month Total: \$/);
+  await expect(monthTotalLabels).toHaveCount(await monthHeadings.count());
+
+  // Verify expense rows match DB count
+  const dbExpenses = await queryDatabase('SELECT * FROM expense_tracker_v1.expenses');
+  const expenseAmounts = page.getByText(/^\$\d+\.\d{2}$/);
+  await expect(expenseAmounts).toHaveCount(dbExpenses.length);
+});
