@@ -11,6 +11,39 @@ function getTodayString(): string {
   return new Date().toISOString().split('T')[0];
 }
 
+/* ------------------------------------------------------------------ */
+/*  Spinner icon                                                       */
+/* ------------------------------------------------------------------ */
+
+function Spinner({ className }: { className?: string }) {
+  return (
+    <svg
+      className={`animate-spin ${className ?? ''}`}
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
+    </svg>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Page                                                               */
+/* ------------------------------------------------------------------ */
+
 export default function NewExpensePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
@@ -106,7 +139,22 @@ export default function NewExpensePage() {
         <div className="rounded-lg bg-white p-6 shadow-sm">
           {fetchError && (
             <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
-              {fetchError}
+              <div className="flex items-center gap-2">
+                <svg
+                  className="h-4 w-4 shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+                  />
+                </svg>
+                {fetchError}
+              </div>
             </div>
           )}
 
@@ -118,7 +166,24 @@ export default function NewExpensePage() {
                   : 'bg-red-50 text-red-700'
               }`}
             >
-              {state.message}
+              <div className="flex items-center gap-2">
+                {!state.success && (
+                  <svg
+                    className="h-4 w-4 shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+                    />
+                  </svg>
+                )}
+                {state.message}
+              </div>
             </div>
           )}
 
@@ -162,7 +227,7 @@ export default function NewExpensePage() {
                 className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 disabled:bg-zinc-100"
               >
                 <option value="">
-                  {loadingCategories ? 'Loading...' : 'Select a category'}
+                  {loadingCategories ? 'Loading…' : 'Select a category'}
                 </option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
@@ -210,7 +275,7 @@ export default function NewExpensePage() {
                 rows={3}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Add a note..."
+                placeholder="Add a note…"
                 className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
               />
             </div>
@@ -219,9 +284,10 @@ export default function NewExpensePage() {
               <button
                 type="submit"
                 disabled={isPending}
-                className="inline-flex items-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isPending ? 'Saving...' : 'Save Expense'}
+                {isPending && <Spinner className="h-4 w-4" />}
+                {isPending ? 'Saving…' : 'Save Expense'}
               </button>
               <Link
                 href="/expenses"
