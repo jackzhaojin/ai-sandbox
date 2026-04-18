@@ -58,6 +58,17 @@ async function queryDatabase<T>(sql: string, params?: unknown[]): Promise<T[]> {
   return result.rows;
 }
 
+test.describe.configure({ mode: 'serial' });
+
+test.beforeAll(async () => {
+  // Ensure clean database state before journey tests
+  const { execSync } = require('child_process');
+  execSync('npm run db:seed', {
+    cwd: process.cwd(),
+    stdio: 'pipe',
+  });
+});
+
 export async function completePriorSteps(page: Page, opts: { through: number }) {
   // Steps 1–3: Next.js scaffold + Supabase client setup — verify app loads
   if (opts.through >= 3) {
@@ -153,17 +164,53 @@ test('step 8: new expense form renders with category dropdown and validation', a
   await expect(page.getByText('Amount must be greater than 0')).toBeVisible();
   await expect(page.getByText('Please select a category')).toBeVisible();
 
-  // Fill form with valid data and submit
+  // Fill form with valid data and submit — should create expense and redirect
   await page.fill('input[name="amount"]', '25.50');
   await page.selectOption('select[name="category_id"]', { label: 'Food' });
   await page.fill('textarea[name="note"]', 'Lunch with team');
   await page.getByRole('button', { name: 'Save Expense' }).click();
 
-  // Verify stub server action message appears
-  await expect(page.getByText('Stub: expense not actually created yet')).toBeVisible();
+  // Verify redirect to /expenses and new expense is visible
+  await expect(page).toHaveURL('/expenses');
+  await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
+  await expect(page.getByText('$25.50')).toBeVisible();
+  await expect(page.getByText('Lunch with team')).toBeVisible();
 
-  // Verify Cancel link works
+  // Verify Cancel link works from a fresh /expenses/new page
+  await page.goto('/expenses/new');
   await page.getByRole('link', { name: 'Cancel' }).first().click();
   await expect(page).toHaveURL('/expenses');
   await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
+});
+
+test('step 9: create expense via server action, redirect, and verify in list', async ({ page }) => {
+  // Count expenses before (step 8 may have created one in serial mode)
+  const beforeExpenses = await queryDatabase('SELECT COUNT(*) AS count FROM expense_tracker_v1.expenses');
+  const beforeCount = Number(beforeExpenses[0].count);
+
+  // Navigate to /expenses/new
+  await page.goto('/expenses/new');
+  await expect(page.getByRole('heading', { name: 'Add Expense', level: 1 })).toBeVisible();
+
+  // Fill form with unique identifiable data
+  await page.fill('input[name="amount"]', '42.99');
+  await page.selectOption('select[name="category_id"]', { label: 'Travel' });
+  await page.fill('textarea[name="note"]', 'Taxi to airport — step 9 test');
+
+  // Submit
+  await page.getByRole('button', { name: 'Save Expense' }).click();
+
+  // Verify redirect to /expenses
+  await expect(page).toHaveURL('/expenses');
+  await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
+
+  // Verify the new expense appears in the list
+  await expect(page.getByText('$42.99')).toBeVisible();
+  await expect(page.getByText('Taxi to airport — step 9 test')).toBeVisible();
+  await expect(page.getByText('Travel', { exact: true }).first()).toBeVisible();
+
+  // Verify DB count increased
+  const afterExpenses = await queryDatabase('SELECT COUNT(*) AS count FROM expense_tracker_v1.expenses');
+  const afterCount = Number(afterExpenses[0].count);
+  expect(afterCount).toBe(beforeCount + 1);
 });

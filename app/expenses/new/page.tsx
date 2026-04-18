@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useTransition } from 'react';
 import { useActionState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { fetchCategories, createExpense } from '../actions';
 import type { Category } from '@/lib/types';
@@ -24,6 +25,7 @@ export default function NewExpensePage() {
 
   const [state, formAction] = useActionState(createExpense, null);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   useEffect(() => {
     async function loadCategories() {
@@ -41,6 +43,12 @@ export default function NewExpensePage() {
 
     loadCategories();
   }, []);
+
+  useEffect(() => {
+    if (state?.success) {
+      router.push('/expenses');
+    }
+  }, [state, router]);
 
   const validate = useCallback((): boolean => {
     const nextErrors: Record<string, string> = {};
@@ -103,7 +111,13 @@ export default function NewExpensePage() {
           )}
 
           {state?.message && (
-            <div className="mb-4 rounded-md bg-amber-50 p-3 text-sm text-amber-700">
+            <div
+              className={`mb-4 rounded-md p-3 text-sm ${
+                state.success
+                  ? 'bg-green-50 text-green-700'
+                  : 'bg-red-50 text-red-700'
+              }`}
+            >
               {state.message}
             </div>
           )}
