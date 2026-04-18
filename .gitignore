@@ -17,6 +17,7 @@ dist/
 .next/
 out/
 site/
+.tmp-sources/
 
 # IDE
 .vscode/settings.json
