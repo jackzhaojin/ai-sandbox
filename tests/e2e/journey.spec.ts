@@ -178,7 +178,7 @@ test('step 8: new expense form renders with category dropdown and validation', a
   // Verify redirect to /expenses and new expense is visible
   await expect(page).toHaveURL('/expenses');
   await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
-  await expect(page.getByText('$25.50')).toBeVisible();
+  await expect(page.getByText('$25.50', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Lunch with team')).toBeVisible();
 
   // Verify Cancel link works from a fresh /expenses/new page
@@ -210,7 +210,7 @@ test('step 9: create expense via server action, redirect, and verify in list', a
   await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
 
   // Verify the new expense appears in the list
-  await expect(page.getByText('$42.99')).toBeVisible();
+  await expect(page.getByText('$42.99', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Taxi to airport — step 9 test')).toBeVisible();
   await expect(page.getByText('Travel', { exact: true }).first()).toBeVisible();
 
@@ -278,6 +278,38 @@ test('step 10: summary page shows current-month totals grouped by category', asy
   await page.getByRole('link', { name: 'Back to Expenses' }).click();
   await expect(page).toHaveURL('/expenses');
   await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
+});
+
+test('List page shows seeded expenses grouped by month', async ({ page }) => {
+  // Navigate to the expenses list page
+  await page.goto('/expenses');
+  await expect(page).toHaveURL('/expenses');
+
+  // Assert at least one month heading exists
+  const monthHeadings = page.getByRole('heading', { level: 2 });
+  await expect(monthHeadings.first()).toBeVisible();
+  const monthCount = await monthHeadings.count();
+  expect(monthCount).toBeGreaterThanOrEqual(1);
+
+  // Assert at least one expense row with category badge and amount
+  const categoryBadge = page.locator('span.inline-flex').first();
+  await expect(categoryBadge).toBeVisible();
+  const amountCell = page.locator('text=/^\\$\\d+\\.\\d{2}$/').first();
+  await expect(amountCell).toBeVisible();
+
+  // Assert a total is displayed
+  const totalLabel = page.getByText(/Month Total: \$/).first();
+  await expect(totalLabel).toBeVisible();
+});
+
+test('Add new expense via form and verify it appears', async () => {
+  // Scaffold — will be implemented in step 13
+  test.skip(true, 'Scaffolded for step 13');
+});
+
+test('Summary page shows correct totals', async () => {
+  // Scaffold — will be implemented in step 14
+  test.skip(true, 'Scaffolded for step 14');
 });
 
 function formatCents(cents: number): string {
