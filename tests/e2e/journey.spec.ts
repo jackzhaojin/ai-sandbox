@@ -397,9 +397,72 @@ test('step 13: add expense via form and verify it appears in list', async ({ pag
   await expect(page.getByText('Food', { exact: true }).first()).toBeVisible();
 });
 
-test('Summary page shows correct totals', async () => {
-  // Scaffold — will be implemented in step 14
-  test.skip(true, 'Scaffolded for step 14');
+test('step 14: summary aggregation matches database totals', async ({ page }) => {
+  // Compute expected totals directly from the database for the current month
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const monthStart = `${year}-${month}-01`;
+  const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+  const monthEnd = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+
+  const dbTotals = await queryDatabase(
+    `SELECT c.name, c.color, SUM(e.amount_cents) AS total_cents
+     FROM expense_tracker_v1.categories c
+     LEFT JOIN expense_tracker_v1.expenses e
+       ON e.category_id = c.id
+       AND e.occurred_on >= $1
+       AND e.occurred_on <= $2
+     GROUP BY c.id, c.name, c.color
+     HAVING SUM(e.amount_cents) > 0
+     ORDER BY total_cents DESC`,
+    [monthStart, monthEnd]
+  );
+
+  const grandTotalCents = dbTotals.reduce(
+    (sum: number, r: any) => sum + Number(r.total_cents),
+    0
+  );
+
+  // Navigate to /summary
+  await page.goto('/summary');
+
+  // Assert current month heading is displayed
+  const monthLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  await expect(page.getByRole('heading', { name: new RegExp(`Summary for ${monthLabel}`), level: 1 })).toBeVisible();
+
+  if (dbTotals.length === 0) {
+    // Edge case: no expenses in current month
+    await expect(page.getByText('No expenses recorded this month.')).toBeVisible();
+  } else {
+    // Assert table has at least one category row
+    const table = page.locator('table');
+    await expect(table).toBeVisible();
+    const categoryRows = table.locator('tbody tr');
+    await expect(categoryRows).toHaveCount(dbTotals.length);
+
+    // Verify each category total from DB appears in the table and is greater than zero
+    for (const row of dbTotals) {
+      const totalCents = Number(row.total_cents);
+      expect(totalCents).toBeGreaterThan(0);
+
+      // Category badge is visible
+      await expect(page.getByText(row.name, { exact: true }).first()).toBeVisible();
+
+      // Formatted total is visible
+      const formatted = formatCents(totalCents);
+      await expect(page.getByText(formatted).first()).toBeVisible();
+    }
+
+    // Verify grand total row and that it matches the computed DB total
+    await expect(page.getByText('Grand Total')).toBeVisible();
+    await expect(page.getByText(formatCents(grandTotalCents))).toBeVisible();
+
+    // Verify "Back to Expenses" link works
+    await page.getByRole('link', { name: 'Back to Expenses' }).click();
+    await expect(page).toHaveURL('/expenses');
+    await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
+  }
 });
 
 function formatCents(cents: number): string {
