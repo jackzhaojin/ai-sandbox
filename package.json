@@ -1,0 +1,30 @@
+{
+  "name": "expense-tracker-supabase",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "db:setup": "echo 'Run supabase/migrations/schema.sql in the Supabase SQL Editor'",
+    "db:seed": "echo 'Run supabase/migrations/seed.sql in the Supabase SQL Editor'",
+    "test:e2e": "npx playwright test tests/e2e/"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.103.3",
+    "next": "16.2.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.4",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
