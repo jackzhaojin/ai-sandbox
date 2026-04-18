@@ -19,6 +19,10 @@ out/
 site/
 .tmp-sources/
 
+# Next.js auto-generated (regenerated on every build/dev — would otherwise
+# trip the continuous-agent's git_status_clean verifier with 1-line diffs)
+next-env.d.ts
+
 # IDE
 .vscode/settings.json
 .idea/
