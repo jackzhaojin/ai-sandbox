@@ -162,6 +162,14 @@ export async function completePriorSteps(page: Page, opts: { through: number }) 
     await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).not.toBeVisible();
     await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).not.toBeVisible();
   }
+
+  // Step 15: Favorites page lists favorited recipes
+  if (opts.through >= 15) {
+    await page.getByRole('navigation').getByRole('link', { name: 'Favorites' }).click();
+    await expect(page).toHaveURL('/favorites');
+    await expect(page.getByRole('heading', { name: 'Favorites' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese \(Edited\)/ })).toBeVisible();
+  }
 }
 
 test('step 2: scaffold loads and routes exist', async ({ page }) => {
@@ -521,4 +529,13 @@ test('checkpoint 2: end-to-end journey through step 13', async ({ page }) => {
   // Reload and verify persistence across page reload
   await page.reload();
   await expect(page.getByText('Imperial (oz, cups)')).toBeVisible();
+});
+
+test('step 15: favorites page lists favorited recipes', async ({ page }) => {
+  await completePriorSteps(page, { through: 15 });
+
+  // Clicking the card navigates to detail
+  await page.getByRole('link', { name: /Classic Spaghetti Bolognese \(Edited\)/ }).click();
+  await expect(page).toHaveURL(/\/recipes\/a1b2c3d4-e5f6-7890-abcd-ef1234567890/);
+  await expect(page.getByRole('heading', { name: 'Classic Spaghetti Bolognese (Edited)' })).toBeVisible();
 });
