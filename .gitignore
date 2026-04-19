@@ -42,6 +42,13 @@ snapshots/
 *.webm
 *.mp4
 
+# Logs
+coverage/
+*.log
+
+# App state
+data/state.json
+
 # Local-only scratch (never committed, never pushed)
 local-only/
 
