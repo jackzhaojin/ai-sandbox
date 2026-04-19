@@ -1,0 +1,132 @@
+[
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "title": "Classic Spaghetti Bolognese",
+    "category": "Main",
+    "ingredients": [
+      { "name": "spaghetti", "quantity": 400, "unit": "g" },
+      { "name": "ground beef", "quantity": 500, "unit": "g" },
+      { "name": "canned tomatoes", "quantity": 800, "unit": "g" },
+      { "name": "onion", "quantity": 150, "unit": "g" },
+      { "name": "garlic", "quantity": 10, "unit": "g" },
+      { "name": "olive oil", "quantity": 30, "unit": "ml" },
+      { "name": "dried oregano", "quantity": 5, "unit": "g" }
+    ],
+    "instructions": [
+      "Heat olive oil in a large pan over medium heat.",
+      "Finely chop the onion and garlic, then sauté until soft.",
+      "Add the ground beef and cook until browned, breaking it up with a spoon.",
+      "Stir in the canned tomatoes and oregano. Simmer for 20 minutes.",
+      "Meanwhile, cook the spaghetti in salted boiling water according to package instructions.",
+      "Drain the spaghetti and toss with the bolognese sauce. Serve immediately."
+    ],
+    "prepTime": 15,
+    "cookTime": 30,
+    "imageUrl": "https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&w=800&q=80"
+  },
+  {
+    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "title": "Grilled Salmon with Asparagus",
+    "category": "Main",
+    "ingredients": [
+      { "name": "salmon fillets", "quantity": 600, "unit": "g" },
+      { "name": "asparagus", "quantity": 300, "unit": "g" },
+      { "name": "lemon", "quantity": 60, "unit": "g" },
+      { "name": "olive oil", "quantity": 20, "unit": "ml" },
+      { "name": "garlic", "quantity": 10, "unit": "g" },
+      { "name": "salt", "quantity": 5, "unit": "g" },
+      { "name": "black pepper", "quantity": 2, "unit": "g" }
+    ],
+    "instructions": [
+      "Preheat the grill or grill pan to medium-high heat.",
+      "Pat the salmon fillets dry and season with salt and pepper.",
+      "Trim the woody ends off the asparagus and toss with olive oil and minced garlic.",
+      "Grill the salmon for 4–5 minutes per side until cooked through.",
+      "Grill the asparagus for 3–4 minutes, turning occasionally.",
+      "Serve the salmon and asparagus with lemon wedges on the side."
+    ],
+    "prepTime": 10,
+    "cookTime": 15,
+    "imageUrl": "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=800&q=80"
+  },
+  {
+    "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+    "title": "Chocolate Lava Cake",
+    "category": "Dessert",
+    "ingredients": [
+      { "name": "dark chocolate", "quantity": 200, "unit": "g" },
+      { "name": "unsalted butter", "quantity": 100, "unit": "g" },
+      { "name": "eggs", "quantity": 200, "unit": "g" },
+      { "name": "granulated sugar", "quantity": 100, "unit": "g" },
+      { "name": "all-purpose flour", "quantity": 50, "unit": "g" },
+      { "name": "vanilla extract", "quantity": 5, "unit": "ml" },
+      { "name": "salt", "quantity": 1, "unit": "g" }
+    ],
+    "instructions": [
+      "Preheat the oven to 200°C. Grease four ramekins with butter and dust with cocoa powder.",
+      "Melt the dark chocolate and butter together in a heatproof bowl over simmering water.",
+      "Whisk the eggs and sugar until pale and fluffy.",
+      "Fold the melted chocolate into the egg mixture, then sift in the flour and salt.",
+      "Stir in the vanilla extract until just combined.",
+      "Divide the batter between the ramekins and bake for 12–14 minutes.",
+      "The edges should be set but the center still soft. Invert onto plates and serve warm."
+    ],
+    "prepTime": 20,
+    "cookTime": 14,
+    "imageUrl": "https://images.unsplash.com/photo-1624353365286-3f8d62daad51?auto=format&fit=crop&w=800&q=80"
+  },
+  {
+    "id": "d4e5f6a7-b8c9-0123-def1-234567890123",
+    "title": "Strawberry Cheesecake",
+    "category": "Dessert",
+    "ingredients": [
+      { "name": "cream cheese", "quantity": 500, "unit": "g" },
+      { "name": "digestive biscuits", "quantity": 200, "unit": "g" },
+      { "name": "unsalted butter", "quantity": 100, "unit": "g" },
+      { "name": "granulated sugar", "quantity": 150, "unit": "g" },
+      { "name": "heavy cream", "quantity": 250, "unit": "ml" },
+      { "name": "fresh strawberries", "quantity": 300, "unit": "g" },
+      { "name": "vanilla extract", "quantity": 5, "unit": "ml" },
+      { "name": "lemon juice", "quantity": 15, "unit": "ml" }
+    ],
+    "instructions": [
+      "Crush the digestive biscuits into fine crumbs and mix with melted butter.",
+      "Press the crumb mixture firmly into the base of a 23 cm springform pan. Chill while preparing the filling.",
+      "Beat the cream cheese and sugar until smooth and creamy.",
+      "Add the heavy cream, vanilla extract, and lemon juice. Beat until thick and spreadable.",
+      "Spread the cheesecake filling over the chilled biscuit base and smooth the top.",
+      "Refrigerate for at least 4 hours or overnight until set.",
+      "Top with fresh strawberries before serving."
+    ],
+    "prepTime": 30,
+    "cookTime": 0,
+    "imageUrl": "https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=800&q=80"
+  },
+  {
+    "id": "e5f6a7b8-c9d0-1234-ef12-345678901234",
+    "title": "Caesar Salad",
+    "category": "Salad",
+    "ingredients": [
+      { "name": "romaine lettuce", "quantity": 400, "unit": "g" },
+      { "name": "parmesan cheese", "quantity": 75, "unit": "g" },
+      { "name": "croutons", "quantity": 100, "unit": "g" },
+      { "name": "chicken breast", "quantity": 300, "unit": "g" },
+      { "name": "olive oil", "quantity": 45, "unit": "ml" },
+      { "name": "lemon juice", "quantity": 30, "unit": "ml" },
+      { "name": "garlic", "quantity": 5, "unit": "g" },
+      { "name": "Worcestershire sauce", "quantity": 10, "unit": "ml" },
+      { "name": "black pepper", "quantity": 2, "unit": "g" }
+    ],
+    "instructions": [
+      "Season the chicken breast with salt and pepper. Grill or pan-fry until cooked through, about 6–7 minutes per side. Let rest, then slice.",
+      "Wash and roughly chop the romaine lettuce into bite-sized pieces.",
+      "In a small bowl, whisk together olive oil, lemon juice, minced garlic, Worcestershire sauce, and black pepper to make the dressing.",
+      "In a large salad bowl, toss the lettuce with the dressing until evenly coated.",
+      "Top with sliced chicken, croutons, and shaved parmesan cheese.",
+      "Serve immediately for the best crunch."
+    ],
+    "prepTime": 15,
+    "cookTime": 15,
+    "imageUrl": "https://images.unsplash.com/photo-1550304943-4f24f54ddde9?auto=format&fit=crop&w=800&q=80"
+  }
+]
