@@ -539,3 +539,83 @@ test('step 15: favorites page lists favorited recipes', async ({ page }) => {
   await expect(page).toHaveURL(/\/recipes\/a1b2c3d4-e5f6-7890-abcd-ef1234567890/);
   await expect(page.getByRole('heading', { name: 'Classic Spaghetti Bolognese (Edited)' })).toBeVisible();
 });
+
+// Journey test blocks 1-4 (Step 17)
+
+test('renders /recipes grid with 5 seeded recipes', async ({ page }) => {
+  await page.goto('/recipes');
+  await expect(page.getByRole('heading', { name: 'Recipes' })).toBeVisible();
+
+  // Assert all 5 seeded recipe cards are visible
+  await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Grilled Salmon with Asparagus/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Caesar Salad/ })).toBeVisible();
+
+  // First card has title and image
+  const firstCard = page.getByRole('link', { name: /Classic Spaghetti Bolognese/ });
+  await expect(firstCard.locator('h2')).toContainText('Classic Spaghetti Bolognese');
+  await expect(firstCard.locator('img')).toBeVisible();
+});
+
+test('opens /recipes/[id] and shows metric ingredients by default', async ({ page }) => {
+  await page.goto('/recipes');
+  await expect(page.getByRole('heading', { name: 'Recipes' })).toBeVisible();
+
+  // Click first card
+  await page.getByRole('link', { name: /Classic Spaghetti Bolognese/ }).click();
+  await expect(page).toHaveURL(/\/recipes\/a1b2c3d4-e5f6-7890-abcd-ef1234567890/);
+
+  // Detail page loaded
+  await expect(page.getByRole('heading', { name: 'Classic Spaghetti Bolognese' })).toBeVisible();
+
+  // Ingredients list present
+  await expect(page.getByRole('heading', { name: 'Ingredients' })).toBeVisible();
+
+  // Units are metric by default
+  await expect(page.getByText('Units: Metric (g, ml)')).toBeVisible();
+  await expect(page.getByText('400 g')).toBeVisible();
+  await expect(page.getByText('500 g')).toBeVisible();
+  await expect(page.getByText('30 ml')).toBeVisible();
+});
+
+test('favorites a recipe and it appears in /favorites', async ({ page }) => {
+  await page.goto('/recipes');
+  await expect(page.getByRole('heading', { name: 'Recipes' })).toBeVisible();
+
+  // Open first recipe detail
+  await page.getByRole('link', { name: /Classic Spaghetti Bolognese/ }).click();
+  await expect(page).toHaveURL(/\/recipes\/a1b2c3d4-e5f6-7890-abcd-ef1234567890/);
+
+  // Click heart icon to favorite
+  await expect(page.getByTestId('favorite-button')).toHaveAttribute('aria-label', 'Add to favorites');
+  await page.getByTestId('favorite-button').click();
+  await expect(page.getByTestId('favorite-button')).toHaveAttribute('aria-label', 'Remove from favorites');
+
+  // Navigate to /favorites
+  await page.getByRole('navigation').getByRole('link', { name: 'Favorites' }).click();
+  await expect(page).toHaveURL('/favorites');
+  await expect(page.getByRole('heading', { name: 'Favorites' })).toBeVisible();
+
+  // Assert recipe is listed
+  await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese/ })).toBeVisible();
+});
+
+test('filters /search by keyword', async ({ page }) => {
+  await page.goto('/search');
+  await expect(page.getByRole('heading', { name: 'Search' })).toBeVisible();
+
+  // Type 'garlic'
+  await page.getByTestId('search-input').fill('garlic');
+  await page.waitForTimeout(600); // wait for debounce
+
+  // Assert only matching recipes appear (3 recipes contain garlic)
+  await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Grilled Salmon with Asparagus/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Caesar Salad/ })).toBeVisible();
+
+  // Assert non-matching recipes do not appear
+  await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).not.toBeVisible();
+  await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).not.toBeVisible();
+});
