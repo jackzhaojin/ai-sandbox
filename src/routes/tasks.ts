@@ -10,20 +10,20 @@ import {
   addRun,
   updateRun,
 } from '../services/persistence.js';
-import { detectCycle, canDispatch, getBlockingDeps, markOrphaned } from '../services/deps.js';
+import { detectCycle, canDispatch, getBlockingDeps, markOrphaned, validateGraph } from '../services/deps.js';
 import { scheduleRetry } from '../services/retry.js';
 import { TaskStatus, RunStatus } from '../domain/types.js';
 import { TaskCreateSchema, TaskUpdateSchema } from '../domain/types.js';
 import type { Task, Run } from '../domain/types.js';
 
-function getLatestSnapshot(taskId: string) {
+function getSnapshotHistory(taskId: string) {
   const runs = Array.from(getRuns().values()).filter((r) => r.task_id === taskId);
   runs.sort((a, b) => {
     const at = a.started_at?.getTime() ?? 0;
     const bt = b.started_at?.getTime() ?? 0;
     return bt - at;
   });
-  return runs[0] ?? null;
+  return runs;
 }
 
 function taskToJson(task: Task) {
@@ -80,15 +80,16 @@ export default async function taskRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'Dependency cycle detected', path: cycle.path });
     }
 
+    const retryPolicy = data.retryPolicy;
     const task: Task = {
       id: randomUUID(),
       name: data.title,
       description: data.description,
       cron: '0 0 * * *',
       payload: {},
-      max_attempts: 3,
-      base_delay_ms: 1000,
-      max_delay_ms: 30000,
+      max_attempts: retryPolicy?.maxAttempts ?? 3,
+      base_delay_ms: retryPolicy?.baseDelayMs ?? 1000,
+      max_delay_ms: retryPolicy?.maxDelayMs ?? 30000,
       depends_on: data.dependencies,
       status: TaskStatus.Active,
       created_at: new Date(),
@@ -106,10 +107,10 @@ export default async function taskRoutes(app: FastifyInstance) {
     if (!task) {
       return reply.status(404).send({ error: 'Task not found' });
     }
-    const snapshot = getLatestSnapshot(id);
+    const snapshots = getSnapshotHistory(id);
     return reply.send({
       ...taskToJson(task),
-      snapshot: snapshot ? runToJson(snapshot) : null,
+      snapshot_history: snapshots.map(runToJson),
     });
   });
 
@@ -242,6 +243,12 @@ export default async function taskRoutes(app: FastifyInstance) {
       run: runToJson(run),
       message: 'Execution completed successfully',
     });
+  });
+
+  // GET /api/tasks/dependencies — validate dependency graph
+  app.get('/dependencies', async (_req, reply) => {
+    const result = validateGraph(getTasks());
+    return reply.send(result);
   });
 
   // GET /api/tasks/:id/runs — list runs for a task

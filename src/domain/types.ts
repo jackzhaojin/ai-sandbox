@@ -59,10 +59,17 @@ export interface AppState {
 // Zod validation schemas
 // ---------------------------------------------------------------------------
 
+export const RetryPolicySchema = z.object({
+  maxAttempts: z.number().int().min(1).default(3),
+  baseDelayMs: z.number().int().min(0).default(1000),
+  maxDelayMs: z.number().int().min(0).default(30000),
+});
+
 export const TaskCreateSchema = z.object({
   title: z.string().min(1),
   description: z.string().default(''),
   dependencies: z.array(z.string().min(1)).default([]),
+  retryPolicy: RetryPolicySchema.optional(),
 });
 
 export const TaskCreateFullSchema = z.object({

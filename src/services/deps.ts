@@ -181,6 +181,64 @@ export function canDispatch(
 }
 
 // ---------------------------------------------------------------------------
+// Full-graph validation
+// ---------------------------------------------------------------------------
+
+export interface GraphValidationResult {
+  valid: boolean;
+  cycle?: string[];
+}
+
+/**
+ * Validate the entire task graph for cycles.
+ *
+ * Returns { valid: true } if no cycles exist, or { valid: false, cycle: [...] }
+ * if a cycle is detected.
+ */
+export function validateGraph(tasks: Map<string, Task>): GraphValidationResult {
+  const visited = new Set<string>();
+  const recStack = new Set<string>();
+
+  function dfs(node: string, path: string[]): GraphValidationResult {
+    visited.add(node);
+    recStack.add(node);
+
+    const task = tasks.get(node);
+    const deps = task?.depends_on ?? [];
+
+    for (const dep of deps) {
+      if (!tasks.has(dep)) {
+        // dangling dependency — not a cycle, but we skip it
+        continue;
+      }
+      if (recStack.has(dep)) {
+        return { valid: false, cycle: [...path, dep] };
+      }
+      if (!visited.has(dep)) {
+        const result = dfs(dep, [...path, dep]);
+        if (!result.valid) {
+          return result;
+        }
+      }
+    }
+
+    recStack.delete(node);
+    return { valid: true };
+  }
+
+  for (const [id] of tasks) {
+    if (!visited.has(id)) {
+      const result = dfs(id, [id]);
+      if (!result.valid) {
+        return result;
+      }
+    }
+  }
+
+  return { valid: true };
+}
+
+// ---------------------------------------------------------------------------
 // Orphan handling
 // ---------------------------------------------------------------------------
 

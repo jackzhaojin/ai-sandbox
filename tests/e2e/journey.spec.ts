@@ -24,6 +24,7 @@ import {
   getBlockingDeps,
   canDispatch,
   markOrphaned,
+  validateGraph,
 } from '../../src/services/deps.js';
 import { TaskStatus, RunStatus } from '../../src/domain/types.js';
 import type { Task, Run } from '../../src/domain/types.js';
@@ -312,14 +313,17 @@ describe('end-to-end journey', () => {
         expect(health.statusCode).toBe(200);
         expect(JSON.parse(health.payload).status).toBe('ok');
 
-        // Create task A
+        // Create task A with custom retryPolicy
         const createA = await app.inject({
           method: 'POST',
           url: '/api/tasks',
-          payload: { title: 'Task A', description: 'First task' },
+          payload: { title: 'Task A', description: 'First task', retryPolicy: { maxAttempts: 5, baseDelayMs: 500, maxDelayMs: 10000 } },
         });
         expect(createA.statusCode).toBe(201);
         const taskA = JSON.parse(createA.payload);
+        expect(taskA.max_attempts).toBe(5);
+        expect(taskA.base_delay_ms).toBe(500);
+        expect(taskA.max_delay_ms).toBe(10000);
 
         // Create task B depending on A
         const createB = await app.inject({
@@ -338,6 +342,15 @@ describe('end-to-end journey', () => {
         });
         expect(createC.statusCode).toBe(201);
         const taskC = JSON.parse(createC.payload);
+
+        // Validate dependency graph — should be valid
+        const depsValid = await app.inject({
+          method: 'GET',
+          url: '/api/tasks/dependencies',
+        });
+        expect(depsValid.statusCode).toBe(200);
+        const depsValidBody = JSON.parse(depsValid.payload);
+        expect(depsValidBody.valid).toBe(true);
 
         // Attempt to create a cycle by updating A to depend on C
         const updateCycle = await app.inject({
@@ -367,6 +380,17 @@ describe('end-to-end journey', () => {
         expect(execA.statusCode).toBe(200);
         const runA = JSON.parse(execA.payload).run;
         expect(runA.status).toBe('completed');
+
+        // GET task A should show snapshot_history
+        const getA = await app.inject({
+          method: 'GET',
+          url: `/api/tasks/${taskA.id}`,
+        });
+        expect(getA.statusCode).toBe(200);
+        const getABody = JSON.parse(getA.payload);
+        expect(Array.isArray(getABody.snapshot_history)).toBe(true);
+        expect(getABody.snapshot_history.length).toBeGreaterThanOrEqual(1);
+        expect(getABody.snapshot_history[0].status).toBe('completed');
 
         // Now execute B successfully
         const execB = await app.inject({
