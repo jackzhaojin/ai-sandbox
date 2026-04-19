@@ -1,5 +1,6 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'crypto';
+import { z } from 'zod';
 import {
   getTasks,
   getRuns,
@@ -12,18 +13,43 @@ import {
 } from '../services/persistence.js';
 import { detectCycle, canDispatch, getBlockingDeps, markOrphaned, validateGraph } from '../services/deps.js';
 import { scheduleRetry } from '../services/retry.js';
+import { checkOverlap, dispatchTask } from '../services/scheduler.js';
 import { TaskStatus, RunStatus } from '../domain/types.js';
 import { TaskCreateSchema, TaskUpdateSchema } from '../domain/types.js';
 import type { Task, Run } from '../domain/types.js';
 
-function getSnapshotHistory(taskId: string) {
+// ---------------------------------------------------------------------------
+// Zod validation middleware
+// ---------------------------------------------------------------------------
+
+declare module 'fastify' {
+  interface FastifyRequest {
+    validatedBody?: unknown;
+  }
+}
+
+function validateBody<T>(schema: z.ZodSchema<T>) {
+  return async (req: FastifyRequest, reply: FastifyReply) => {
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid request body', details: parsed.error.format() });
+    }
+    req.validatedBody = parsed.data;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// JSON mappers
+// ---------------------------------------------------------------------------
+
+function getSnapshotHistory(taskId: string, limit: number = 20) {
   const runs = Array.from(getRuns().values()).filter((r) => r.task_id === taskId);
   runs.sort((a, b) => {
     const at = a.started_at?.getTime() ?? 0;
     const bt = b.started_at?.getTime() ?? 0;
     return bt - at;
   });
-  return runs;
+  return runs.slice(0, limit);
 }
 
 function taskToJson(task: Task) {
@@ -58,26 +84,29 @@ function runToJson(run: Run) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Route handlers
+// ---------------------------------------------------------------------------
+
 export default async function taskRoutes(app: FastifyInstance) {
-  // GET /api/tasks — list all tasks
-  app.get('/', async (_req, reply) => {
-    const tasks = Array.from(getTasks().values()).map(taskToJson);
-    return reply.send(tasks);
+  // GET /api/tasks — list all tasks, optional ?status= filter
+  app.get('/', async (req, reply) => {
+    const { status } = req.query as { status?: string };
+    let tasks = Array.from(getTasks().values());
+    if (status) {
+      tasks = tasks.filter((t) => t.status === status);
+    }
+    return reply.send(tasks.map(taskToJson));
   });
 
   // POST /api/tasks — create a task
-  app.post('/', async (req, reply) => {
-    const parsed = TaskCreateSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.status(400).send({ error: 'Invalid request body', details: parsed.error.format() });
-    }
-
-    const data = parsed.data;
+  app.post('/', { preHandler: [validateBody(TaskCreateSchema)] }, async (req, reply) => {
+    const data = req.validatedBody as z.infer<typeof TaskCreateSchema>;
 
     // Cycle detection
     const cycle = detectCycle('new-task', data.dependencies, getTasks());
     if (cycle.hasCycle) {
-      return reply.status(400).send({ error: 'Dependency cycle detected', path: cycle.path });
+      return reply.status(409).send({ error: 'Dependency cycle detected', path: cycle.path });
     }
 
     const retryPolicy = data.retryPolicy;
@@ -100,41 +129,36 @@ export default async function taskRoutes(app: FastifyInstance) {
     return reply.status(201).send(taskToJson(task));
   });
 
-  // GET /api/tasks/:id — retrieve a task and its current snapshot
+  // GET /api/tasks/:id — retrieve a task and its last 20 runs
   app.get('/:id', async (req, reply) => {
     const { id } = req.params as { id: string };
     const task = getTask(id);
     if (!task) {
       return reply.status(404).send({ error: 'Task not found' });
     }
-    const snapshots = getSnapshotHistory(id);
+    const snapshots = getSnapshotHistory(id, 20);
     return reply.send({
       ...taskToJson(task),
       snapshot_history: snapshots.map(runToJson),
     });
   });
 
-  // PUT /api/tasks/:id — update a task
-  app.put('/:id', async (req, reply) => {
+  // Shared update handler for PUT and PATCH
+  async function handleUpdateTask(req: FastifyRequest, reply: FastifyReply) {
     const { id } = req.params as { id: string };
     const existing = getTask(id);
     if (!existing) {
       return reply.status(404).send({ error: 'Task not found' });
     }
 
-    const parsed = TaskUpdateSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.status(400).send({ error: 'Invalid request body', details: parsed.error.format() });
-    }
-
-    const data = parsed.data;
+    const data = req.validatedBody as z.infer<typeof TaskUpdateSchema>;
     const newDeps = data.dependencies ?? data.depends_on;
 
     // If dependencies are changing, check for cycles
     if (newDeps !== undefined) {
       const cycle = detectCycle(id, newDeps, getTasks());
       if (cycle.hasCycle) {
-        return reply.status(400).send({ error: 'Dependency cycle detected', path: cycle.path });
+        return reply.status(409).send({ error: 'Dependency cycle detected', path: cycle.path });
       }
     }
 
@@ -152,7 +176,13 @@ export default async function taskRoutes(app: FastifyInstance) {
 
     const updated = getTask(id)!;
     return reply.send(taskToJson(updated));
-  });
+  }
+
+  // PUT /api/tasks/:id — update a task (backward compat)
+  app.put('/:id', { preHandler: [validateBody(TaskUpdateSchema)] }, handleUpdateTask);
+
+  // PATCH /api/tasks/:id — update a task
+  app.patch('/:id', { preHandler: [validateBody(TaskUpdateSchema)] }, handleUpdateTask);
 
   // DELETE /api/tasks/:id — delete a task
   app.delete('/:id', async (req, reply) => {
@@ -168,7 +198,38 @@ export default async function taskRoutes(app: FastifyInstance) {
     return reply.status(204).send();
   });
 
-  // POST /api/tasks/:id/execute — trigger execution
+  // POST /api/tasks/:id/run — manual trigger via scheduler dispatch
+  app.post('/:id/run', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const task = getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    if (task.status !== TaskStatus.Active) {
+      return reply.status(409).send({ error: `Task status is ${task.status}, cannot run` });
+    }
+
+    const tasks = getTasks();
+    const runs = getRuns();
+
+    // Check overlap
+    if (checkOverlap(task.id, runs)) {
+      return reply.status(409).send({ error: 'Task is already running (overlap)' });
+    }
+
+    // Check dependencies
+    if (!canDispatch(task, tasks, runs)) {
+      const blocking = getBlockingDeps(task, tasks, runs);
+      return reply.status(409).send({ error: 'Dependencies not satisfied', blocking_deps: blocking });
+    }
+
+    // Dispatch through scheduler (queues if concurrency is at max)
+    const run = dispatchTask(task);
+    return reply.status(200).send({ run: runToJson(run) });
+  });
+
+  // POST /api/tasks/:id/execute — trigger execution (backward compat)
   app.post('/:id/execute', async (req, reply) => {
     const { id } = req.params as { id: string };
     const task = getTask(id);

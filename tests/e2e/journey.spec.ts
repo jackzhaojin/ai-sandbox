@@ -424,7 +424,7 @@ describe('end-to-end journey', () => {
           url: `/api/tasks/${taskA.id}`,
           payload: { dependencies: [taskD.id] },
         });
-        expect(updateCycle.statusCode).toBe(400);
+        expect(updateCycle.statusCode).toBe(409);
         const cycleBody = JSON.parse(updateCycle.payload);
         expect(cycleBody.error).toBe('Dependency cycle detected');
 
@@ -526,7 +526,7 @@ describe('end-to-end journey', () => {
           url: `/api/tasks/${taskA.id}`,
           payload: { dependencies: [taskC.id] },
         });
-        expect(updateCycle.statusCode).toBe(400);
+        expect(updateCycle.statusCode).toBe(409);
         const cycleBody = JSON.parse(updateCycle.payload);
         expect(cycleBody.error).toBe('Dependency cycle detected');
 
