@@ -202,6 +202,58 @@ test('step 9: recipe detail page with unit conversion and favorite button', asyn
   await expect(page.getByRole('link', { name: 'Back to Recipes' })).toBeVisible();
 });
 
+test('step 10: create new recipe via /recipes/new form', async ({ page }) => {
+  await page.goto('/recipes');
+  await expect(page.getByRole('heading', { name: 'Recipes' })).toBeVisible();
+
+  // Navigate to new recipe form
+  await page.getByRole('link', { name: /New Recipe/i }).click();
+  await expect(page).toHaveURL('/recipes/new');
+  await expect(page.getByRole('heading', { name: 'Create New Recipe' })).toBeVisible();
+
+  // Fill the form
+  await page.fill('[id="title"]', 'Test Tomato Soup');
+  await page.selectOption('[id="category"]', 'Main');
+  await page.fill('[id="imageUrl"]', 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=800&q=80');
+  await page.fill('[id="prepTime"]', '10');
+  await page.fill('[id="cookTime"]', '20');
+
+  // Fill first ingredient
+  const ingredientRows = page.locator('.flex.items-start.gap-2');
+  await ingredientRows.first().locator('input').nth(0).fill('tomatoes');
+  await ingredientRows.first().locator('input').nth(1).fill('500');
+  await ingredientRows.first().locator('input').nth(2).fill('g');
+
+  // Add second ingredient
+  await page.getByRole('button', { name: /Add Ingredient/i }).click();
+  await ingredientRows.nth(1).locator('input').nth(0).fill('onion');
+  await ingredientRows.nth(1).locator('input').nth(1).fill('1');
+  await ingredientRows.nth(1).locator('input').nth(2).fill('pc');
+
+  // Fill instructions
+  await page.fill('[id="instructions"]', 'Chop tomatoes and onion. Simmer for 20 minutes. Blend and serve.');
+
+  // Submit
+  await page.getByRole('button', { name: /Save Recipe/i }).click();
+
+  // Should redirect to detail page
+  await expect(page).toHaveURL(/\/recipes\/.+/);
+  await expect(page.getByRole('heading', { name: 'Test Tomato Soup' })).toBeVisible();
+  await expect(page.getByText('Main')).toBeVisible();
+  await expect(page.getByText('tomatoes', { exact: true })).toBeVisible();
+  await expect(page.getByText('500 g')).toBeVisible();
+  await expect(page.getByText('onion', { exact: true })).toBeVisible();
+  await expect(page.getByText('1 pc')).toBeVisible();
+
+  // Go back to grid and verify new recipe appears
+  await page.goto('/recipes');
+  await expect(page.getByRole('link', { name: /Test Tomato Soup/ })).toBeVisible();
+
+  // Reload and verify persistence (localStorage)
+  await page.reload();
+  await expect(page.getByRole('link', { name: /Test Tomato Soup/ })).toBeVisible();
+});
+
 test('checkpoint 1: end-to-end journey through step 6', async ({ page }) => {
   await completePriorSteps(page, { through: 6 });
 
