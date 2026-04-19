@@ -11,15 +11,22 @@ Thumbs.db
 # Dependencies
 node_modules/
 .venv/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
 # Build outputs
 dist/
 .next/
 out/
 site/
+/build
 
-# Next.js auto-generated (regenerated on every build/dev — would otherwise
-# trip the continuous-agent's git_status_clean verifier with 1-line diffs)
+# Next.js auto-generated (regenerated on every build/dev)
 next-env.d.ts
 
 # IDE
@@ -37,6 +44,7 @@ playwright-report/
 .playwright-cli/
 screenshots/
 snapshots/
+/coverage
 
 # Demo video outputs (large binaries)
 *.webm
@@ -48,3 +56,16 @@ local-only/
 # Shared worktree infrastructure (inherited, not project-specific)
 .claude/
 CLAUDE.md
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Misc
+*.pem
+.vercel
+
+# TypeScript
+*.tsbuildinfo
