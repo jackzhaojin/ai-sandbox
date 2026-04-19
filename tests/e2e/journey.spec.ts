@@ -294,6 +294,32 @@ test('step 11: edit existing recipe via /recipes/[id]/edit form', async ({ page 
   await expect(page.getByRole('link', { name: 'Back to Recipes' })).toBeVisible();
 });
 
+test('step 12: categories browse page shows grid with counts and links to filtered recipes', async ({ page }) => {
+  await page.goto('/categories');
+  await expect(page.getByRole('heading', { name: 'Categories' })).toBeVisible();
+
+  // All 5 category cards visible
+  await expect(page.getByTestId('category-card-main')).toBeVisible();
+  await expect(page.getByTestId('category-card-dessert')).toBeVisible();
+  await expect(page.getByTestId('category-card-salad')).toBeVisible();
+  await expect(page.getByTestId('category-card-appetizer')).toBeVisible();
+  await expect(page.getByTestId('category-card-drink')).toBeVisible();
+
+  // Verify counts from seeded recipes
+  await expect(page.getByTestId('category-card-main').getByText('2 recipes')).toBeVisible();
+  await expect(page.getByTestId('category-card-dessert').getByText('2 recipes')).toBeVisible();
+  await expect(page.getByTestId('category-card-salad').getByText('1 recipe')).toBeVisible();
+  await expect(page.getByTestId('category-card-appetizer').getByText('0 recipes')).toBeVisible();
+  await expect(page.getByTestId('category-card-drink').getByText('0 recipes')).toBeVisible();
+
+  // Click Dessert navigates to filtered recipes
+  await page.getByTestId('category-card-dessert').click();
+  await expect(page).toHaveURL(/\/recipes\?category=Dessert/);
+  await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese/ })).not.toBeVisible();
+});
+
 test('checkpoint 1: end-to-end journey through step 6', async ({ page }) => {
   await completePriorSteps(page, { through: 6 });
 
