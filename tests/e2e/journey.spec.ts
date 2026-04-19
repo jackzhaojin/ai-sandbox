@@ -299,6 +299,174 @@ describe('end-to-end journey', () => {
       expect(runC1.next_retry_at!.getTime() - now).toBeLessThan(4500);
     });
 
+    it('validates complex DAG topology (diamond pattern) via API end-to-end', async () => {
+      let app: FastifyInstance | null = null;
+      try {
+        app = Fastify({ logger: false });
+        const healthRoutes = (await import('../../src/routes/health.js')).default;
+        const taskRoutes = (await import('../../src/routes/tasks.js')).default;
+        await app.register(healthRoutes, { prefix: '/api/health' });
+        await app.register(taskRoutes, { prefix: '/api/tasks' });
+
+        // Health check
+        const health = await app.inject({ method: 'GET', url: '/api/health' });
+        expect(health.statusCode).toBe(200);
+
+        // Create root task A
+        const createA = await app.inject({
+          method: 'POST',
+          url: '/api/tasks',
+          payload: { title: 'Task A', description: 'Root' },
+        });
+        expect(createA.statusCode).toBe(201);
+        const taskA = JSON.parse(createA.payload);
+
+        // Create B and C depending on A (diamond split)
+        const createB = await app.inject({
+          method: 'POST',
+          url: '/api/tasks',
+          payload: { title: 'Task B', description: 'Branch 1', dependencies: [taskA.id] },
+        });
+        expect(createB.statusCode).toBe(201);
+        const taskB = JSON.parse(createB.payload);
+
+        const createC = await app.inject({
+          method: 'POST',
+          url: '/api/tasks',
+          payload: { title: 'Task C', description: 'Branch 2', dependencies: [taskA.id] },
+        });
+        expect(createC.statusCode).toBe(201);
+        const taskC = JSON.parse(createC.payload);
+
+        // Create D depending on B and C (diamond merge)
+        const createD = await app.inject({
+          method: 'POST',
+          url: '/api/tasks',
+          payload: { title: 'Task D', description: 'Merge', dependencies: [taskB.id, taskC.id] },
+        });
+        expect(createD.statusCode).toBe(201);
+        const taskD = JSON.parse(createD.payload);
+
+        // List all tasks — should include 4 tasks
+        const listTasks = await app.inject({ method: 'GET', url: '/api/tasks' });
+        expect(listTasks.statusCode).toBe(200);
+        const allTasks = JSON.parse(listTasks.payload);
+        expect(allTasks.length).toBe(4);
+        expect(allTasks.some((t: { id: string }) => t.id === taskA.id)).toBe(true);
+        expect(allTasks.some((t: { id: string }) => t.id === taskD.id)).toBe(true);
+
+        // Validate graph — diamond should be valid
+        const depsValid = await app.inject({
+          method: 'GET',
+          url: '/api/tasks/dependencies',
+        });
+        expect(depsValid.statusCode).toBe(200);
+        const depsValidBody = JSON.parse(depsValid.payload);
+        expect(depsValidBody.valid).toBe(true);
+
+        // D cannot execute until B and C are done
+        const execDBlocked = await app.inject({
+          method: 'POST',
+          url: `/api/tasks/${taskD.id}/execute`,
+        });
+        expect(execDBlocked.statusCode).toBe(409);
+        const dBlockBody = JSON.parse(execDBlocked.payload);
+        expect(dBlockBody.error).toBe('Dependencies not satisfied');
+        expect(dBlockBody.blocking_deps).toContain(taskB.id);
+        expect(dBlockBody.blocking_deps).toContain(taskC.id);
+
+        // B is blocked until A completes
+        const execBBlocked = await app.inject({
+          method: 'POST',
+          url: `/api/tasks/${taskB.id}/execute`,
+        });
+        expect(execBBlocked.statusCode).toBe(409);
+        const bBlockBody = JSON.parse(execBBlocked.payload);
+        expect(bBlockBody.blocking_deps).toContain(taskA.id);
+
+        // Execute A successfully
+        const execA = await app.inject({
+          method: 'POST',
+          url: `/api/tasks/${taskA.id}/execute`,
+        });
+        expect(execA.statusCode).toBe(200);
+
+        // Now B and C can execute
+        const execB = await app.inject({
+          method: 'POST',
+          url: `/api/tasks/${taskB.id}/execute`,
+        });
+        expect(execB.statusCode).toBe(200);
+        const runB = JSON.parse(execB.payload).run;
+        expect(runB.status).toBe('completed');
+
+        const execC = await app.inject({
+          method: 'POST',
+          url: `/api/tasks/${taskC.id}/execute`,
+        });
+        expect(execC.statusCode).toBe(200);
+        const runC = JSON.parse(execC.payload).run;
+        expect(runC.status).toBe('completed');
+
+        // D still cannot execute? Wait, B and C now have completed runs.
+        // D should be able to execute now.
+        const execD = await app.inject({
+          method: 'POST',
+          url: `/api/tasks/${taskD.id}/execute`,
+        });
+        expect(execD.statusCode).toBe(200);
+        const runD = JSON.parse(execD.payload).run;
+        expect(runD.status).toBe('completed');
+
+        // Update D to depend on A directly — should fail because it creates A -> B -> D -> A cycle
+        const updateCycle = await app.inject({
+          method: 'PUT',
+          url: `/api/tasks/${taskA.id}`,
+          payload: { dependencies: [taskD.id] },
+        });
+        expect(updateCycle.statusCode).toBe(400);
+        const cycleBody = JSON.parse(updateCycle.payload);
+        expect(cycleBody.error).toBe('Dependency cycle detected');
+
+        // Successfully update D's description (non-dependency change)
+        const updateD = await app.inject({
+          method: 'PUT',
+          url: `/api/tasks/${taskD.id}`,
+          payload: { description: 'Updated merge task' },
+        });
+        expect(updateD.statusCode).toBe(200);
+        const updatedD = JSON.parse(updateD.payload);
+        expect(updatedD.description).toBe('Updated merge task');
+
+        // Delete B — should orphan D (which depends on B)
+        const delB = await app.inject({
+          method: 'DELETE',
+          url: `/api/tasks/${taskB.id}`,
+        });
+        expect(delB.statusCode).toBe(204);
+
+        const getD = await app.inject({
+          method: 'GET',
+          url: `/api/tasks/${taskD.id}`,
+        });
+        expect(getD.statusCode).toBe(200);
+        const dBody = JSON.parse(getD.payload);
+        expect(dBody.status).toBe('orphaned');
+
+        // C should still be active
+        const getC = await app.inject({
+          method: 'GET',
+          url: `/api/tasks/${taskC.id}`,
+        });
+        expect(getC.statusCode).toBe(200);
+        expect(JSON.parse(getC.payload).status).toBe('active');
+      } finally {
+        if (app) {
+          await app.close();
+        }
+      }
+    });
+
     it('exercises the full API surface end-to-end', async () => {
       let app: FastifyInstance | null = null;
       try {

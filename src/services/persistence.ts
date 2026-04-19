@@ -149,7 +149,10 @@ export function updateTask(id: string, updates: Partial<Omit<Task, 'id'>>): void
   if (!existing) {
     throw new Error(`Task not found: ${id}`);
   }
-  state.tasks.set(id, { ...existing, ...updates, updated_at: new Date() });
+  const filteredUpdates = Object.fromEntries(
+    Object.entries(updates).filter(([, v]) => v !== undefined)
+  ) as Partial<Omit<Task, 'id'>>;
+  state.tasks.set(id, { ...existing, ...filteredUpdates, updated_at: new Date() });
   debouncedSave();
 }
 
