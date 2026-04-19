@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { RecipeStoreProvider } from "./lib/RecipeStore";
+import { SettingsStoreProvider } from "./lib/SettingsStore";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,7 +30,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <RecipeStoreProvider>{children}</RecipeStoreProvider>
+        <SettingsStoreProvider>
+          <RecipeStoreProvider>{children}</RecipeStoreProvider>
+        </SettingsStoreProvider>
       </body>
     </html>
   );
