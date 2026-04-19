@@ -44,3 +44,7 @@ snapshots/
 
 # Local-only scratch (never committed, never pushed)
 local-only/
+
+# Worktree shared scaffolding (not project-specific)
+.claude/
+CLAUDE.md
