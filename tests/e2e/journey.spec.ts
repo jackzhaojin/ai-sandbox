@@ -219,6 +219,85 @@ describe('end-to-end journey', () => {
       expect(loadedRunA.next_retry_at!.getTime()).toBeGreaterThan(Date.now());
     });
 
+    it('orchestrates retry exhaustion and cascading dependency unblocking end-to-end', async () => {
+      const { taskA, taskB, taskC } = await completePriorSteps();
+
+      // ---- Initial chain: A is dispatchable, B and C are blocked ----
+      expect(canDispatch(taskA, getTasks(), getRuns())).toBe(true);
+      expect(canDispatch(taskB, getTasks(), getRuns())).toBe(false);
+      expect(canDispatch(taskC, getTasks(), getRuns())).toBe(false);
+      expect(getBlockingDeps(taskB, getTasks(), getRuns())).toContain(taskA.id);
+      expect(getBlockingDeps(taskC, getTasks(), getRuns())).toContain(taskB.id);
+
+      // ---- Task A fails repeatedly; retries schedule until exhausted ----
+      const runA1 = makeRun({ id: 'run-a-exhaust', task_id: taskA.id, status: RunStatus.Failed, attempt: 1 });
+      addRun(runA1);
+
+      // Retry 1: attempt 1 -> 2
+      expect(scheduleRetry(runA1, taskA)).toBe(true);
+      expect(runA1.attempt).toBe(2);
+      expect(runA1.status).toBe(RunStatus.Queued);
+      expect(runA1.next_retry_at).not.toBeNull();
+
+      // Retry 2: attempt 2 -> 3
+      runA1.status = RunStatus.Failed;
+      expect(scheduleRetry(runA1, taskA)).toBe(true);
+      expect(runA1.attempt).toBe(3);
+      expect(runA1.status).toBe(RunStatus.Queued);
+
+      // Exhausted: attempt 3 equals max_attempts 3, no further retries
+      runA1.status = RunStatus.Failed;
+      expect(scheduleRetry(runA1, taskA)).toBe(false);
+      expect(runA1.attempt).toBe(3);
+      expect(runA1.status).toBe(RunStatus.Failed);
+
+      // B remains blocked because A has no completed run
+      expect(canDispatch(taskB, getTasks(), getRuns())).toBe(false);
+      expect(getBlockingDeps(taskB, getTasks(), getRuns())).toContain(taskA.id);
+
+      // ---- Recover A with a successful run; chain unblocks ----
+      const runA2 = makeRun({
+        id: 'run-a-recover',
+        task_id: taskA.id,
+        status: RunStatus.Completed,
+        finished_at: new Date(),
+      });
+      addRun(runA2);
+
+      expect(canDispatch(taskB, getTasks(), getRuns())).toBe(true);
+      expect(getBlockingDeps(taskB, getTasks(), getRuns())).toEqual([]);
+
+      // Execute B successfully
+      const runB = makeRun({
+        id: 'run-b-success',
+        task_id: taskB.id,
+        status: RunStatus.Completed,
+        finished_at: new Date(),
+      });
+      addRun(runB);
+
+      // C can now dispatch
+      expect(canDispatch(taskC, getTasks(), getRuns())).toBe(true);
+      expect(getBlockingDeps(taskC, getTasks(), getRuns())).toEqual([]);
+
+      // Execute C with a failure that gets retried once
+      const runC1 = makeRun({
+        id: 'run-c-fail',
+        task_id: taskC.id,
+        status: RunStatus.Failed,
+        attempt: 1,
+      });
+      addRun(runC1);
+
+      const now = Date.now();
+      expect(scheduleRetry(runC1, taskC)).toBe(true);
+      expect(runC1.attempt).toBe(2);
+      expect(runC1.status).toBe(RunStatus.Queued);
+      // Verify exponential backoff: base_delay_ms 1000 * 2^attempt(2) = 4000ms
+      expect(runC1.next_retry_at!.getTime() - now).toBeGreaterThanOrEqual(4000);
+      expect(runC1.next_retry_at!.getTime() - now).toBeLessThan(4500);
+    });
+
     it('exercises the full API surface end-to-end', async () => {
       let app: FastifyInstance | null = null;
       try {
