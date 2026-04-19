@@ -25,9 +25,35 @@ test('step 2: scaffold loads and routes exist', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
 });
 
+test('step 6: shared layout with navigation header', async ({ page }) => {
+  await page.goto('/recipes');
+  await expect(page.getByRole('link', { name: 'Recipe Book' })).toBeVisible();
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'Home' })).toBeVisible();
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'Categories' })).toBeVisible();
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'Search' })).toBeVisible();
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'Favorites' })).toBeVisible();
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'Settings' })).toBeVisible();
+
+  // Navigate via header to each route
+  await page.getByRole('navigation').getByRole('link', { name: 'Settings' }).click();
+  await expect(page).toHaveURL('/settings');
+
+  await page.getByRole('navigation').getByRole('link', { name: 'Categories' }).click();
+  await expect(page).toHaveURL('/categories');
+
+  await page.getByRole('navigation').getByRole('link', { name: 'Search' }).click();
+  await expect(page).toHaveURL('/search');
+
+  await page.getByRole('navigation').getByRole('link', { name: 'Favorites' }).click();
+  await expect(page).toHaveURL('/favorites');
+
+  await page.getByRole('navigation').getByRole('link', { name: 'Home' }).click();
+  await expect(page).toHaveURL('/recipes');
+});
+
 test('step 5: settings store persists toggle state', async ({ page }) => {
   await page.goto('/settings');
-  await expect(page.getByText('Settings')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
 
   // Verify default metric units
   await expect(page.getByText('Metric (g, ml)')).toBeVisible();
@@ -37,6 +63,7 @@ test('step 5: settings store persists toggle state', async ({ page }) => {
   await expect(page.getByText('Imperial (oz, cups)')).toBeVisible();
 
   // Toggle theme
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
   await expect(page.getByText('Light')).toBeVisible();
   await page.getByTestId('toggle-theme').click();
   await expect(page.getByText('Dark')).toBeVisible();
