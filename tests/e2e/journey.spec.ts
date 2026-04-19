@@ -58,6 +58,110 @@ export async function completePriorSteps(page: Page, opts: { through: number }) 
     await page.getByRole('navigation').getByRole('link', { name: 'Home' }).click();
     await expect(page).toHaveURL('/recipes');
   }
+
+  // Step 8: Recipe grid renders seeded recipes with category filter
+  if (opts.through >= 8) {
+    await page.goto('/recipes');
+    await expect(page.getByRole('heading', { name: 'Recipes' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Grilled Salmon with Asparagus/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Caesar Salad/ })).toBeVisible();
+  }
+
+  // Step 9: Recipe detail, favorite, unit conversion
+  if (opts.through >= 9) {
+    await page.getByRole('link', { name: /Classic Spaghetti Bolognese/ }).click();
+    await expect(page).toHaveURL(/\/recipes\/a1b2c3d4-e5f6-7890-abcd-ef1234567890/);
+    await expect(page.getByRole('heading', { name: 'Classic Spaghetti Bolognese' })).toBeVisible();
+
+    // Favorite button — add to favorites
+    await expect(page.getByTestId('favorite-button')).toHaveAttribute('aria-label', 'Add to favorites');
+    await page.getByTestId('favorite-button').click();
+    await expect(page.getByTestId('favorite-button')).toHaveAttribute('aria-label', 'Remove from favorites');
+
+    // Units were already toggled to imperial in step 5 — just verify on detail page
+    await expect(page.getByText('Units: Imperial (oz, cups)')).toBeVisible();
+    await expect(page.getByText(/14\.11 oz/)).toBeVisible();
+    await expect(page.getByText(/1\.1 lb/)).toBeVisible();
+  }
+
+  // Step 10: Create new recipe
+  if (opts.through >= 10) {
+    await page.goto('/recipes');
+    await page.getByRole('link', { name: /New Recipe/i }).click();
+    await expect(page).toHaveURL('/recipes/new');
+
+    await page.fill('[id="title"]', 'Test Tomato Soup');
+    await page.selectOption('[id="category"]', 'Main');
+    await page.fill('[id="imageUrl"]', 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=800&q=80');
+    await page.fill('[id="prepTime"]', '10');
+    await page.fill('[id="cookTime"]', '20');
+
+    const ingredientRows = page.locator('.flex.items-start.gap-2');
+    await ingredientRows.first().locator('input').nth(0).fill('tomatoes');
+    await ingredientRows.first().locator('input').nth(1).fill('500');
+    await ingredientRows.first().locator('input').nth(2).fill('g');
+
+    await page.getByRole('button', { name: /Add Ingredient/i }).click();
+    await ingredientRows.nth(1).locator('input').nth(0).fill('onion');
+    await ingredientRows.nth(1).locator('input').nth(1).fill('1');
+    await ingredientRows.nth(1).locator('input').nth(2).fill('pc');
+
+    await page.fill('[id="instructions"]', 'Chop tomatoes and onion. Simmer for 20 minutes. Blend and serve.');
+    await page.getByRole('button', { name: /Save Recipe/i }).click();
+
+    await expect(page).toHaveURL(/\/recipes\/.+/);
+    await expect(page.getByRole('heading', { name: 'Test Tomato Soup' })).toBeVisible();
+
+    // Back to grid
+    await page.goto('/recipes');
+    await expect(page.getByRole('link', { name: /Test Tomato Soup/ })).toBeVisible();
+  }
+
+  // Step 11: Edit existing recipe
+  if (opts.through >= 11) {
+    await page.getByRole('link', { name: /Classic Spaghetti Bolognese/ }).click();
+    await expect(page).toHaveURL(/\/recipes\/a1b2c3d4-e5f6-7890-abcd-ef1234567890/);
+
+    await page.getByTestId('edit-recipe-button').click();
+    await expect(page).toHaveURL('/recipes/a1b2c3d4-e5f6-7890-abcd-ef1234567890/edit');
+
+    await page.fill('[id="title"]', 'Classic Spaghetti Bolognese (Edited)');
+    await page.getByRole('button', { name: /Save Changes/i }).click();
+
+    await expect(page).toHaveURL('/recipes/a1b2c3d4-e5f6-7890-abcd-ef1234567890');
+    await expect(page.getByRole('heading', { name: 'Classic Spaghetti Bolognese (Edited)' })).toBeVisible();
+  }
+
+  // Step 12: Categories browse page
+  if (opts.through >= 12) {
+    await page.goto('/categories');
+    await expect(page.getByRole('heading', { name: 'Categories' })).toBeVisible();
+    await expect(page.getByTestId('category-card-main')).toBeVisible();
+    await expect(page.getByTestId('category-card-dessert')).toBeVisible();
+
+    await page.getByTestId('category-card-dessert').click();
+    await expect(page).toHaveURL(/\/recipes\?category=Dessert/);
+    await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).toBeVisible();
+  }
+
+  // Step 13: Search page with live debounced filtering
+  if (opts.through >= 13) {
+    await page.goto('/search');
+    await expect(page.getByRole('heading', { name: 'Search' })).toBeVisible();
+
+    await page.getByTestId('search-input').fill('garlic');
+    await page.waitForTimeout(600);
+
+    await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Grilled Salmon with Asparagus/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Caesar Salad/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).not.toBeVisible();
+    await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).not.toBeVisible();
+  }
 }
 
 test('step 2: scaffold loads and routes exist', async ({ page }) => {
@@ -386,4 +490,35 @@ test('step 13: search page with live debounced filtering', async ({ page }) => {
   await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /Caesar Salad/ })).toBeVisible();
+});
+
+
+test('checkpoint 2: end-to-end journey through step 13', async ({ page }) => {
+  await completePriorSteps(page, { through: 13 });
+
+  // Verify search results are still showing the filtered state from step 13
+  await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Grilled Salmon with Asparagus/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Caesar Salad/ })).toBeVisible();
+
+  // Verify the recipe created in step 10 still exists (persistence)
+  await page.goto('/recipes');
+  await expect(page.getByRole('link', { name: /Test Tomato Soup/ })).toBeVisible();
+
+  // Verify the edited recipe title from step 11 persisted
+  await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese \(Edited\)/ })).toBeVisible();
+
+  // Verify the favorited recipe from step 9 still shows as favorited on detail page
+  await page.getByRole('link', { name: /Classic Spaghetti Bolognese \(Edited\)/ }).click();
+  await expect(page).toHaveURL(/\/recipes\/a1b2c3d4-e5f6-7890-abcd-ef1234567890/);
+  await expect(page.getByTestId('favorite-button')).toHaveAttribute('aria-label', 'Remove from favorites');
+
+  // Verify settings persisted (imperial from step 5)
+  await page.getByRole('navigation').getByRole('link', { name: 'Settings' }).click();
+  await expect(page).toHaveURL('/settings');
+  await expect(page.getByText('Imperial (oz, cups)')).toBeVisible();
+
+  // Reload and verify persistence across page reload
+  await page.reload();
+  await expect(page.getByText('Imperial (oz, cups)')).toBeVisible();
 });
