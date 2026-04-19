@@ -337,3 +337,53 @@ test('checkpoint 1: end-to-end journey through step 6', async ({ page }) => {
   await page.waitForSelector('[data-testid="default-servings"]');
   await expect(page.getByTestId('default-servings')).toHaveValue('6');
 });
+
+
+test('step 13: search page with live debounced filtering', async ({ page }) => {
+  await page.goto('/search');
+  await expect(page.getByRole('heading', { name: 'Search' })).toBeVisible();
+
+  // All recipes visible before search
+  await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Grilled Salmon with Asparagus/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Caesar Salad/ })).toBeVisible();
+
+  // Search by ingredient: "garlic" — should match 3 recipes
+  await page.getByTestId('search-input').fill('garlic');
+  await page.waitForTimeout(600); // wait for debounce
+
+  await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Grilled Salmon with Asparagus/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Caesar Salad/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).not.toBeVisible();
+  await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).not.toBeVisible();
+
+  // Search by title: "chocolate" — should match 1 recipe
+  await page.getByTestId('search-input').fill('chocolate');
+  await page.waitForTimeout(600);
+
+  await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese/ })).not.toBeVisible();
+  await expect(page.getByRole('link', { name: /Grilled Salmon with Asparagus/ })).not.toBeVisible();
+  await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).not.toBeVisible();
+  await expect(page.getByRole('link', { name: /Caesar Salad/ })).not.toBeVisible();
+
+  // Search with no matches
+  await page.getByTestId('search-input').fill('xyznonexistent');
+  await page.waitForTimeout(600);
+
+  await expect(page.getByText('No recipes found')).toBeVisible();
+  await expect(page.getByText('No recipes match "xyznonexistent".')).toBeVisible();
+
+  // Clear search — all recipes return
+  await page.getByTestId('search-input').fill('');
+  await page.waitForTimeout(600);
+
+  await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Grilled Salmon with Asparagus/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Caesar Salad/ })).toBeVisible();
+});
