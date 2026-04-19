@@ -14,6 +14,9 @@ vi.mock('cron-parser', () => ({
       next: vi.fn(() => ({
         toDate: vi.fn(() => new Date('2026-01-01T00:00:05Z')),
       })),
+      prev: vi.fn(() => ({
+        toDate: vi.fn(() => new Date('2026-01-01T00:00:10Z')),
+      })),
     })),
   },
 }));
@@ -31,6 +34,7 @@ import {
   dispatchTask,
   executeRun,
   tick,
+  resetSchedulerState,
 } from '../../src/services/scheduler.js';
 import {
   getTasks,
@@ -94,6 +98,7 @@ describe('scheduler service', () => {
   beforeEach(() => {
     getTasks().clear();
     getRuns().clear();
+    resetSchedulerState();
     vi.restoreAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -140,6 +145,9 @@ describe('scheduler service', () => {
       vi.mocked(cronParser.parseExpression).mockReturnValue({
         next: vi.fn(() => ({
           toDate: vi.fn(() => new Date('2026-01-01T00:00:15Z')),
+        })),
+        prev: vi.fn(() => ({
+          toDate: vi.fn(() => new Date('2026-01-01T00:00:00Z')),
         })),
       } as any);
       const task = makeTask({ id: 't1' });

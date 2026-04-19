@@ -29,6 +29,11 @@ let tickInterval: ReturnType<typeof setInterval> | null = null;
 
 const lastDispatchTime = new Map<string, number>();
 
+/** Reset internal scheduler state (for tests). */
+export function resetSchedulerState(): void {
+  lastDispatchTime.clear();
+}
+
 // ---------------------------------------------------------------------------
 // Cron parsing
 // ---------------------------------------------------------------------------
