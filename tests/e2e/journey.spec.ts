@@ -14,6 +14,18 @@ export async function completePriorSteps(page: Page, opts: { through: number }) 
 
   // Steps 3-4: RecipeStore seeded with data (UI not yet implemented — no visible assertions)
 
+  // Step 8: Recipe grid renders with category filter
+  if (opts.through >= 8) {
+    await page.goto('/recipes');
+    await expect(page.getByRole('heading', { name: 'Recipes' })).toBeVisible();
+    // 5 seeded recipes visible
+    await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Grilled Salmon with Asparagus/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Caesar Salad/ })).toBeVisible();
+  }
+
   // Step 5: Settings store persists toggle state
   if (opts.through >= 5) {
     await page.getByRole('navigation').getByRole('link', { name: 'Settings' }).click();
@@ -118,6 +130,28 @@ test('step 5: settings store persists toggle state', async ({ page }) => {
   await expect(page.getByText('Dark')).toBeVisible();
   await page.waitForSelector('[data-testid="default-servings"]');
   await expect(page.getByTestId('default-servings')).toHaveValue('6');
+});
+
+test('step 8: recipe grid renders seeded recipes with category filter', async ({ page }) => {
+  await page.goto('/recipes');
+  await expect(page.getByRole('heading', { name: 'Recipes' })).toBeVisible();
+
+  // All 5 seeded recipes visible
+  await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Grilled Salmon with Asparagus/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Caesar Salad/ })).toBeVisible();
+
+  // Filter by Dessert category
+  await page.goto('/recipes?category=Dessert');
+  await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese/ })).not.toBeVisible();
+
+  // Click a card navigates to detail
+  await page.getByRole('link', { name: /Chocolate Lava Cake/ }).click();
+  await expect(page).toHaveURL(/\/recipes\/c3d4e5f6-a7b8-9012-cdef-123456789012/);
 });
 
 test('checkpoint 1: end-to-end journey through step 6', async ({ page }) => {
