@@ -614,4 +614,141 @@ describe('end-to-end journey', () => {
       }
     });
   });
+
+  describe('checkpoint 2 — run routes and enhanced health metrics', () => {
+    it('lists, filters, and retrieves runs; health reports live counts', async () => {
+      let app: FastifyInstance | null = null;
+      try {
+        app = Fastify({ logger: false });
+        const healthRoutes = (await import('../../src/routes/health.js')).default;
+        const taskRoutes = (await import('../../src/routes/tasks.js')).default;
+        const runsRoutes = (await import('../../src/routes/runs.js')).default;
+        await app.register(healthRoutes, { prefix: '/api/health' });
+        await app.register(taskRoutes, { prefix: '/api/tasks' });
+        await app.register(runsRoutes, { prefix: '/api/runs' });
+
+        // ---- Step 1: health metrics baseline (0 tasks, 0 runs) ----
+        const health0 = await app.inject({ method: 'GET', url: '/api/health' });
+        expect(health0.statusCode).toBe(200);
+        const health0Body = JSON.parse(health0.payload);
+        expect(health0Body.status).toBe('ok');
+        expect(health0Body.tasks_count).toBe(0);
+        expect(health0Body.running_count).toBe(0);
+        expect(health0Body.queued_count).toBe(0);
+        expect(typeof health0Body.uptime_s).toBe('number');
+
+        // ---- Step 2: create two independent tasks ----
+        const createX = await app.inject({
+          method: 'POST',
+          url: '/api/tasks',
+          payload: { title: 'Task X', description: 'Run test X' },
+        });
+        expect(createX.statusCode).toBe(201);
+        const taskX = JSON.parse(createX.payload);
+
+        const createY = await app.inject({
+          method: 'POST',
+          url: '/api/tasks',
+          payload: { title: 'Task Y', description: 'Run test Y' },
+        });
+        expect(createY.statusCode).toBe(201);
+        const taskY = JSON.parse(createY.payload);
+
+        // Health now shows 2 tasks
+        const health2 = await app.inject({ method: 'GET', url: '/api/health' });
+        expect(JSON.parse(health2.payload).tasks_count).toBe(2);
+
+        // ---- Step 3: execute both tasks, creating completed runs ----
+        const execX = await app.inject({ method: 'POST', url: `/api/tasks/${taskX.id}/execute` });
+        expect(execX.statusCode).toBe(200);
+        const runX = JSON.parse(execX.payload).run;
+        expect(runX.status).toBe('completed');
+
+        const execY = await app.inject({ method: 'POST', url: `/api/tasks/${taskY.id}/execute` });
+        expect(execY.statusCode).toBe(200);
+        const runY = JSON.parse(execY.payload).run;
+        expect(runY.status).toBe('completed');
+
+        // ---- Step 4: GET /api/runs lists all runs ----
+        const listAll = await app.inject({ method: 'GET', url: '/api/runs' });
+        expect(listAll.statusCode).toBe(200);
+        const allRuns = JSON.parse(listAll.payload);
+        expect(allRuns.length).toBe(2);
+        expect(allRuns.some((r: { id: string }) => r.id === runX.id)).toBe(true);
+        expect(allRuns.some((r: { id: string }) => r.id === runY.id)).toBe(true);
+
+        // ---- Step 5: filter runs by task_id ----
+        const filterX = await app.inject({ method: 'GET', url: `/api/runs?task_id=${taskX.id}` });
+        expect(filterX.statusCode).toBe(200);
+        const runsX = JSON.parse(filterX.payload);
+        expect(runsX.length).toBe(1);
+        expect(runsX[0].task_id).toBe(taskX.id);
+
+        // ---- Step 6: filter runs by status ----
+        const filterCompleted = await app.inject({ method: 'GET', url: '/api/runs?status=completed' });
+        expect(filterCompleted.statusCode).toBe(200);
+        const completedRuns = JSON.parse(filterCompleted.payload);
+        expect(completedRuns.length).toBe(2);
+
+        const filterQueued = await app.inject({ method: 'GET', url: '/api/runs?status=queued' });
+        expect(filterQueued.statusCode).toBe(200);
+        expect(JSON.parse(filterQueued.payload).length).toBe(0);
+
+        // ---- Step 7: GET /api/runs/:id retrieves a single run ----
+        const getRunX = await app.inject({ method: 'GET', url: `/api/runs/${runX.id}` });
+        expect(getRunX.statusCode).toBe(200);
+        const runXBody = JSON.parse(getRunX.payload);
+        expect(runXBody.id).toBe(runX.id);
+        expect(runXBody.task_id).toBe(taskX.id);
+        expect(runXBody.status).toBe('completed');
+        expect(runXBody.attempt).toBe(1);
+
+        // Non-existent run returns 404
+        const getMissing = await app.inject({ method: 'GET', url: '/api/runs/run-does-not-exist' });
+        expect(getMissing.statusCode).toBe(404);
+        expect(JSON.parse(getMissing.payload).error).toBe('Run not found');
+
+        // ---- Step 8: simulate a failing run to create a queued retry ----
+        const execYFail = await app.inject({
+          method: 'POST',
+          url: `/api/tasks/${taskY.id}/execute`,
+          payload: { simulate_failure: true },
+        });
+        expect(execYFail.statusCode).toBe(200);
+        const runYFail = JSON.parse(execYFail.payload).run;
+        expect(runYFail.status).toBe('queued');
+        expect(runYFail.attempt).toBe(2);
+
+        // Health now shows 1 queued run
+        const healthFinal = await app.inject({ method: 'GET', url: '/api/health' });
+        const healthFinalBody = JSON.parse(healthFinal.payload);
+        expect(healthFinalBody.tasks_count).toBe(2);
+        expect(healthFinalBody.queued_count).toBe(1);
+        expect(healthFinalBody.running_count).toBe(0);
+
+        // Filter by queued status
+        const filterQueuedNow = await app.inject({ method: 'GET', url: '/api/runs?status=queued' });
+        expect(filterQueuedNow.statusCode).toBe(200);
+        const queuedRuns = JSON.parse(filterQueuedNow.payload);
+        expect(queuedRuns.length).toBe(1);
+        expect(queuedRuns[0].id).toBe(runYFail.id);
+
+        // ---- Step 9: since filter ----
+        const since = new Date(Date.now() - 60 * 1000).toISOString();
+        const filterSince = await app.inject({ method: 'GET', url: `/api/runs?since=${since}` });
+        expect(filterSince.statusCode).toBe(200);
+        const sinceRuns = JSON.parse(filterSince.payload);
+        expect(sinceRuns.length).toBeGreaterThanOrEqual(2);
+
+        // Invalid since returns 400
+        const filterInvalidSince = await app.inject({ method: 'GET', url: '/api/runs?since=not-a-date' });
+        expect(filterInvalidSince.statusCode).toBe(400);
+        expect(JSON.parse(filterInvalidSince.payload).error).toBe('Invalid since timestamp');
+      } finally {
+        if (app) {
+          await app.close();
+        }
+      }
+    });
+  });
 });
