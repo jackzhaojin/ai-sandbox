@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { rm } from 'fs/promises';
+import Fastify from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import {
   init,
   loadState,
@@ -214,6 +216,130 @@ describe('end-to-end journey', () => {
       expect(loadedRunA.attempt).toBe(2);
       expect(loadedRunA.next_retry_at instanceof Date).toBe(true);
       expect(loadedRunA.next_retry_at!.getTime()).toBeGreaterThan(Date.now());
+    });
+
+    it('exercises the full API surface end-to-end', async () => {
+      let app: FastifyInstance | null = null;
+      try {
+        app = Fastify({ logger: false });
+        const healthRoutes = (await import('../../src/routes/health.js')).default;
+        const taskRoutes = (await import('../../src/routes/tasks.js')).default;
+        await app.register(healthRoutes, { prefix: '/api/health' });
+        await app.register(taskRoutes, { prefix: '/api/tasks' });
+
+        // Health check
+        const health = await app.inject({ method: 'GET', url: '/api/health' });
+        expect(health.statusCode).toBe(200);
+        expect(JSON.parse(health.payload).status).toBe('ok');
+
+        // Create task A
+        const createA = await app.inject({
+          method: 'POST',
+          url: '/api/tasks',
+          payload: { name: 'Task A', cron: '0 0 * * *' },
+        });
+        expect(createA.statusCode).toBe(201);
+        const taskA = JSON.parse(createA.payload);
+
+        // Create task B depending on A
+        const createB = await app.inject({
+          method: 'POST',
+          url: '/api/tasks',
+          payload: { name: 'Task B', cron: '0 0 * * *', depends_on: [taskA.id] },
+        });
+        expect(createB.statusCode).toBe(201);
+        const taskB = JSON.parse(createB.payload);
+
+        // Create task C depending on B
+        const createC = await app.inject({
+          method: 'POST',
+          url: '/api/tasks',
+          payload: { name: 'Task C', cron: '0 0 * * *', depends_on: [taskB.id] },
+        });
+        expect(createC.statusCode).toBe(201);
+        const taskC = JSON.parse(createC.payload);
+
+        // Attempt to create a cycle by updating A to depend on C
+        const updateCycle = await app.inject({
+          method: 'PUT',
+          url: `/api/tasks/${taskA.id}`,
+          payload: { depends_on: [taskC.id] },
+        });
+        expect(updateCycle.statusCode).toBe(400);
+        const cycleBody = JSON.parse(updateCycle.payload);
+        expect(cycleBody.error).toBe('Dependency cycle detected');
+
+        // Try to execute B before A is completed — should block
+        const execBBlocked = await app.inject({
+          method: 'POST',
+          url: `/api/tasks/${taskB.id}/execute`,
+        });
+        expect(execBBlocked.statusCode).toBe(409);
+        const blockBody = JSON.parse(execBBlocked.payload);
+        expect(blockBody.error).toBe('Dependencies not satisfied');
+        expect(blockBody.blocking_deps).toContain(taskA.id);
+
+        // Execute A successfully
+        const execA = await app.inject({
+          method: 'POST',
+          url: `/api/tasks/${taskA.id}/execute`,
+        });
+        expect(execA.statusCode).toBe(200);
+        const runA = JSON.parse(execA.payload).run;
+        expect(runA.status).toBe('completed');
+
+        // Now execute B successfully
+        const execB = await app.inject({
+          method: 'POST',
+          url: `/api/tasks/${taskB.id}/execute`,
+        });
+        expect(execB.statusCode).toBe(200);
+        const runB = JSON.parse(execB.payload).run;
+        expect(runB.status).toBe('completed');
+
+        // Execute C with simulated failure to trigger retry scheduling
+        const execCFail = await app.inject({
+          method: 'POST',
+          url: `/api/tasks/${taskC.id}/execute`,
+          payload: { simulate_failure: true },
+        });
+        expect(execCFail.statusCode).toBe(200);
+        const failBody = JSON.parse(execCFail.payload);
+        expect(failBody.run.status).toBe('queued');
+        expect(failBody.run.attempt).toBe(2);
+        expect(failBody.retried).toBe(true);
+        expect(failBody.run.next_retry_at).not.toBeNull();
+
+        // List runs for C
+        const listRuns = await app.inject({
+          method: 'GET',
+          url: `/api/tasks/${taskC.id}/runs`,
+        });
+        expect(listRuns.statusCode).toBe(200);
+        const runs = JSON.parse(listRuns.payload);
+        expect(runs.length).toBeGreaterThanOrEqual(1);
+        expect(runs.some((r: { id: string }) => r.id === failBody.run.id)).toBe(true);
+
+        // Delete A — should orphan B
+        const delA = await app.inject({
+          method: 'DELETE',
+          url: `/api/tasks/${taskA.id}`,
+        });
+        expect(delA.statusCode).toBe(204);
+
+        // Verify B is orphaned
+        const getB = await app.inject({
+          method: 'GET',
+          url: `/api/tasks/${taskB.id}`,
+        });
+        expect(getB.statusCode).toBe(200);
+        const bBody = JSON.parse(getB.payload);
+        expect(bBody.status).toBe('orphaned');
+      } finally {
+        if (app) {
+          await app.close();
+        }
+      }
     });
   });
 });
