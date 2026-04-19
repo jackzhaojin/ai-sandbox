@@ -619,3 +619,120 @@ test('filters /search by keyword', async ({ page }) => {
   await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).not.toBeVisible();
   await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).not.toBeVisible();
 });
+
+// Journey test blocks 5-8 (Step 18)
+
+test('browses /categories and filters by Dessert', async ({ page }) => {
+  await page.goto('/categories');
+  await expect(page.getByRole('heading', { name: 'Categories' })).toBeVisible();
+
+  // Click Dessert category card
+  await page.getByTestId('category-card-dessert').click();
+  await expect(page).toHaveURL(/\/recipes\?category=Dessert/);
+
+  // Only dessert recipes visible
+  await expect(page.getByRole('link', { name: /Chocolate Lava Cake/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Strawberry Cheesecake/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Classic Spaghetti Bolognese/ })).not.toBeVisible();
+  await expect(page.getByRole('link', { name: /Grilled Salmon with Asparagus/ })).not.toBeVisible();
+  await expect(page.getByRole('link', { name: /Caesar Salad/ })).not.toBeVisible();
+});
+
+test('creates a new recipe in /recipes/new and it persists', async ({ page }) => {
+  await page.goto('/recipes');
+  await expect(page.getByRole('heading', { name: 'Recipes' })).toBeVisible();
+
+  // Navigate to new recipe form
+  await page.getByRole('link', { name: /New Recipe/i }).click();
+  await expect(page).toHaveURL('/recipes/new');
+  await expect(page.getByRole('heading', { name: 'Create New Recipe' })).toBeVisible();
+
+  // Fill the form
+  await page.fill('[id="title"]', 'Journey Block Six Soup');
+  await page.selectOption('[id="category"]', 'Main');
+  await page.fill('[id="imageUrl"]', 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=800&q=80');
+  await page.fill('[id="prepTime"]', '10');
+  await page.fill('[id="cookTime"]', '20');
+
+  const ingredientRows = page.locator('.flex.items-start.gap-2');
+  await ingredientRows.first().locator('input').nth(0).fill('tomatoes');
+  await ingredientRows.first().locator('input').nth(1).fill('500');
+  await ingredientRows.first().locator('input').nth(2).fill('g');
+
+  await page.getByRole('button', { name: /Add Ingredient/i }).click();
+  await ingredientRows.nth(1).locator('input').nth(0).fill('onion');
+  await ingredientRows.nth(1).locator('input').nth(1).fill('1');
+  await ingredientRows.nth(1).locator('input').nth(2).fill('pc');
+
+  await page.fill('[id="instructions"]', 'Chop tomatoes and onion. Simmer for 20 minutes. Blend and serve.');
+
+  // Submit
+  await page.getByRole('button', { name: /Save Recipe/i }).click();
+
+  // Should redirect to detail page
+  await expect(page).toHaveURL(/\/recipes\/.+/);
+  await expect(page.getByRole('heading', { name: 'Journey Block Six Soup' })).toBeVisible();
+  await expect(page.getByText('tomatoes', { exact: true })).toBeVisible();
+  await expect(page.getByText('500 g')).toBeVisible();
+
+  // Go back to grid and verify
+  await page.goto('/recipes');
+  await expect(page.getByRole('link', { name: /Journey Block Six Soup/ })).toBeVisible();
+
+  // Reload and verify persistence (localStorage)
+  await page.reload();
+  await expect(page.getByRole('link', { name: /Journey Block Six Soup/ })).toBeVisible();
+});
+
+test('edits a recipe in /recipes/[id]/edit and changes are saved', async ({ page }) => {
+  await page.goto('/recipes');
+  await expect(page.getByRole('heading', { name: 'Recipes' })).toBeVisible();
+
+  // Open first recipe detail
+  await page.getByRole('link', { name: /Classic Spaghetti Bolognese/ }).click();
+  await expect(page).toHaveURL(/\/recipes\/a1b2c3d4-e5f6-7890-abcd-ef1234567890/);
+  await expect(page.getByRole('heading', { name: 'Classic Spaghetti Bolognese' })).toBeVisible();
+
+  // Click Edit
+  await page.getByTestId('edit-recipe-button').click();
+  await expect(page).toHaveURL('/recipes/a1b2c3d4-e5f6-7890-abcd-ef1234567890/edit');
+  await expect(page.getByRole('heading', { name: 'Edit Recipe' })).toBeVisible();
+
+  // Change title
+  await page.fill('[id="title"]', 'Classic Spaghetti Bolognese (Journey Edit)');
+
+  // Save
+  await page.getByRole('button', { name: /Save Changes/i }).click();
+
+  // Redirected to detail with updated title
+  await expect(page).toHaveURL('/recipes/a1b2c3d4-e5f6-7890-abcd-ef1234567890');
+  await expect(page.getByRole('heading', { name: 'Classic Spaghetti Bolognese (Journey Edit)' })).toBeVisible();
+
+  // Reload and verify persistence
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Classic Spaghetti Bolognese (Journey Edit)' })).toBeVisible();
+});
+
+test('toggles units in /settings and ingredients re-render in imperial', async ({ page }) => {
+  await page.goto('/settings');
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+
+  // Default metric
+  await expect(page.getByText('Metric (g, ml)')).toBeVisible();
+
+  // Toggle to imperial
+  await page.getByTestId('toggle-units').click();
+  await expect(page.getByText('Imperial (oz, cups)')).toBeVisible();
+
+  // Navigate to recipe detail
+  await page.goto('/recipes/a1b2c3d4-e5f6-7890-abcd-ef1234567890');
+  await expect(page.getByRole('heading', { name: 'Classic Spaghetti Bolognese' })).toBeVisible();
+
+  // Units label
+  await expect(page.getByText('Units: Imperial (oz, cups)')).toBeVisible();
+
+  // Converted ingredient values
+  await expect(page.getByText(/14\.11 oz/)).toBeVisible();
+  await expect(page.getByText(/1\.1 lb/)).toBeVisible();
+  await expect(page.getByText(/1\.01 fl oz/)).toBeVisible();
+});
