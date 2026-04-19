@@ -16,10 +16,22 @@ import { TaskStatus, RunStatus } from '../domain/types.js';
 import { TaskCreateSchema, TaskUpdateSchema } from '../domain/types.js';
 import type { Task, Run } from '../domain/types.js';
 
+function getLatestSnapshot(taskId: string) {
+  const runs = Array.from(getRuns().values()).filter((r) => r.task_id === taskId);
+  runs.sort((a, b) => {
+    const at = a.started_at?.getTime() ?? 0;
+    const bt = b.started_at?.getTime() ?? 0;
+    return bt - at;
+  });
+  return runs[0] ?? null;
+}
+
 function taskToJson(task: Task) {
   return {
     id: task.id,
-    name: task.name,
+    title: task.name,
+    description: task.description,
+    dependencies: task.depends_on,
     cron: task.cron,
     payload: task.payload,
     max_attempts: task.max_attempts,
@@ -63,21 +75,22 @@ export default async function taskRoutes(app: FastifyInstance) {
     const data = parsed.data;
 
     // Cycle detection
-    const cycle = detectCycle('new-task', data.depends_on, getTasks());
+    const cycle = detectCycle('new-task', data.dependencies, getTasks());
     if (cycle.hasCycle) {
       return reply.status(400).send({ error: 'Dependency cycle detected', path: cycle.path });
     }
 
     const task: Task = {
       id: randomUUID(),
-      name: data.name,
-      cron: data.cron,
-      payload: data.payload,
-      max_attempts: data.max_attempts,
-      base_delay_ms: data.base_delay_ms,
-      max_delay_ms: data.max_delay_ms,
-      depends_on: data.depends_on,
-      status: data.status,
+      name: data.title,
+      description: data.description,
+      cron: '0 0 * * *',
+      payload: {},
+      max_attempts: 3,
+      base_delay_ms: 1000,
+      max_delay_ms: 30000,
+      depends_on: data.dependencies,
+      status: TaskStatus.Active,
       created_at: new Date(),
       updated_at: new Date(),
     };
@@ -86,14 +99,18 @@ export default async function taskRoutes(app: FastifyInstance) {
     return reply.status(201).send(taskToJson(task));
   });
 
-  // GET /api/tasks/:id — retrieve a task
+  // GET /api/tasks/:id — retrieve a task and its current snapshot
   app.get('/:id', async (req, reply) => {
     const { id } = req.params as { id: string };
     const task = getTask(id);
     if (!task) {
       return reply.status(404).send({ error: 'Task not found' });
     }
-    return reply.send(taskToJson(task));
+    const snapshot = getLatestSnapshot(id);
+    return reply.send({
+      ...taskToJson(task),
+      snapshot: snapshot ? runToJson(snapshot) : null,
+    });
   });
 
   // PUT /api/tasks/:id — update a task
@@ -110,23 +127,25 @@ export default async function taskRoutes(app: FastifyInstance) {
     }
 
     const data = parsed.data;
+    const newDeps = data.dependencies ?? data.depends_on;
 
-    // If depends_on is changing, check for cycles
-    if (data.depends_on !== undefined) {
-      const cycle = detectCycle(id, data.depends_on, getTasks());
+    // If dependencies are changing, check for cycles
+    if (newDeps !== undefined) {
+      const cycle = detectCycle(id, newDeps, getTasks());
       if (cycle.hasCycle) {
         return reply.status(400).send({ error: 'Dependency cycle detected', path: cycle.path });
       }
     }
 
     updateTask(id, {
-      name: data.name,
+      name: data.title ?? data.name,
+      description: data.description,
       cron: data.cron,
       payload: data.payload,
       max_attempts: data.max_attempts,
       base_delay_ms: data.base_delay_ms,
       max_delay_ms: data.max_delay_ms,
-      depends_on: data.depends_on,
+      depends_on: newDeps,
       status: data.status,
     });
 

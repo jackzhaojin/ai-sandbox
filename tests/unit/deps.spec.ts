@@ -13,6 +13,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
   return {
     id: 'task-a',
     name: 'Test Task',
+    description: '',
     cron: '*/5 * * * *',
     payload: {},
     max_attempts: 3,

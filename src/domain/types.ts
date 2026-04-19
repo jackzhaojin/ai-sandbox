@@ -26,6 +26,7 @@ export enum RunStatus {
 export interface Task {
   id: string;
   name: string;
+  description: string;
   cron: string;
   payload: Record<string, unknown>;
   max_attempts: number;
@@ -59,8 +60,15 @@ export interface AppState {
 // ---------------------------------------------------------------------------
 
 export const TaskCreateSchema = z.object({
-  name: z.string().min(1),
-  cron: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().default(''),
+  dependencies: z.array(z.string().min(1)).default([]),
+});
+
+export const TaskCreateFullSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().default(''),
+  cron: z.string().min(1).default('0 0 * * *'),
   payload: z.record(z.unknown()).default({}),
   max_attempts: z.number().int().min(1).default(3),
   base_delay_ms: z.number().int().min(0).default(1000),
@@ -70,6 +78,9 @@ export const TaskCreateSchema = z.object({
 });
 
 export const TaskUpdateSchema = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().optional(),
+  dependencies: z.array(z.string().min(1)).optional(),
   name: z.string().min(1).optional(),
   cron: z.string().min(1).optional(),
   payload: z.record(z.unknown()).optional(),

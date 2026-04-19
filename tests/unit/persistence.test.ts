@@ -30,6 +30,7 @@ function createSampleTask(id: string): import('../../src/domain/types.js').Task 
   return {
     id,
     name: `Task ${id}`,
+    description: '',
     cron: '*/5 * * * *',
     payload: { foo: 'bar' },
     max_attempts: 3,

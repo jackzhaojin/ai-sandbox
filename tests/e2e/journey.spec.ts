@@ -42,6 +42,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
   return {
     id: `task-${Math.random().toString(36).slice(2, 8)}`,
     name: 'Journey Task',
+    description: '',
     cron: '*/5 * * * *',
     payload: {},
     max_attempts: 3,
@@ -236,7 +237,7 @@ describe('end-to-end journey', () => {
         const createA = await app.inject({
           method: 'POST',
           url: '/api/tasks',
-          payload: { name: 'Task A', cron: '0 0 * * *' },
+          payload: { title: 'Task A', description: 'First task' },
         });
         expect(createA.statusCode).toBe(201);
         const taskA = JSON.parse(createA.payload);
@@ -245,7 +246,7 @@ describe('end-to-end journey', () => {
         const createB = await app.inject({
           method: 'POST',
           url: '/api/tasks',
-          payload: { name: 'Task B', cron: '0 0 * * *', depends_on: [taskA.id] },
+          payload: { title: 'Task B', description: 'Second task', dependencies: [taskA.id] },
         });
         expect(createB.statusCode).toBe(201);
         const taskB = JSON.parse(createB.payload);
@@ -254,7 +255,7 @@ describe('end-to-end journey', () => {
         const createC = await app.inject({
           method: 'POST',
           url: '/api/tasks',
-          payload: { name: 'Task C', cron: '0 0 * * *', depends_on: [taskB.id] },
+          payload: { title: 'Task C', description: 'Third task', dependencies: [taskB.id] },
         });
         expect(createC.statusCode).toBe(201);
         const taskC = JSON.parse(createC.payload);
@@ -263,7 +264,7 @@ describe('end-to-end journey', () => {
         const updateCycle = await app.inject({
           method: 'PUT',
           url: `/api/tasks/${taskA.id}`,
-          payload: { depends_on: [taskC.id] },
+          payload: { dependencies: [taskC.id] },
         });
         expect(updateCycle.statusCode).toBe(400);
         const cycleBody = JSON.parse(updateCycle.payload);
