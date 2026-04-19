@@ -9,7 +9,7 @@
     "dev": "tsx watch src/index.ts",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
-    "demo": "tsx src/index.ts"
+    "demo": "tsx scripts/demo.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.0",

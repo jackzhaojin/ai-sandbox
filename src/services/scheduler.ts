@@ -24,6 +24,12 @@ import type { Task, Run } from '../domain/types.js';
 let tickInterval: ReturnType<typeof setInterval> | null = null;
 
 // ---------------------------------------------------------------------------
+// Last-dispatch tracking (prevents multiple dispatches for the same cron tick)
+// ---------------------------------------------------------------------------
+
+const lastDispatchTime = new Map<string, number>();
+
+// ---------------------------------------------------------------------------
 // Cron parsing
 // ---------------------------------------------------------------------------
 
@@ -35,6 +41,19 @@ export function parseNextRun(cron: string): Date | null {
   try {
     const interval = cronParser.parseExpression(cron);
     return interval.next().toDate();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get the most recent scheduled occurrence of a cron expression before `now`.
+ * Returns `null` if the expression is invalid.
+ */
+function parsePrevRun(cron: string, now: Date): Date | null {
+  try {
+    const interval = cronParser.parseExpression(cron, { currentDate: now });
+    return interval.prev().toDate();
   } catch {
     return null;
   }
@@ -79,17 +98,28 @@ function hasQueuedRun(taskId: string, runs: Map<string, Run>): boolean {
  *
  * Checks:
  * 1. The task is active.
- * 2. The next cron occurrence is at or before `now`.
- * 3. No overlapping run is currently executing.
- * 4. All dependencies are satisfied.
+ * 2. The current time is within 1 s of a scheduled cron occurrence.
+ * 3. The task has not already been dispatched for this occurrence.
+ * 4. No overlapping run is currently executing.
+ * 5. All dependencies are satisfied.
  */
 export function shouldDispatch(task: Task, now: Date): boolean {
   if (task.status !== TaskStatus.Active) {
     return false;
   }
 
-  const nextRun = parseNextRun(task.cron);
-  if (!nextRun || nextRun > now) {
+  const prevRun = parsePrevRun(task.cron, now);
+  if (!prevRun) {
+    return false;
+  }
+
+  const msSincePrev = now.getTime() - prevRun.getTime();
+  if (msSincePrev < 0 || msSincePrev >= 1000) {
+    return false;
+  }
+
+  const lastDispatch = lastDispatchTime.get(task.id) ?? 0;
+  if (prevRun.getTime() <= lastDispatch) {
     return false;
   }
 
@@ -130,6 +160,7 @@ export function dispatchTask(task: Task): Run {
   };
 
   addRun(run);
+  lastDispatchTime.set(task.id, Date.now());
 
   const promoted = tryPromoteQueued(getRuns());
   if (promoted) {
@@ -254,9 +285,17 @@ export function tick(): void {
 
     if (!shouldDispatch(task, now)) {
       // Determine the specific skip reason for logging
-      const nextRun = parseNextRun(task.cron);
-      if (!nextRun || nextRun > now) {
+      const prevRun = parsePrevRun(task.cron, now);
+      if (!prevRun) {
         continue;
+      }
+      const msSincePrev = now.getTime() - prevRun.getTime();
+      if (msSincePrev < 0 || msSincePrev >= 1000) {
+        continue; // not yet time
+      }
+      const lastDispatch = lastDispatchTime.get(task.id) ?? 0;
+      if (prevRun.getTime() <= lastDispatch) {
+        continue; // already dispatched for this occurrence
       }
       if (checkOverlap(task.id, runs)) {
         console.log(`[scheduler] skip "${task.name}" (${task.id}): overlap`);
