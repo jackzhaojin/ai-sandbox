@@ -154,6 +154,54 @@ test('step 8: recipe grid renders seeded recipes with category filter', async ({
   await expect(page).toHaveURL(/\/recipes\/c3d4e5f6-a7b8-9012-cdef-123456789012/);
 });
 
+test('step 9: recipe detail page with unit conversion and favorite button', async ({ page }) => {
+  await page.goto('/recipes');
+  await expect(page.getByRole('heading', { name: 'Recipes' })).toBeVisible();
+
+  // Click first recipe to open detail
+  await page.getByRole('link', { name: /Classic Spaghetti Bolognese/ }).click();
+  await expect(page).toHaveURL(/\/recipes\/a1b2c3d4-e5f6-7890-abcd-ef1234567890/);
+
+  // Verify detail content
+  await expect(page.getByRole('heading', { name: 'Classic Spaghetti Bolognese' })).toBeVisible();
+  await expect(page.getByText('Main')).toBeVisible();
+  await expect(page.getByText(/Prep 15m/)).toBeVisible();
+  await expect(page.getByText(/Cook 30m/)).toBeVisible();
+
+  // Ingredients in metric by default
+  await expect(page.getByRole('heading', { name: 'Ingredients' })).toBeVisible();
+  await expect(page.getByText('Units: Metric (g, ml)')).toBeVisible();
+  await expect(page.getByText('400 g')).toBeVisible();
+  await expect(page.getByText('500 g')).toBeVisible();
+
+  // Instructions visible
+  await expect(page.getByRole('heading', { name: 'Instructions' })).toBeVisible();
+  await expect(page.getByText('Heat olive oil in a large pan over medium heat.')).toBeVisible();
+
+  // Favorite button — add to favorites
+  await expect(page.getByTestId('favorite-button')).toHaveAttribute('aria-label', 'Add to favorites');
+  await page.getByTestId('favorite-button').click();
+  await expect(page.getByTestId('favorite-button')).toHaveAttribute('aria-label', 'Remove from favorites');
+
+  // Toggle units to imperial in settings
+  await page.getByRole('navigation').getByRole('link', { name: 'Settings' }).click();
+  await expect(page).toHaveURL('/settings');
+  await page.getByTestId('toggle-units').click();
+  await expect(page.getByText('Imperial (oz, cups)')).toBeVisible();
+
+  // Return to recipe detail — ingredients should be in imperial
+  await page.goto('/recipes/a1b2c3d4-e5f6-7890-abcd-ef1234567890');
+  await expect(page.getByText('Units: Imperial (oz, cups)')).toBeVisible();
+  // 400g -> ~14.11 oz; 500g >= 454 so -> ~1.1 lb
+  await expect(page.getByText(/14\.11 oz/)).toBeVisible();
+  await expect(page.getByText(/1\.1 lb/)).toBeVisible();
+
+  // Not-found page
+  await page.goto('/recipes/nonexistent-id');
+  await expect(page.getByText('Recipe not found')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Back to Recipes' })).toBeVisible();
+});
+
 test('checkpoint 1: end-to-end journey through step 6', async ({ page }) => {
   await completePriorSteps(page, { through: 6 });
 
