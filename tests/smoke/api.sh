@@ -50,6 +50,12 @@ assert_json_equals() {
 echo "[setup] removing persisted state..."
 rm -f "$STATE_FILE"
 
+# Ensure no stale server on port 3000
+for pid in $(lsof -ti:3000 2>/dev/null || true); do
+  echo "[setup] killing stale process $pid on port 3000..."
+  kill -9 "$pid" 2>/dev/null || true
+done
+
 echo "[setup] starting server..."
 node dist/index.js > /tmp/smoke-server.log 2>&1 &
 SERVER_PID=$!
@@ -245,6 +251,149 @@ CODE=$(http_code "$RESP")
 assert_status 404 "$CODE" "get deleted task"
 assert_json_equals "$BODY" '.error' 'Task not found'
 echo "  ✓ deleted task returns 404"
+
+# ---------------------------------------------------------------------------
+# 11. Persistence restart test
+# ---------------------------------------------------------------------------
+echo "[test] persistence restart test"
+
+# Create task 1
+RESP=$(curl -sS -w '\n%{http_code}' -X POST "$BASE_URL/tasks" \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Persistence Task 1","description":"Created by persistence test"}')
+BODY=$(body "$RESP")
+CODE=$(http_code "$RESP")
+assert_status 201 "$CODE" "create persistence task 1"
+TASK_P1_ID=$(echo "$BODY" | jq -r '.id')
+echo "  → created persistence task 1 id=$TASK_P1_ID"
+
+# Create task 2
+RESP=$(curl -sS -w '\n%{http_code}' -X POST "$BASE_URL/tasks" \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Persistence Task 2","description":"Created by persistence test"}')
+BODY=$(body "$RESP")
+CODE=$(http_code "$RESP")
+assert_status 201 "$CODE" "create persistence task 2"
+TASK_P2_ID=$(echo "$BODY" | jq -r '.id')
+echo "  → created persistence task 2 id=$TASK_P2_ID"
+
+# Trigger manual run on task 1
+RESP=$(curl -sS -w '\n%{http_code}' -X POST "$BASE_URL/tasks/$TASK_P1_ID/run")
+BODY=$(body "$RESP")
+CODE=$(http_code "$RESP")
+if [ "$CODE" != "200" ] && [ "$CODE" != "409" ]; then
+  echo "FAIL: expected 200 or 409 for manual run, got $CODE"
+  exit 1
+fi
+if [ "$CODE" = "200" ]; then
+  assert_field_exists "$BODY" '.run.id'
+  RUN_P_ID=$(echo "$BODY" | jq -r '.run.id')
+  echo "  → run triggered, run_id=$RUN_P_ID"
+else
+  echo "  → run returned 409"
+  RUN_P_ID=""
+fi
+
+# Allow debounced auto-save to fire (5s debounce + 1s buffer)
+echo "[test] waiting for auto-save..."
+sleep 6
+
+# Verify state file exists and is non-empty
+if [ ! -s "$STATE_FILE" ]; then
+  echo "FAIL: state file does not exist or is empty"
+  exit 1
+fi
+echo "  ✓ state file exists and is non-empty"
+
+# Stop server gracefully
+echo "[test] stopping server for restart..."
+kill -TERM "$SERVER_PID"
+wait "$SERVER_PID" 2>/dev/null || true
+echo "  ✓ server stopped"
+
+# Restart server
+echo "[test] restarting server..."
+node dist/index.js > /tmp/smoke-server.log 2>&1 &
+SERVER_PID=$!
+
+# Wait for restarted server
+for i in $(seq 1 30); do
+  if curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/health" | grep -q "200"; then
+    echo "  ✓ server restarted and ready"
+    break
+  fi
+  if [ "$i" -eq 30 ]; then
+    echo "FAIL: server did not restart within 30s"
+    cat /tmp/smoke-server.log
+    exit 1
+  fi
+  sleep 1
+done
+
+# Verify tasks persisted
+echo "[test] GET /tasks after restart"
+RESP=$(curl -sS -w '\n%{http_code}' "$BASE_URL/tasks")
+BODY=$(body "$RESP")
+CODE=$(http_code "$RESP")
+assert_status 200 "$CODE" "list tasks after restart"
+if ! echo "$BODY" | jq -e "map(.id) | contains([\"$TASK_P1_ID\"])" > /dev/null 2>&1; then
+  echo "FAIL: task list does not contain persistence task 1 after restart"
+  exit 1
+fi
+if ! echo "$BODY" | jq -e "map(.id) | contains([\"$TASK_P2_ID\"])" > /dev/null 2>&1; then
+  echo "FAIL: task list does not contain persistence task 2 after restart"
+  exit 1
+fi
+echo "  ✓ both persisted tasks found after restart"
+
+# Verify run persisted
+if [ -n "$RUN_P_ID" ]; then
+  echo "[test] GET /runs/$RUN_P_ID after restart"
+  RESP=$(curl -sS -w '\n%{http_code}' "$BASE_URL/runs/$RUN_P_ID")
+  BODY=$(body "$RESP")
+  CODE=$(http_code "$RESP")
+  assert_status 200 "$CODE" "get run after restart"
+  assert_json_equals "$BODY" '.id' "$RUN_P_ID"
+  assert_json_equals "$BODY" '.task_id' "$TASK_P1_ID"
+  echo "  ✓ run history persisted after restart"
+fi
+
+# Verify health count
+echo "[test] GET /health after restart"
+RESP=$(curl -sS -w '\n%{http_code}' "$BASE_URL/health")
+BODY=$(body "$RESP")
+CODE=$(http_code "$RESP")
+assert_status 200 "$CODE" "health after restart"
+TASKS_COUNT=$(echo "$BODY" | jq -r '.tasks_count')
+if [ "$TASKS_COUNT" -lt 2 ]; then
+  echo "FAIL: expected tasks_count >= 2, got $TASKS_COUNT"
+  exit 1
+fi
+echo "  ✓ health reports tasks_count=$TASKS_COUNT"
+
+# Clean up: delete all test tasks
+echo "[test] cleaning up persistence test tasks"
+for TID in "$TASK_P1_ID" "$TASK_P2_ID"; do
+  RESP=$(curl -sS -w '\n%{http_code}' -X DELETE "$BASE_URL/tasks/$TID")
+  CODE=$(http_code "$RESP")
+  if [ "$CODE" != "204" ]; then
+    echo "WARN: cleanup DELETE $TID returned $CODE"
+  fi
+done
+echo "  ✓ persistence test tasks cleaned up"
+
+# Also clean up the cycle test tasks
+for TID in "$TASK_A_ID" "$TASK_B_ID"; do
+  RESP=$(curl -sS -w '\n%{http_code}' -X DELETE "$BASE_URL/tasks/$TID")
+  CODE=$(http_code "$RESP")
+  if [ "$CODE" != "204" ]; then
+    echo "WARN: cleanup DELETE $TID returned $CODE"
+  fi
+done
+echo "  ✓ cycle test tasks cleaned up"
+
+echo ""
+echo "Persistence restart test passed"
 
 echo ""
 echo "========================================"
