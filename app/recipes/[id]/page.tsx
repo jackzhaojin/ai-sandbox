@@ -82,13 +82,24 @@ export default function RecipeDetailPage() {
           </div>
         </div>
 
-        {/* Favorite button */}
-        <button
-          onClick={() => toggleFavorite(id)}
-          className="rounded-full p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-          aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-          data-testid="favorite-button"
-        >
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/recipes/${id}/edit`}
+            className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+            data-testid="edit-recipe-button"
+          >
+            <svg className="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zM16.862 4.487L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+            </svg>
+            Edit
+          </Link>
+          {/* Favorite button */}
+          <button
+            onClick={() => toggleFavorite(id)}
+            className="rounded-full p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+            aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            data-testid="favorite-button"
+          >
           {isFavorite ? (
             <svg className="h-7 w-7 text-red-500" fill="currentColor" viewBox="0 0 24 24">
               <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
@@ -99,6 +110,7 @@ export default function RecipeDetailPage() {
             </svg>
           )}
         </button>
+        </div>
       </div>
 
       {/* Image */}

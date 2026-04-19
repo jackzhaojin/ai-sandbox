@@ -254,6 +254,46 @@ test('step 10: create new recipe via /recipes/new form', async ({ page }) => {
   await expect(page.getByRole('link', { name: /Test Tomato Soup/ })).toBeVisible();
 });
 
+test('step 11: edit existing recipe via /recipes/[id]/edit form', async ({ page }) => {
+  await page.goto('/recipes');
+  await expect(page.getByRole('heading', { name: 'Recipes' })).toBeVisible();
+
+  // Click first recipe to open detail
+  await page.getByRole('link', { name: /Classic Spaghetti Bolognese/ }).click();
+  await expect(page).toHaveURL(/\/recipes\/a1b2c3d4-e5f6-7890-abcd-ef1234567890/);
+  await expect(page.getByRole('heading', { name: 'Classic Spaghetti Bolognese' })).toBeVisible();
+
+  // Click Edit button
+  await page.getByTestId('edit-recipe-button').click();
+  await expect(page).toHaveURL('/recipes/a1b2c3d4-e5f6-7890-abcd-ef1234567890/edit');
+  await expect(page.getByRole('heading', { name: 'Edit Recipe' })).toBeVisible();
+
+  // Verify form is prefilled
+  await expect(page.getByRole('textbox', { name: 'Title *' })).toHaveValue('Classic Spaghetti Bolognese');
+  await expect(page.getByRole('combobox', { name: 'Category' })).toHaveValue('Main');
+  await expect(page.getByRole('spinbutton', { name: 'Prep Time (minutes)' })).toHaveValue('15');
+  await expect(page.getByRole('spinbutton', { name: 'Cook Time (minutes)' })).toHaveValue('30');
+
+  // Change title
+  await page.fill('[id="title"]', 'Classic Spaghetti Bolognese (Edited)');
+
+  // Submit
+  await page.getByRole('button', { name: /Save Changes/i }).click();
+
+  // Should redirect to detail page with updated title
+  await expect(page).toHaveURL('/recipes/a1b2c3d4-e5f6-7890-abcd-ef1234567890');
+  await expect(page.getByRole('heading', { name: 'Classic Spaghetti Bolognese (Edited)' })).toBeVisible();
+
+  // Reload and verify persistence (localStorage)
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Classic Spaghetti Bolognese (Edited)' })).toBeVisible();
+
+  // 404 for non-existent recipe
+  await page.goto('/recipes/nonexistent-id/edit');
+  await expect(page.getByText('Recipe not found')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Back to Recipes' })).toBeVisible();
+});
+
 test('checkpoint 1: end-to-end journey through step 6', async ({ page }) => {
   await completePriorSteps(page, { through: 6 });
 
